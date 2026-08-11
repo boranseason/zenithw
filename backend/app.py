@@ -203,25 +203,39 @@ def _enforce_cloudflare_origin():
         return None
     if request.path == "/health":
         return None
-    # CORS preflight (OPTIONS) istekleri için origin kontrolü:
-    # Secret header preflight'a eklenmez ama Cloudflare'dan gelmeyen
-    # OPTIONS istekleri de reddedilmelidir.
-    if request.method == "OPTIONS":
-        remote_ip = request.remote_addr or ""
-        if not _is_cloudflare_ip(remote_ip):
-            logger.warning(f"[ORIGIN-LOCK] Preflight from non-Cloudflare IP rejected: {remote_ip}")
-            return jsonify({"error": "Not Found"}), 404
-        return None
 
     remote_ip = request.remote_addr or ""
+
+    # NOT: Railway, Cloudflare ile container arasına kendi internal proxy'sini
+    # ekliyor. Bu yüzden X-Forwarded-For zincirinin son (rightmost) elemanı
+    # Cloudflare'in IP'si DEĞİL, Railway'in kendi internal proxy IP'si oluyor.
+    # ProxyFix(x_for=1) bu son elemanı remote_addr yapıyor, dolayısıyla
+    # _is_cloudflare_ip() gerçek Cloudflare trafiğinde bile hep False dönüyordu
+    # ve TÜM istekler (meşru frontend istekleri dahil) 404 ile reddediliyordu.
+    # Railway'in proxy derinliği garantili/sabit olmadığı için IP aralığına
+    # güvenmek yerine, asıl güvenlik katmanı olarak Cloudflare'in enjekte ettiği
+    # paylaşılan sır (ORIGIN_SECRET_VALUE + X-Origin-Verify header) kullanılıyor.
+    # IP kontrolü artık sadece bilgilendirme/log amaçlı, isteği tek başına
+    # reddetmiyor.
     if not _is_cloudflare_ip(remote_ip):
-        logger.warning(f"[ORIGIN-LOCK] Request from non-Cloudflare IP rejected: {remote_ip} {request.path}")
-        return jsonify({"error": "Not Found"}), 404
+        logger.info(f"[ORIGIN-LOCK] Non-Cloudflare-range IP (bilgi amaçlı, engellenmedi): {remote_ip} {request.path}")
+
+    # CORS preflight (OPTIONS) isteklerinde tarayıcı custom header (X-Origin-Verify)
+    # gönderemez, bu yüzden preflight'ı burada engellemiyoruz; flask-cors zaten
+    # sadece ALLOWED_ORIGINS listesindeki origin'lere doğru CORS header'ları
+    # döndürüyor. Asıl doğrulama gerçek istekte (POST/GET vb.) yapılıyor.
+    if request.method == "OPTIONS":
+        return None
 
     if ORIGIN_SECRET_VALUE:
         if request.headers.get(ORIGIN_SECRET_HEADER, "") != ORIGIN_SECRET_VALUE:
             logger.warning(f"[ORIGIN-LOCK] Secret header missing/invalid: {remote_ip} {request.path}")
             return jsonify({"error": "Not Found"}), 404
+    else:
+        logger.warning("[ORIGIN-LOCK] ORIGIN_SECRET ayarlı değil — origin-lock etkin şekilde devre dışı. "
+                        "Railway env değişkenlerine ORIGIN_SECRET ekleyip Cloudflare'de aynı değeri "
+                        "X-Origin-Verify header'ı olarak enjekte eden bir Transform Rule tanımlayın.")
+
     return None
 
 # ── Aynı IP'den eşzamanlı istek sınırı ─────────────────
