@@ -17,6 +17,7 @@ import secrets
 from collections import defaultdict
 import gevent
 import tempfile
+import ipaddress
 
 # ── Logging ─────────────────────────────────────────────
 # print yerine logging kullanıyoruz: zaman damgası, seviye (INFO/WARNING/
@@ -105,9 +106,9 @@ rate_limit_lock = threading.Lock()
 # korumanın anlamlı olması için Railway'in DOĞRUDAN (Cloudflare'i bypass
 # ederek) gelen trafiği reddetmesi/filtrelemesi gerekir - aksi halde biri
 # Railway'in verdiği *.up.railway.app adresine doğrudan istek atıp bu
-# header'ı serbestçe sahteleyebilir. Bunu Railway tarafında Cloudflare IP
-# aralıklarına kısıtlayarak veya Cloudflare "Authenticated Origin Pulls"
-# ile sağlayın.
+# header'ı serbestçe sahteleyebilir. Bu artık aşağıdaki _enforce_cloudflare_origin
+# before_request hook'u ile sağlanıyor: Cloudflare IP aralığı dışından gelen
+# istekler CF-Connecting-IP'ye hiç bakılmadan reddediliyor.
 #
 # TRUST_PROXY=0 verilirse hem CF-Connecting-IP hem X-Forwarded-For yok
 # sayılır ve sadece gerçek soket adresi (request.remote_addr) kullanılır.
@@ -152,6 +153,76 @@ def get_client_ip():
             if candidate:
                 return candidate
     return request.remote_addr or "unknown"
+
+# ── Cloudflare bypass koruması ──────────────────────────
+# Railway'in verdiği çıplak adres (*.up.railway.app) veya IP'si tespit
+# edilirse, Cloudflare (dolayısıyla WAF/rate-limit/DDoS koruması) tamamen
+# atlanarak isteklerin doğrudan backend'e gelmesi mümkündür. Burada iki
+# katmanlı savunma uygulanıyor:
+#
+#   1) IP allowlist: gerçek TCP bağlantısının (request.remote_addr —
+#      spoof edilemez, X-Forwarded-For gibi header değil) Cloudflare'in
+#      yayınladığı IP aralıklarından biri olduğu doğrulanır.
+#   2) Secret header: Cloudflare'de bir Transform Rule ile her isteğe
+#      gizli bir header eklenir (bkz. ORIGIN_SECRET_HEADER); bu header
+#      eksik/yanlışsa istek reddedilir. IP listesi güncel olmasa bile
+#      bu katman devam eder.
+#
+# Her iki katman da ENABLE_ORIGIN_LOCK=0 ile birlikte kapatılabilir
+# (yerel geliştirme / Cloudflare kullanılmayan kurulumlar için).
+ENABLE_ORIGIN_LOCK = os.environ.get("ENABLE_ORIGIN_LOCK", "1") != "0"
+
+# Cloudflare'in güncel listesi: https://www.cloudflare.com/ips/
+# Bu aralıklar nadiren değişir ama sabit değildir; production'da periyodik
+# olarak yukarıdaki sayfadan kontrol edip güncellemeniz önerilir.
+CLOUDFLARE_IPV4 = [
+    "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22",
+    "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
+    "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22",
+    "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+    "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+]
+CLOUDFLARE_IPV6 = [
+    "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32",
+    "2405:b500::/32", "2405:8100::/32", "2a06:98c0::/29",
+    "2c0f:f248::/32",
+]
+_CF_NETWORKS = [ipaddress.ip_network(n) for n in CLOUDFLARE_IPV4 + CLOUDFLARE_IPV6]
+
+ORIGIN_SECRET_HEADER = "X-Origin-Verify"
+ORIGIN_SECRET_VALUE = os.environ.get("ORIGIN_SECRET", "")
+
+def _is_cloudflare_ip(ip_str):
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return any(ip in net for net in _CF_NETWORKS)
+
+@app.before_request
+def _enforce_cloudflare_origin():
+    if not ENABLE_ORIGIN_LOCK:
+        return None
+    # Railway'in kendi container healthcheck'i genelde internal ağdan
+    # gelir (Cloudflare'den geçmez); /health'i dışarıda tutuyoruz ki
+    # deployment yanlışlıkla "unhealthy" işaretlenmesin.
+    if request.path == "/health":
+        return None
+    if request.method == "OPTIONS":
+        # CORS preflight; tarayıcı bunu gerçek isteğe göndermeden önce atar,
+        # secret header genelde preflight'a eklenmez.
+        return None
+
+    remote_ip = request.remote_addr or ""
+    if not _is_cloudflare_ip(remote_ip):
+        logger.warning(f"[ORIGIN-LOCK] Cloudflare dışı kaynaktan istek reddedildi: {remote_ip} {request.path}")
+        return jsonify({"error": "Not Found"}), 404
+
+    if ORIGIN_SECRET_VALUE:
+        if request.headers.get(ORIGIN_SECRET_HEADER, "") != ORIGIN_SECRET_VALUE:
+            logger.warning(f"[ORIGIN-LOCK] Secret header eksik/hatalı: {remote_ip} {request.path}")
+            return jsonify({"error": "Not Found"}), 404
+    return None
 
 # ── Aynı IP'den eşzamanlı istek sınırı ─────────────────
 # Dakikalık rate limit (10/dk) tek başına yetmiyor: biri aynı IP'den 10+
