@@ -37,8 +37,10 @@ logging.getLogger("engineio").setLevel(logging.WARNING)
 logging.getLogger("socketio").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='/static')
+# Bu backend artık salt API olarak çalışıyor; frontend Netlify üzerinden
+# ayrı bir domain'de (zenithw.space) sunuluyor. static_folder kasıtlı
+# olarak bağlanmıyor — burada statik dosya sunmuyoruz.
+app = Flask(__name__)
 
 # Sabit bir fallback yerine rastgele üretilen bir secret key kullanılır;
 # env variable verilmezse her başlatmada yeni bir tane üretilir.
@@ -572,19 +574,12 @@ def health():
         "queue_waiting": queue_waiting,
     }), 200
 
+# robots.txt ve sitemap.xml artık frontend domain'inin (zenithw.space,
+# Netlify) sorumluluğunda. API domain'i (api.zenithw.space) için ayrıca
+# bunlara gerek yok; arama motorlarının API'yi taramasını da istemiyoruz.
 @app.route("/robots.txt")
 def robots():
-    p = os.path.join(FRONTEND_DIR, "robots.txt")
-    if os.path.exists(p):
-        return send_from_directory(FRONTEND_DIR, 'robots.txt', mimetype='text/plain')
-    return "User-agent: *\nAllow: /\n", 200, {'Content-Type': 'text/plain'}
-
-@app.route("/sitemap.xml")
-def sitemap():
-    p = os.path.join(FRONTEND_DIR, "sitemap.xml")
-    if os.path.exists(p):
-        return send_from_directory(FRONTEND_DIR, 'sitemap.xml', mimetype='application/xml')
-    return "", 404
+    return "User-agent: *\nDisallow: /\n", 200, {'Content-Type': 'text/plain'}
 
 @app.route("/cancel", methods=["POST"])
 def cancel_route():
@@ -602,18 +597,20 @@ def cancel_route():
         return jsonify({"ok": True}), 200
     return jsonify({"error": "download_id gerekli"}), 400
 
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve_frontend(path):
-    blocked = {"info", "download", "cancel", "health", "convert", "thumbnail", "robots.txt", "sitemap.xml"}
-    if path and path not in blocked:
-        # send_from_directory zaten safe_join ile path traversal'a karşı korumalı,
-        # ama biz yine de normalize edilmiş yolun FRONTEND_DIR dışına çıkmadığını
-        # açıkça doğruluyoruz (savunma katmanı).
-        full = os.path.normpath(os.path.join(FRONTEND_DIR, path))
-        if full.startswith(os.path.abspath(FRONTEND_DIR)) and os.path.exists(full) and os.path.isfile(full):
-            return send_from_directory(FRONTEND_DIR, path)
-    return send_from_directory(FRONTEND_DIR, "index.html")
+# Bu backend salt API'dir; herhangi bir HTML/frontend sunmaz. "/" ve
+# tanımlı olmayan tüm path'ler için düz JSON döner, böylece biri
+# api.zenithw.space'e tarayıcıdan girse bile ZenithW arayüzü açılmaz.
+@app.route("/")
+def api_root():
+    return jsonify({
+        "service": "zenithw-api",
+        "status": "ok",
+        "message": "Bu bir API endpoint'idir. Uygulama arayüzü için zenithw.space adresini ziyaret edin."
+    }), 200
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not Found"}), 404
 
 # ── /info ─────────────────────────────────────────────
 @app.route("/info", methods=["POST"])
