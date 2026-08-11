@@ -2,11 +2,7 @@ from gevent import monkey
 monkey.patch_all()
 
 import logging
-
-from flask import Flask, request, jsonify, send_file, send_from_directory, g
-from flask_cors import CORS
-from flask_socketio import SocketIO
-import yt_dlp
+import re
 import os
 import uuid
 import threading
@@ -14,45 +10,71 @@ import time
 import subprocess
 import shutil
 import secrets
-from collections import defaultdict
-import gevent
-import tempfile
+import socket
 import ipaddress
+import tempfile
+from collections import defaultdict, OrderedDict
+from urllib.parse import urlparse
+
+from flask import Flask, request, jsonify, send_file, g
+from flask_cors import CORS
+from flask_socketio import SocketIO
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+import yt_dlp
+import gevent
 
 # ── Logging ─────────────────────────────────────────────
-# print yerine logging kullanıyoruz: zaman damgası, seviye (INFO/WARNING/
-# ERROR) ve gevent altında eşzamanlı isteklerde daha düzenli/okunabilir
-# çıktı sağlıyor. LOG_LEVEL env variable ile prod'da WARNING'e çekilebilir,
-# geliştirmede varsayılan INFO bırakılabilir.
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger("zenithw")
 
-# socketio/engineio kendi iç bağlantı loglarını (client id'leri, polling
-# GET/POST istekleri) INFO seviyesinde basıyor; bunlar bizim asıl uygulama
-# loglarımızı gürültüye boğuyor. WARNING'e çekip sadece gerçek sorunları
-# görüyoruz.
 logging.getLogger("engineio").setLevel(logging.WARNING)
 logging.getLogger("socketio").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
-# Bu backend artık salt API olarak çalışıyor; frontend Netlify üzerinden
-# ayrı bir domain'de (zenithw.space) sunuluyor. static_folder kasıtlı
-# olarak bağlanmıyor — burada statik dosya sunmuyoruz.
-app = Flask(__name__)
+# ── Flask App ──────────────────────────────────────────
+app = Flask(__name__, static_folder=None)
 
-# Sabit bir fallback yerine rastgele üretilen bir secret key kullanılır;
-# env variable verilmezse her başlatmada yeni bir tane üretilir.
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+# Railway/Cloudflare arkasında çalışırken gerçek client IP'sini almak için
+# ProxyFix middleware. Railway'in internal proxy IP'leri yerine X-Forwarded-For
+# zincirinin başındaki (Cloudflare) IP'sini kullanır.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# SECRET_KEY: Production'da mutlaka env variable ile sabit değer set edilmeli.
+# Set edilmezse her restart'ta session'lar geçersiz olur.
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if os.environ.get("FLASK_ENV") == "development" or os.environ.get("ALLOW_INSECURE_KEY"):
+        SECRET_KEY = secrets.token_hex(32)
+        logger.warning("[INIT] Using random SECRET_KEY (development mode)")
+    else:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is required in production. "
+            "Set it in Railway dashboard or set FLASK_ENV=development for local dev."
+        )
+app.config['SECRET_KEY'] = SECRET_KEY
 
 # /convert için maksimum upload boyutu (230 MB)
 app.config['MAX_CONTENT_LENGTH'] = 230 * 1024 * 1024
 
+# ── Constants ──────────────────────────────────────────
+FFMPEG_TIMEOUT = 300          # ffmpeg subprocess timeout (mute vb.)
+DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("DOWNLOAD_TIMEOUT_SECONDS", 600))
+MAX_CONCURRENT_PER_IP = int(os.environ.get("MAX_CONCURRENT_PER_IP", 5))
+MAX_CONCURRENT_DOWNLOADS = int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", 2))
+MAX_VIDEO_DURATION_SECONDS = int(os.environ.get("MAX_VIDEO_DURATION_SECONDS", 90 * 60))
+MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 1536)) * 1024 * 1024
+RATE_LIMIT_WINDOW = 60        # saniye
+RATE_LIMIT_MAX_REQUESTS = 10  # istek/dakika
+RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
+FILE_CLEANUP_INTERVAL = 900   # 15 dakika
+FILE_MAX_AGE = 1800           # 30 dakika
+PLAYLIST_LIMIT = 50
+
 # ── İzin verilen origin'ler ────────────────────────────
-# Yerel geliştirmede FLASK_ENV=development veya ALLOW_DEV_CORS=1 verilirse
-# localhost origin'lerine de izin verilir.
 ALLOWED_ORIGINS = ["https://zenithw.space", "https://www.zenithw.space"]
 if os.environ.get("FLASK_ENV") == "development" or os.environ.get("ALLOW_DEV_CORS"):
     ALLOWED_ORIGINS += ["http://localhost:5000", "http://127.0.0.1:3000"]
@@ -63,10 +85,6 @@ socketio = SocketIO(app, cors_allowed_origins=ALLOWED_ORIGINS, async_mode='geven
 DOWNLOAD_DIR = "./downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ── History ───────────────────────────────────────────
-def add_to_history(url, title, platform, fmt, success=True):
-    pass
-
 # ── Cookies ───────────────────────────────────────────
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
@@ -74,79 +92,74 @@ cookies_env = os.environ.get("YOUTUBE_COOKIES") or os.environ.get("COOKIES") or 
 if cookies_env:
     try:
         cookies_content = cookies_env.replace('\\n', '\n').strip()
-        # Dosyayı önce oluştur/aç, sonra izinlerini kısıtla (0600: sadece sahibi okuyup yazabilir)
         fd = os.open(COOKIES_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(cookies_content)
         os.chmod(COOKIES_FILE, 0o600)
-        logger.info(f"[INIT] cookies.txt Railway environment variable'dan yazıldı ✓ ({len(cookies_content)} bytes)")
+        logger.info(f"[INIT] cookies.txt written from env ({len(cookies_content)} bytes)")
     except Exception as e:
-        logger.warning(f"[INIT] ⚠️ cookies.txt yazılamadı: {e}")
+        logger.warning(f"[INIT] Failed to write cookies.txt: {e}")
 elif os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 10:
     try:
         os.chmod(COOKIES_FILE, 0o600)
     except Exception:
         pass
-    logger.info(f"[INIT] cookies.txt bulundu ✓ ({os.path.getsize(COOKIES_FILE)} bytes)")
+    logger.info(f"[INIT] cookies.txt found ({os.path.getsize(COOKIES_FILE)} bytes)")
 else:
-    logger.warning("[INIT] ⚠️ cookies.txt bulunamadı veya geçersiz - YouTube indirme kısıtlı olabilir")
+    logger.warning("[INIT] cookies.txt not found - YouTube downloads may be restricted")
 
-# ── Rate limiting ─────────────────────────────────────
-rate_limit_data = defaultdict(list)
-rate_limit_lock = threading.Lock()
+# ── Rate limiting (TTL-based) ─────────────────────────
+class TTLCache:
+    """Thread-safe TTL-based cache for rate limiting."""
+    def __init__(self, ttl=60, max_size=10000):
+        self.ttl = ttl
+        self.max_size = max_size
+        self._data = OrderedDict()
+        self._lock = threading.Lock()
 
-# ── Client IP tespiti (Cloudflare + Railway zinciri) ───
-# Zincir: Client -> Cloudflare -> Railway -> bu uygulama.
-# X-Forwarded-For header'ının İLK değerine güvenmek YANLIŞTIR: bu değer
-# genellikle client'ın kendi gönderdiği (dolayısıyla sahtelenebilir)
-# değerdir; gerçek/güvenilir IP genelde listenin SONUNA doğru eklenir.
-# Bunun yerine Cloudflare'in kendi ürettiği ve client tarafından asla
-# override edilemeyen CF-Connecting-IP header'ı önceliklendirilir.
-# Bu header sadece Cloudflare'in kendisi tarafından set edilir; ancak bu
-# korumanın anlamlı olması için Railway'in DOĞRUDAN (Cloudflare'i bypass
-# ederek) gelen trafiği reddetmesi/filtrelemesi gerekir - aksi halde biri
-# Railway'in verdiği *.up.railway.app adresine doğrudan istek atıp bu
-# header'ı serbestçe sahteleyebilir. Bu artık aşağıdaki _enforce_cloudflare_origin
-# before_request hook'u ile sağlanıyor: Cloudflare IP aralığı dışından gelen
-# istekler CF-Connecting-IP'ye hiç bakılmadan reddediliyor.
-#
-# TRUST_PROXY=0 verilirse hem CF-Connecting-IP hem X-Forwarded-For yok
-# sayılır ve sadece gerçek soket adresi (request.remote_addr) kullanılır.
+    def _cleanup(self):
+        now = time.time()
+        # En eski kayıtlardan başlayarak temizle
+        to_remove = []
+        for key, timestamps in self._data.items():
+            valid = [t for t in timestamps if now - t < self.ttl]
+            if not valid:
+                to_remove.append(key)
+            else:
+                self._data[key] = valid
+        for key in to_remove:
+            del self._data[key]
+
+        # Boyut limiti aşılırsa en eski kayıtları sil
+        while len(self._data) > self.max_size:
+            self._data.popitem(last=False)
+
+    def add(self, key):
+        """Adds a timestamp. Returns True if under limit, False if rate limited."""
+        now = time.time()
+        with self._lock:
+            self._cleanup()
+            if key not in self._data:
+                self._data[key] = []
+            # En yeni kaydı sona taşı (LRU)
+            self._data.move_to_end(key)
+            self._data[key].append(now)
+            return len(self._data[key]) <= RATE_LIMIT_MAX_REQUESTS
+
+rate_limiter = TTLCache(ttl=RATE_LIMIT_WINDOW, max_size=10000)
+
+# ── Client IP tespiti ─────────────────────────────────
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
-
-def check_rate_limit(ip):
-    now = time.time()
-    with rate_limit_lock:
-        rate_limit_data[ip] = [t for t in rate_limit_data[ip] if now - t < 60]
-        if len(rate_limit_data[ip]) >= 10:
-            return False
-        rate_limit_data[ip].append(now)
-        return True
-
-def cleanup_rate_limit_data():
-    now = time.time()
-    with rate_limit_lock:
-        stale_ips = [
-            ip for ip, timestamps in rate_limit_data.items()
-            if not timestamps or now - max(timestamps) > 60
-        ]
-        for ip in stale_ips:
-            del rate_limit_data[ip]
 
 def get_client_ip():
     if TRUST_PROXY:
-        # 1. Öncelik: Cloudflare'in kendi header'ı. Cloudflare -> Railway
-        # bağlantısında bu header Cloudflare tarafından set edilir ve
-        # client bunu değiştiremez (Cloudflare kendi değeriyle ezer).
+        # 1. Öncelik: Cloudflare'in kendi header'ı (CF-Connecting-IP)
         cf_ip = request.headers.get('CF-Connecting-IP')
         if cf_ip:
             candidate = cf_ip.strip()
             if candidate:
                 return candidate
-        # 2. Fallback: Cloudflare üzerinden gelmeyen (örn. yerel/dev veya
-        # Cloudflare'siz farklı bir kurulum) istekler için X-Forwarded-For.
-        # NOT: Railway origin'i Cloudflare'e kısıtlanmadıysa bu header
-        # istemci tarafından sahtelenebilir; bkz. yukarıdaki yorum.
+        # 2. Fallback: X-Forwarded-For (Railway'de ProxyFix ile parse ediliyor)
         xff = request.headers.get('X-Forwarded-For')
         if xff:
             candidate = xff.split(',')[0].strip()
@@ -154,27 +167,12 @@ def get_client_ip():
                 return candidate
     return request.remote_addr or "unknown"
 
+def check_rate_limit(ip):
+    return rate_limiter.add(ip)
+
 # ── Cloudflare bypass koruması ──────────────────────────
-# Railway'in verdiği çıplak adres (*.up.railway.app) veya IP'si tespit
-# edilirse, Cloudflare (dolayısıyla WAF/rate-limit/DDoS koruması) tamamen
-# atlanarak isteklerin doğrudan backend'e gelmesi mümkündür. Burada iki
-# katmanlı savunma uygulanıyor:
-#
-#   1) IP allowlist: gerçek TCP bağlantısının (request.remote_addr —
-#      spoof edilemez, X-Forwarded-For gibi header değil) Cloudflare'in
-#      yayınladığı IP aralıklarından biri olduğu doğrulanır.
-#   2) Secret header: Cloudflare'de bir Transform Rule ile her isteğe
-#      gizli bir header eklenir (bkz. ORIGIN_SECRET_HEADER); bu header
-#      eksik/yanlışsa istek reddedilir. IP listesi güncel olmasa bile
-#      bu katman devam eder.
-#
-# Her iki katman da ENABLE_ORIGIN_LOCK=0 ile birlikte kapatılabilir
-# (yerel geliştirme / Cloudflare kullanılmayan kurulumlar için).
 ENABLE_ORIGIN_LOCK = os.environ.get("ENABLE_ORIGIN_LOCK", "1") != "0"
 
-# Cloudflare'in güncel listesi: https://www.cloudflare.com/ips/
-# Bu aralıklar nadiren değişir ama sabit değildir; production'da periyodik
-# olarak yukarıdaki sayfadan kontrol edip güncellemeniz önerilir.
 CLOUDFLARE_IPV4 = [
     "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22",
     "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
@@ -203,49 +201,41 @@ def _is_cloudflare_ip(ip_str):
 def _enforce_cloudflare_origin():
     if not ENABLE_ORIGIN_LOCK:
         return None
-    # Railway'in kendi container healthcheck'i genelde internal ağdan
-    # gelir (Cloudflare'den geçmez); /health'i dışarıda tutuyoruz ki
-    # deployment yanlışlıkla "unhealthy" işaretlenmesin.
     if request.path == "/health":
         return None
+    # CORS preflight (OPTIONS) istekleri için origin kontrolü:
+    # Secret header preflight'a eklenmez ama Cloudflare'dan gelmeyen
+    # OPTIONS istekleri de reddedilmelidir.
     if request.method == "OPTIONS":
-        # CORS preflight; tarayıcı bunu gerçek isteğe göndermeden önce atar,
-        # secret header genelde preflight'a eklenmez.
+        remote_ip = request.remote_addr or ""
+        if not _is_cloudflare_ip(remote_ip):
+            logger.warning(f"[ORIGIN-LOCK] Preflight from non-Cloudflare IP rejected: {remote_ip}")
+            return jsonify({"error": "Not Found"}), 404
         return None
 
     remote_ip = request.remote_addr or ""
     if not _is_cloudflare_ip(remote_ip):
-        logger.warning(f"[ORIGIN-LOCK] Cloudflare dışı kaynaktan istek reddedildi: {remote_ip} {request.path}")
+        logger.warning(f"[ORIGIN-LOCK] Request from non-Cloudflare IP rejected: {remote_ip} {request.path}")
         return jsonify({"error": "Not Found"}), 404
 
     if ORIGIN_SECRET_VALUE:
         if request.headers.get(ORIGIN_SECRET_HEADER, "") != ORIGIN_SECRET_VALUE:
-            logger.warning(f"[ORIGIN-LOCK] Secret header eksik/hatalı: {remote_ip} {request.path}")
+            logger.warning(f"[ORIGIN-LOCK] Secret header missing/invalid: {remote_ip} {request.path}")
             return jsonify({"error": "Not Found"}), 404
     return None
 
 # ── Aynı IP'den eşzamanlı istek sınırı ─────────────────
-# Dakikalık rate limit (10/dk) tek başına yetmiyor: biri aynı IP'den 10+
-# isteği aynı anda (t=0'da) patlatırsa hepsi limitten geçer ve sunucuyu
-# aynı anda meşgul eder. Bu hook tüm route'lara (statik dosyalar hariç
-# değil, hepsine) uygulanır ve bir IP'nin o an açık olan istek sayısını
-# MAX_CONCURRENT_PER_IP ile sınırlar.
-MAX_CONCURRENT_PER_IP = int(os.environ.get("MAX_CONCURRENT_PER_IP", 5))
 concurrent_ip_lock = threading.Lock()
 concurrent_ip_counts = defaultdict(int)
 
 @app.before_request
 def _limit_concurrent_requests_per_ip():
-    # GET/HEAD/OPTIONS (statik sayfa, CSS/JS, CORS preflight, health) bu
-    # limite dahil edilmez. Aksi halde sayfa yüklenirken birden fazla asset
-    # + uzun süren /download aynı IP'den 429'a düşer; Railway'de sık
-    # "site açılmıyor / yarım yükleniyor" hissi yaratır.
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return None
     ip = get_client_ip()
     with concurrent_ip_lock:
         if concurrent_ip_counts[ip] >= MAX_CONCURRENT_PER_IP:
-            return jsonify({"error": "Aynı anda çok fazla istek gönderiyorsunuz. Lütfen bekleyin."}), 429
+            return jsonify({"error": "Too many concurrent requests. Please wait."}), 429
         concurrent_ip_counts[ip] += 1
     g._concurrent_ip = ip
 
@@ -254,41 +244,32 @@ def _release_concurrent_request_per_ip(exc=None):
     ip = getattr(g, "_concurrent_ip", None)
     if ip is not None:
         with concurrent_ip_lock:
-            if concurrent_ip_counts[ip] > 0:
+            if ip in concurrent_ip_counts:
                 concurrent_ip_counts[ip] -= 1
-            if concurrent_ip_counts[ip] == 0:
-                del concurrent_ip_counts[ip]
+                if concurrent_ip_counts[ip] <= 0:
+                    del concurrent_ip_counts[ip]
 
-# ── Eşzamanlı indirme/ffmpeg sınırı ────────────────────
-# /download tek bir istekte hem yt-dlp indirmesini hem de (varsa) ffmpeg
-# postprocess adımlarını yapıyor, yani "aktif indirme" ve "aktif ffmpeg"
-# burada fiilen aynı şey. Tek bir global semaphore ile CPU/bant genişliği
-# tüketimini sınırlıyoruz; slot boşalana kadar bekleyen istekler kuyrukta
-# tutulur ve sid varsa ilerleme olarak "queued" durumu gönderilir.
-MAX_CONCURRENT_DOWNLOADS = int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", 2))
+# ── Eşzamanlı indirme sınırı ──────────────────────────
 download_slots = threading.Semaphore(MAX_CONCURRENT_DOWNLOADS)
 queue_lock = threading.Lock()
 queue_waiting = 0
 active_downloads_count = 0
 
 def _release_download_slot():
-    """download_slots.release() ile birlikte aktif indirme sayacını da
-    tutarlı şekilde azaltır. /health endpoint'i bu sayacı okuyor."""
     global active_downloads_count
     download_slots.release()
     with queue_lock:
         active_downloads_count = max(0, active_downloads_count - 1)
 
 def acquire_download_slot(sid, cancel_event):
-    """Slot boşalana kadar bekler; iptal edilirse DownloadCancelled fırlatır.
-    Slot alınca True döner (çağıran taraf finally içinde release etmeli)."""
+    """Slot boşalana kadar bekler; iptal edilirse DownloadCancelled fırlatır."""
     global queue_waiting, active_downloads_count
     with queue_lock:
         queue_waiting += 1
     try:
         while True:
             if cancel_event.is_set():
-                raise yt_dlp.utils.DownloadCancelled("İptal edildi")
+                raise yt_dlp.utils.DownloadCancelled("Cancelled")
             if download_slots.acquire(blocking=True, timeout=1):
                 with queue_lock:
                     active_downloads_count += 1
@@ -296,80 +277,33 @@ def acquire_download_slot(sid, cancel_event):
             if sid:
                 with queue_lock:
                     ahead = max(0, queue_waiting - 1)
-                socketio.emit('progress', {
-                    'status': 'queued',
-                    'message': f"Sunucu yoğun, sırada bekleniyor... ({ahead} kişi önde)"
-                }, room=sid)
+                try:
+                    socketio.emit('progress', {
+                        'status': 'queued',
+                        'message': f"Server is busy, waiting in queue... ({ahead} ahead)"
+                    }, room=sid)
+                except Exception:
+                    pass  # Emit başarısız olsa bile kuyruk beklemeye devam etsin
     finally:
         with queue_lock:
-            queue_waiting -= 1
-
-# ── Maksimum video süresi ──────────────────────────────
-MAX_VIDEO_DURATION_SECONDS = int(os.environ.get("MAX_VIDEO_DURATION_SECONDS", 90 * 60))
-
-# ── Maksimum indirme boyutu ─────────────────────────────
-# Site kalitesi konusunda taviz vermiyoruz (quality parametresine
-# dokunulmuyor); bunun yerine 1.5GB'ı aşan indirmeler iptal ediliyor.
-# Böylece son derece uzun/yüksek bitrate'li dosyalar disk ve bant
-# genişliğini tüketemiyor, ama normal kaliteli videolar etkilenmiyor.
-MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 1536)) * 1024 * 1024
-
-# ── İndirme zaman aşımı ─────────────────────────────────
-# yt-dlp'nin ydl.download() çağrısı, ayrı video+ses akışlarını birleştirmek
-# için kendi içinde ffmpeg'i çağırabiliyor (FFmpegMerger postprocessor).
-# Bu adımın kendi subprocess.run çağrımızdaki gibi bir timeout'u YOK - eğer
-# bu adım (nadir de olsa, örn. bozuk bir fragment veya Railway'in kısıtlı
-# CPU'sunda beklenmedik bir takılma yüzünden) donarsa, tüm istek süresiz
-# askıda kalır. Bunu önlemek için tüm download denemesini bir üst
-# zaman aşımıyla sarıyoruz.
-DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("DOWNLOAD_TIMEOUT_SECONDS", 600))
-
-def probe_duration(url):
-    """Gerçek indirmeye başlamadan önce hafif bir extract_info ile süreyi
-    öğrenir. Süre bilinmiyorsa (bazı platformlarda olabiliyor) None döner
-    ve indirmeye izin verilir (fail-open) — amaç sadece bariz uzun
-    videoları (canlı yayın kayıtları, uzun podcastler vb.) baştan elemek."""
-    try:
-        opts_list = get_opts_list(url, extra={"skip_download": True, "quiet": True})
-        for opts in opts_list:
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    if info.get("_type") == "playlist" or "entries" in info:
-                        return None  # playlist: tekil videolar zaten ayrı ayrı /download ile geliyor
-                    return info.get("duration") or None
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return None
+            queue_waiting = max(0, queue_waiting - 1)
 
 # ── FFmpeg ────────────────────────────────────────────
-# shutil.which() Windows/Linux/Mac'te PATH'i (Windows'ta PATHEXT/.exe dahil)
-# doğru şekilde tarar. Eskiden 'which' komutunu subprocess ile çağırıyorduk;
-# bu Windows'ta böyle bir komut olmadığı için (which.exe yok) sessizce
-# başarısız oluyor ve ffmpeg PATH'te olsa bile hep None dönüyordu.
 def find_ffmpeg():
+    """Cross-platform ffmpeg path finder."""
     path = shutil.which('ffmpeg')
     if path:
-        return os.path.dirname(path)
-    for p in ['/usr/bin', '/usr/local/bin', '/root/.nix-profile/bin', '/nix/store', '/opt/venv/bin']:
-        if os.path.exists(os.path.join(p, 'ffmpeg')): return p
+        return os.path.dirname(os.path.abspath(path))
     return None
 
 FFMPEG_DIR = find_ffmpeg()
+FFMPEG_PATH = shutil.which('ffmpeg')  # Doğrudan tam path
 logger.info(f"[INIT] ffmpeg={FFMPEG_DIR}")
 
-def find_aria2():
-    path = shutil.which('aria2c')
-    if path:
-        return path
-    for p in ['/usr/bin/aria2c', '/usr/local/bin/aria2c', '/root/.nix-profile/bin/aria2c']:
-        if os.path.exists(p): return p
-    return None
-
-ARIA2_PATH = find_aria2()
-logger.info(f"[INIT] aria2c={ARIA2_PATH or 'yok'}")
+# aria2c SSRF bypass riski nedeniyle tamamen devre dışı bırakıldı.
+# Gelecekte container seviyesinde egress firewall kurulursa tekrar açılabilir.
+ARIA2_PATH = None
+logger.info("[INIT] aria2c disabled (SSRF protection)")
 
 # ── Temizlik ──────────────────────────────────────────
 def cleanup_old_files():
@@ -377,15 +311,15 @@ def cleanup_old_files():
         now = time.time()
         for f in os.listdir(DOWNLOAD_DIR):
             fpath = os.path.join(DOWNLOAD_DIR, f)
-            if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > 1800:
+            if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > FILE_MAX_AGE:
                 os.remove(fpath)
-    except: pass
+    except Exception as e:
+        logger.error(f"[CLEANUP] Failed to clean old files: {e}")
 
 def periodic_cleanup():
     while True:
-        time.sleep(900)
+        time.sleep(FILE_CLEANUP_INTERVAL)
         cleanup_old_files()
-        cleanup_rate_limit_data()
 
 threading.Thread(target=periodic_cleanup, daemon=True).start()
 
@@ -394,12 +328,6 @@ cancel_events = {}
 cancel_events_lock = threading.Lock()
 
 # ── Bağlı Socket.IO sid'leri ────────────────────────────
-# /download isteğinde client kendi sid'ini body içinde gönderiyor (progress
-# eventlerini almak için). Bu sid'i doğrulamadan socketio.emit(room=sid) ile
-# kullanmak, biri başka bir kullanıcının sid'ini bilirse/tahmin ederse onun
-# indirme durumunu (ilerleme %, hata mesajı vb.) dinlemesine izin verir.
-# Burada aktif bağlantıları takip edip, gelen sid gerçekten bağlı değilse
-# sessizce yok sayıyoruz (indirme yine çalışır, sadece progress gönderilmez).
 connected_sids = set()
 connected_sids_lock = threading.Lock()
 
@@ -408,6 +336,13 @@ def validate_sid(sid):
         return ""
     with connected_sids_lock:
         return sid if sid in connected_sids else ""
+
+def safe_emit(event, data, room=None):
+    """SocketIO emit wrapper with error handling."""
+    try:
+        socketio.emit(event, data, room=room)
+    except Exception as e:
+        logger.warning(f"[SOCKET] Emit failed for room {room}: {e}")
 
 # ── Platform helpers ──────────────────────────────────
 def is_youtube(u): return "youtube.com" in u or "youtu.be" in u
@@ -425,22 +360,11 @@ def is_unsupported_domain(u):
     return any(d in ul for d in UNSUPPORTED_DOMAINS)
 
 # ── SSRF Koruması ──────────────────────────────────────
-# yt-dlp'ye vereceğimiz URL'nin şeması http/https ile sınırlı olmalı ve
-# çözülen host iç ağa (private/loopback/link-local/metadata endpoint)
-# işaret etmemeli. Bu kontrol hem hostname hem de (varsa) doğrudan IP
-# girişleri için DNS çözümlemesi yapılarak uygulanır (DNS rebinding'e
-# karşı da bir miktar koruma sağlar; yt-dlp'nin kendi bağlantısı ayrı bir
-# an'da tekrar resolve edeceği için %100 garanti değildir, ama basit
-# SSRF denemelerinin büyük çoğunluğunu engeller).
-import ipaddress
-import socket
-from urllib.parse import urlparse
-
 def _is_private_ip(ip_str):
     try:
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
-        return True  # parse edilemeyen şey güvenli sayılmaz
+        return True
     return (
         ip.is_private or ip.is_loopback or ip.is_link_local or
         ip.is_multicast or ip.is_reserved or ip.is_unspecified
@@ -456,14 +380,12 @@ def is_safe_url(u):
     hostname = parsed.hostname
     if not hostname:
         return False
-    # Bariz metadata/local isimler
     lowered = hostname.lower()
     if lowered in ("localhost", "metadata", "metadata.google.internal"):
         return False
     try:
         infos = socket.getaddrinfo(hostname, None)
     except Exception:
-        # Çözülemiyorsa reddet; yt-dlp zaten başaramayacak
         return False
     for info in infos:
         addr = info[4][0]
@@ -471,28 +393,7 @@ def is_safe_url(u):
             return False
     return True
 
-# ── SSRF: redirect / DNS-rebinding koruması (soket seviyesi) ──────────
-# is_safe_url() sadece kullanıcının verdiği URL'nin İLK anındaki DNS
-# çözümlemesini kontrol eder. Ama yt-dlp indirme sırasında HTTP
-# redirect'leri (3xx) takip eder ve o an tekrar DNS sorgusu yapar; yani
-# "güvenli" görünen bir URL, sunucu tarafında 127.0.0.1 veya
-# 169.254.169.254 (cloud metadata) gibi bir adrese yönlendirilebilir ve
-# yukarıdaki tek seferlik kontrol bunu YAKALAYAMAZ.
-#
-# Bunu kapatmak için: yt-dlp (ve requests/urllib) alt seviyede
-# socket.create_connection() kullanıyor. Bu fonksiyonu process genelinde
-# monkeypatch'leyip HER gerçek TCP bağlantısında hedef IP'yi kontrol
-# ediyoruz. Böylece redirect sonrası gerçekten bağlanılan adres de
-# doğrulanmış olur (DNS rebinding'e karşı da koruma sağlar, çünkü kontrol
-# "bağlanma anında" yapılıyor, DNS lookup ile bağlanma arasında değil).
-#
-# ÖNEMLİ SINIRLAMA: Bu guard sadece Python sürecinin kendi yaptığı
-# bağlantıları kapsar. Eğer ARIA2_PATH mevcutsa ve external_downloader
-# olarak aria2c kullanılıyorsa, aria2c AYRI BİR PROSES olduğu için bu
-# monkeypatch onu kapsamaz. Tam koruma için ya aria2c'yi devre dışı
-# bırakın (ARIA2_PATH'i kullanmayın) ya da altyapı seviyesinde (Railway/
-# container) egress firewall ile private IP aralıklarına (RFC1918,
-# 169.254.0.0/16, ::1 vb.) giden trafiği engelleyin.
+# Socket-level SSRF guard: her bağlantı anında hedef IP kontrolü
 _orig_create_connection = socket.create_connection
 
 def _guarded_create_connection(address, *args, **kwargs):
@@ -500,18 +401,16 @@ def _guarded_create_connection(address, *args, **kwargs):
     try:
         ip = ipaddress.ip_address(host)
         if _is_private_ip(str(ip)):
-            raise PermissionError(f"SSRF koruması: {host} adresine bağlantı engellendi")
+            raise PermissionError(f"SSRF protection: connection to {host} blocked")
     except ValueError:
-        # host bir hostname (nadiren burada IP değil de isim gelebilir,
-        # örn. bazı kütüphaneler resolve etmeden çağırabilir) - yine de
-        # çözüp kontrol edelim.
+        # hostname ise çözümle ve kontrol et
         try:
             infos = socket.getaddrinfo(host, None)
         except Exception:
             infos = []
         for info in infos:
             if _is_private_ip(info[4][0]):
-                raise PermissionError(f"SSRF koruması: {host} adresine bağlantı engellendi")
+                raise PermissionError(f"SSRF protection: connection to {host} blocked")
     return _orig_create_connection(address, *args, **kwargs)
 
 socket.create_connection = _guarded_create_connection
@@ -523,36 +422,36 @@ def parse_error(error_msg, url):
     es = error_msg.lower()
     if is_youtube(url):
         if "sign in" in es or "login" in es or "bot" in es:
-            return "YouTube bot koruması aktif. Birkaç dakika bekleyip tekrar deneyin."
-        if "private" in es:
-            return "Bu YouTube videosu gizli, indirilemez."
+            return "YouTube bot protection is active. Please wait a few minutes and try again."
+        if "private video" in es or ("private" in es and "video" in es):
+            return "This YouTube video is private and cannot be downloaded."
         if "copyright" in es:
-            return "Bu video telif hakkı nedeniyle indirilemez."
+            return "This video cannot be downloaded due to copyright."
         if "age" in es:
-            return "Bu video yaş kısıtlamalı. Çerez güncellemesi gerekebilir."
+            return "This video is age-restricted. Cookie update may be required."
         if "unavailable" in es or "not available" in es:
-            return "Bu YouTube videosu artık mevcut değil."
+            return "This YouTube video is no longer available."
         if "live" in es:
-            return "Canlı yayınlar desteklenmez."
+            return "Live streams are not supported."
         if "format" in es:
-            return "İstenen format bulunamadı. Farklı kalite deneyin."
-        return "YouTube indirme başarısız. Birkaç dakika sonra tekrar deneyin."
+            return "Requested format not found. Try a different quality."
+        return "YouTube download failed. Please try again in a few minutes."
     if is_instagram(url):
         if "rate" in es or "429" in es:
             return "instagram_ratelimit"
         if "login" in es:
-            return "Bu Instagram içeriği gizli veya giriş gerektiriyor."
-        return "Instagram indirme başarısız. Birkaç dakika sonra tekrar deneyin."
+            return "This Instagram content is private or requires login."
+        return "Instagram download failed. Please try again in a few minutes."
     if is_tiktok(url):
         if "private" in es:
-            return "Bu TikTok videosu gizli."
-        return "TikTok indirme başarısız."
+            return "This TikTok video is private."
+        return "TikTok download failed."
     if "unsupported url" in es:
-        return "Bu URL desteklenmiyor. Desteklenen platformları kontrol edin."
+        return "This URL is not supported."
     if "no video formats" in es:
-        return "Bu içerik için uygun format bulunamadı."
+        return "No suitable format found for this content."
     if "network" in es or "connection" in es:
-        return "Bağlantı hatası. İnternet bağlantınızı kontrol edin."
+        return "Connection error. Please check your internet connection."
     return error_msg[:200]
 
 # ── Base opts ─────────────────────────────────────────
@@ -566,29 +465,9 @@ def get_base_opts(url, use_cookies=True):
     }
     if FFMPEG_DIR:
         opts["ffmpeg_location"] = FFMPEG_DIR
-    if ARIA2_PATH:
-        opts["external_downloader"] = {"default": "aria2c"}
-        opts["external_downloader_args"] = {
-            # aria2c varsayılan olarak ilerleme özetini 60 saniyede bir
-            # basıyor (--summary-interval). Çoğu video bundan daha kısa
-            # sürede indiği için progress_hook'a HİÇ ara güncelleme
-            # gelmiyor, sadece bitişte tek seferde geliyor; bu da UI'da
-            # "bağlanıyor"da donup sonra aniden dolan bir bar olarak
-            # görünüyordu. 1 saniyeye çekiyoruz ki gerçek zamanlı ilerleme
-            # bilgisi aksın.
-            "aria2c": ["-x", "16", "-s", "16", "-k", "1M", "--summary-interval=1"]
-        }
+    # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
     if use_cookies and os.path.exists(COOKIES_FILE) and not is_instagram(url):
         opts["cookiefile"] = COOKIES_FILE
-    # NOT: Eskiden burada YouTube için player_client=["android_vr","web","mweb","android"]
-    # zorlanıyordu — bu, yt-dlp'nin EJS/deno JS-challenge çözümü henüz kurulu
-    # olmadığı dönemde 360p'ye düşmeyi engellemek için eklenmiş bir workaround'du.
-    # yt-dlp-ejs kurulduktan sonra bu zorlama artık ZARARLI: "web" client'ı PO
-    # Token gerektirip yüksek kaliteli formatları reddediyor, "tv" client'ı
-    # (yt-dlp'nin varsayılan seçiminde olan, en iyi format erişimini sağlayan
-    # client) listeden dışarıda kalıyor. Sonuç: av1/vp9 format zinciri hiçbir
-    # üst seçenekte eşleşmiyor ve en sondaki /best fallback'ine (itag 18, 360p)
-    # düşülüyor. Artık yt-dlp'nin kendi varsayılan client seçimine bırakıyoruz.
     return opts
 
 def get_opts_list(url, extra=None):
@@ -632,22 +511,45 @@ def build_format_str(url, quality, fmt, codec):
     return (f"bestvideo[ext=mp4][height<={q}]+bestaudio[ext=m4a]"
             f"/bestvideo[height<={q}]+bestaudio/best[height<={q}]/best")
 
+def probe_duration(url):
+    try:
+        opts_list = get_opts_list(url, extra={"skip_download": True, "quiet": True})
+        for opts in opts_list:
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if info.get("_type") == "playlist" or "entries" in info:
+                        return None
+                    return info.get("duration") or None
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+def sanitize_filename(name):
+    """Dosya adı için güvenli string üretir."""
+    if not name:
+        return "zenithw"
+    # Path traversal ve özel karakterleri temizle
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    name = re.sub(r'\s+', ' ', name).strip()
+    name = name[:80]  # Maksimum uzunluk
+    return name if name else "zenithw"
+
 # ── Routes ────────────────────────────────────────────
 @app.route("/health")
 def health():
     return jsonify({
         "status": "ok",
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
-        "cookies": f"✓ Yüklü ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "✗ Yok",
+        "cookies": f"Loaded ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "Missing",
         "disk_files": len(os.listdir(DOWNLOAD_DIR)),
         "active_downloads": active_downloads_count,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
         "queue_waiting": queue_waiting,
     }), 200
 
-# robots.txt ve sitemap.xml artık frontend domain'inin (zenithw.space,
-# Netlify) sorumluluğunda. API domain'i (api.zenithw.space) için ayrıca
-# bunlara gerek yok; arama motorlarının API'yi taramasını da istemiyoruz.
 @app.route("/robots.txt")
 def robots():
     return "User-agent: *\nDisallow: /\n", 200, {'Content-Type': 'text/plain'}
@@ -660,23 +562,17 @@ def cancel_route():
     if download_id:
         with cancel_events_lock:
             entry = cancel_events.get(download_id)
-            # Sadece indirmeyi başlatan IP iptal edebilir; başka birinin
-            # download_id'sini bilse/tahmin etse bile (UUID4 olduğu için
-            # zaten pratikte imkansız) onun indirmesini iptal edemesin.
             if entry and entry[1] == ip:
                 entry[0].set()
         return jsonify({"ok": True}), 200
-    return jsonify({"error": "download_id gerekli"}), 400
+    return jsonify({"error": "download_id required"}), 400
 
-# Bu backend salt API'dir; herhangi bir HTML/frontend sunmaz. "/" ve
-# tanımlı olmayan tüm path'ler için düz JSON döner, böylece biri
-# api.zenithw.space'e tarayıcıdan girse bile ZenithW arayüzü açılmaz.
 @app.route("/")
 def api_root():
     return jsonify({
         "service": "zenithw-api",
         "status": "ok",
-        "message": "Bu bir API endpoint'idir. Uygulama arayüzü için zenithw.space adresini ziyaret edin."
+        "message": "This is an API endpoint. Visit zenithw.space for the web interface."
     }), 200
 
 @app.errorhandler(404)
@@ -688,19 +584,18 @@ def not_found(e):
 def get_info():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Çok fazla istek. 1 dakika bekleyin."}), 429
+        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
     data = request.json or {}
     url = data.get("url", "").strip()
     if not url:
-        return jsonify({"error": "URL gerekli"}), 400
+        return jsonify({"error": "URL required"}), 400
     if not is_safe_url(url):
-        return jsonify({"error": "Geçersiz veya izin verilmeyen URL."}), 400
+        return jsonify({"error": "Invalid or disallowed URL."}), 400
     if is_youtube_live_url(url):
-        return jsonify({"error": "Canlı yayınlar şu anda desteklenmiyor."}), 400
+        return jsonify({"error": "Live streams are not currently supported."}), 400
     if is_unsupported_domain(url):
-        return jsonify({"error": "Bu platform desteklenmiyor. Desteklenen platformları kontrol edin."}), 400
+        return jsonify({"error": "This platform is not supported."}), 400
 
-    PLAYLIST_LIMIT = 50
     extra_opts = {
         "extract_flat": "in_playlist",
         "playlistend": PLAYLIST_LIMIT,
@@ -731,10 +626,13 @@ def get_info():
                             "duration": e.get("duration") or 0,
                             "thumbnail": thumb,
                         })
+                    total_count = info.get("playlist_count") or len(items)
                     return jsonify({
                         "is_playlist": True,
                         "playlist_title": info.get("title") or "Playlist",
                         "playlist_count": len(items),
+                        "total_entries": total_count,
+                        "limited_to": PLAYLIST_LIMIT,
                         "items": items,
                         "platform": info.get("extractor_key", "").lower(),
                     })
@@ -758,7 +656,7 @@ def get_info():
                 break
             continue
 
-    error_msg = str(last_err) if last_err else "Bilinmeyen hata"
+    error_msg = str(last_err) if last_err else "Unknown error"
     logger.error(f"[INFO ERR] {url[:60]}: {error_msg[:150]}")
     parsed = parse_error(error_msg, url)
     if parsed == "instagram_ratelimit":
@@ -770,7 +668,7 @@ def get_info():
 def download():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Çok fazla istek. 1 dakika bekleyin."}), 429
+        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
     cleanup_old_files()
     data = request.json or {}
     url = data.get("url", "").strip()
@@ -793,6 +691,7 @@ def download():
     ALLOWED_SB_CATEGORIES = {
         "sponsor", "intro", "outro", "selfpromo", "preview",
         "filler", "interaction", "music_offtopic", "poi_highlight",
+        "chapter", "exclusive_access",
     }
     sb_categories = data.get("sponsorblock_categories") or ["sponsor"]
     if not isinstance(sb_categories, list):
@@ -802,28 +701,25 @@ def download():
     if sb_mode not in ("remove", "mark"):
         sb_mode = "remove"
 
-    # Whitelist doğrulamaları: format, codec ve quality kullanıcıdan geliyor
-    # ve bunlar build_format_str ile bir yt-dlp format string'ine ekleniyor.
-    # Beklenmeyen değerler yt-dlp'ye enjekte edilmeden önce reddedilmeli.
     ALLOWED_FORMATS = {"mp4", "webm", "mkv", "avi", "mov"} | AUDIO_FMTS
     ALLOWED_CODECS = {"h264", "av1", "vp9"}
     if fmt not in ALLOWED_FORMATS:
-        return jsonify({"error": "Desteklenmeyen format"}), 400
+        return jsonify({"error": "Unsupported format"}), 400
     if codec not in ALLOWED_CODECS:
-        return jsonify({"error": "Desteklenmeyen codec"}), 400
+        return jsonify({"error": "Unsupported codec"}), 400
     if not quality.isdigit() or not (1 <= len(quality) <= 4):
-        return jsonify({"error": "Geçersiz kalite değeri"}), 400
+        return jsonify({"error": "Invalid quality value"}), 400
     if not audio_q.isdigit():
         audio_q = "256"
 
     if not url:
-        return jsonify({"error": "URL gerekli"}), 400
+        return jsonify({"error": "URL required"}), 400
     if not is_safe_url(url):
-        return jsonify({"error": "Geçersiz veya izin verilmeyen URL."}), 400
+        return jsonify({"error": "Invalid or disallowed URL."}), 400
     if is_youtube_live_url(url):
-        return jsonify({"error": "Canlı yayınlar şu anda desteklenmiyor."}), 400
+        return jsonify({"error": "Live streams are not currently supported."}), 400
     if is_unsupported_domain(url):
-        return jsonify({"error": "Bu platform desteklenmiyor. Desteklenen platformları kontrol edin."}), 400
+        return jsonify({"error": "This platform is not supported."}), 400
 
     is_audio = fmt in AUDIO_FMTS
     cancel_event = threading.Event()
@@ -831,46 +727,36 @@ def download():
     with cancel_events_lock:
         cancel_events[download_id] = (cancel_event, ip)
 
-    # Maksimum video süresi kontrolü (gerçek indirmeye/slot kuyruğuna
-    # girmeden önce yapılır ki uzun videolar başkalarının sırasını tutmasın).
     duration = probe_duration(url)
     if duration and duration > MAX_VIDEO_DURATION_SECONDS:
         with cancel_events_lock:
             cancel_events.pop(download_id, None)
         max_min = MAX_VIDEO_DURATION_SECONDS // 60
-        return jsonify({"error": f"Video çok uzun (maksimum {max_min} dakika)."}), 400
+        return jsonify({"error": f"Video too long (maximum {max_min} minutes)."}), 400
 
     filename = str(uuid.uuid4())
     filepath = os.path.join(DOWNLOAD_DIR, filename)
-
     dl_start_time = time.time()
 
     def progress_hook(d):
         if cancel_event.is_set():
-            raise yt_dlp.utils.DownloadCancelled("İptal edildi")
+            raise yt_dlp.utils.DownloadCancelled("Cancelled")
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
             downloaded = d.get('downloaded_bytes', 0)
-            # Boyut limiti: ya toplam boyut baştan biliniyorsa (total) ya da
-            # indirilen miktar limiti şimdiden geçtiyse indirmeyi iptal et.
             if (total and total > MAX_DOWNLOAD_SIZE_BYTES) or downloaded > MAX_DOWNLOAD_SIZE_BYTES:
                 size_exceeded["flag"] = True
                 cancel_event.set()
                 if sid:
-                    socketio.emit('progress', {
+                    safe_emit('progress', {
                         'status': 'error',
-                        'message': f"Dosya boyutu limiti aşıldı (maksimum {MAX_DOWNLOAD_SIZE_BYTES // (1024*1024)} MB)."
+                        'message': f"File size limit exceeded (maximum {MAX_DOWNLOAD_SIZE_BYTES // (1024*1024)} MB)."
                     }, room=sid)
-                raise yt_dlp.utils.DownloadCancelled("Boyut limiti aşıldı")
+                raise yt_dlp.utils.DownloadCancelled("Size limit exceeded")
             pct = None
             if total > 0:
                 pct = max(5, int(downloaded / total * 82))
             else:
-                # total_bytes bilinmiyor (HLS/DASH fragment indirmelerinde
-                # sık görülür, ör. YouTube/Instagram/TikTok). Bu durumda
-                # fragment sayacına göre kaba bir tahmin üretiyoruz ki bar
-                # "bağlanıyor"da donup indirme bitince aniden 100'e
-                # zıplamasın.
                 frag_idx = d.get('fragment_index')
                 frag_cnt = d.get('fragment_count')
                 if frag_idx is not None and frag_cnt:
@@ -878,22 +764,15 @@ def download():
                 else:
                     pct = min(80, 5 + int(time.time() - dl_start_time) * 2)
             if pct is not None and sid:
-                socketio.emit('progress', {
+                safe_emit('progress', {
                     'percent': pct,
                     'speed': d.get('_speed_str', '').strip(),
                     'eta': d.get('_eta_str', '').strip(),
                     'status': 'downloading'
                 }, room=sid)
         elif d['status'] == 'finished' and sid:
-            socketio.emit('progress', {'percent': 88, 'status': 'merging'}, room=sid)
+            safe_emit('progress', {'percent': 88, 'status': 'merging'}, room=sid)
 
-    # Aktif indirme/ffmpeg sayısı sınırına ulaşıldıysa burada kuyrukta
-    # bekler; slot alınamadan iptal edilirse DownloadCancelled fırlatılır
-    # ve aşağıdaki except bloğu bunu normal şekilde yakalar.
-    #
-    # slot_acquired True iken HER çıkış yolunda (early return dahil) finally
-    # bloğu slot'u serbest bırakır. Aksi halde (ffmpeg yok / dosya yok gibi
-    # return'lerde) semaphore kalıcı kilitlenir ve tüm indirmeler donar.
     slot_acquired = False
     try:
         acquire_download_slot(sid, cancel_event)
@@ -905,7 +784,7 @@ def download():
             if not FFMPEG_DIR:
                 with cancel_events_lock:
                     cancel_events.pop(download_id, None)
-                return jsonify({"error": "Ses dönüşümü için FFmpeg gerekli."}), 400
+                return jsonify({"error": "FFmpeg is required for audio conversion."}), 400
             codec_map = {
                 "mp3": "mp3", "flac": "flac", "wav": "wav",
                 "ogg": "vorbis", "opus": "opus", "m4a": "m4a"
@@ -979,12 +858,17 @@ def download():
         success = False
         last_err = None
         timed_out = False
-        logger.info(f"[DL] indirme başlıyor (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
+        logger.info(f"[DL] starting download (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
+
         for opts in opts_list:
             if cancel_event.is_set():
                 break
             try:
-                with gevent.Timeout(DOWNLOAD_TIMEOUT_SECONDS, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s içinde tamamlanmadı")):
+                # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz.
+                # Bu timeout sadece Python kodunu kapsar. Uzun süren işlemler
+                # için gunicorn --timeout (660s) devreye girer ve worker'ı
+                # restart eder. Bu yüzden DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
+                with gevent.Timeout(DOWNLOAD_TIMEOUT_SECONDS, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s exceeded")):
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         ydl.download([url])
                 success = True
@@ -994,7 +878,7 @@ def download():
             except TimeoutError as e:
                 timed_out = True
                 last_err = e
-                logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s aşıldı, muhtemelen yt-dlp'nin içindeki ffmpeg merge adımı takıldı")
+                logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
                 break
             except Exception as e:
                 last_err = e
@@ -1005,24 +889,23 @@ def download():
                 continue
 
         if cancel_event.is_set():
-            raise yt_dlp.utils.DownloadCancelled("İptal edildi")
+            raise yt_dlp.utils.DownloadCancelled("Cancelled")
 
         if timed_out:
             with cancel_events_lock:
                 cancel_events.pop(download_id, None)
-            # Yarım kalmış geçici dosyaları temizle
             for f in os.listdir(DOWNLOAD_DIR):
                 if f.startswith(filename):
                     try: os.remove(os.path.join(DOWNLOAD_DIR, f))
                     except: pass
             if sid:
-                socketio.emit('progress', {'status': 'error', 'message': 'İndirme zaman aşımına uğradı, lütfen tekrar deneyin.'}, room=sid)
-            return jsonify({"error": "İndirme zaman aşımına uğradı, lütfen tekrar deneyin."}), 504
+                safe_emit('progress', {'status': 'error', 'message': 'Download timed out, please try again.'}, room=sid)
+            return jsonify({"error": "Download timed out, please try again."}), 504
 
         if not success:
-            raise last_err or Exception("Tüm denemeler başarısız")
+            raise last_err or Exception("All attempts failed")
 
-        logger.info("[DL] indirme tamamlandı, dosya işleniyor...")
+        logger.info("[DL] download completed, processing file...")
 
         full_path = None
         for f in sorted(os.listdir(DOWNLOAD_DIR)):
@@ -1033,16 +916,19 @@ def download():
         if not full_path:
             with cancel_events_lock:
                 cancel_events.pop(download_id, None)
-            return jsonify({"error": "Dosya bulunamadı"}), 500
+            return jsonify({"error": "File not found"}), 500
 
         if not is_audio and data.get("mute", False) and FFMPEG_DIR:
-            logger.info("[DL] mute (sessizleştirme) adımı başlıyor")
-            muted_path = full_path + ".muted." + full_path.rsplit('.', 1)[-1]
+            logger.info("[DL] mute step starting")
+            # Path parse düzeltmesi: os.path.splitext kullan
+            base, ext = os.path.splitext(full_path)
+            muted_path = base + ".muted" + ext
             try:
+                ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
                 result = subprocess.run(
-                    [os.path.join(FFMPEG_DIR, "ffmpeg"), "-y", "-i", full_path,
+                    [ffmpeg_cmd, "-y", "-i", full_path,
                      "-c", "copy", "-an", muted_path],
-                    capture_output=True, text=True, timeout=300
+                    capture_output=True, text=True, timeout=FFMPEG_TIMEOUT
                 )
                 if result.returncode == 0 and os.path.exists(muted_path):
                     os.remove(full_path)
@@ -1051,13 +937,13 @@ def download():
                     logger.error(f"[MUTE FFMPEG FAIL] {result.stderr[:200]}")
             except Exception as e:
                 logger.error(f"[MUTE FFMPEG ERR] {e}")
+            finally:
                 try:
                     if os.path.exists(muted_path):
                         os.remove(muted_path)
-                except: pass
+                except Exception:
+                    pass
 
-        # Son güvenlik kontrolü: merge/mute sonrası dosya boyutu (ör. ses+video
-        # birleşiminde şişme olabilir) limiti aşmışsa dosyayı sil ve reddet.
         try:
             final_size = os.path.getsize(full_path)
         except OSError:
@@ -1065,27 +951,28 @@ def download():
         if final_size > MAX_DOWNLOAD_SIZE_BYTES:
             try:
                 os.remove(full_path)
-            except: pass
+            except Exception:
+                pass
             with cancel_events_lock:
                 cancel_events.pop(download_id, None)
             if sid:
-                socketio.emit('progress', {'status': 'error', 'message': 'Dosya boyutu limiti aşıldı.'}, room=sid)
+                safe_emit('progress', {'status': 'error', 'message': 'File size limit exceeded.'}, room=sid)
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
-            return jsonify({"error": f"Dosya boyutu limiti aşıldı (maksimum {max_mb} MB)."}), 400
+            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB)."}), 400
 
         if sid:
-            socketio.emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
 
-        # Ağır iş (indirme + ffmpeg) bitti; slotu burada bırakıyoruz ki
-        # dosya kullanıcıya stream edilirken sıradaki iş beklemesin.
-        # finally bloğu slot_acquired False olduğu için tekrar release etmez.
         if slot_acquired:
             _release_download_slot()
             slot_acquired = False
 
-        ext = full_path.rsplit('.', 1)[-1] if '.' in full_path else fmt
+        # Dosya adını video başlığından türet (mümkünse)
+        ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
+        # Başlığı bilmediğimiz için sabit isim kullanıyoruz ama güvenli
+        # İleride extract_info ile title alınıp kullanılabilir
         download_name = f"zenithw.{ext}"
-        logger.info(f"[DL] yanıt gönderiliyor: {download_name} ({os.path.getsize(full_path)} bytes)")
+        logger.info(f"[DL] sending response: {download_name} ({final_size} bytes)")
         response = send_file(full_path, as_attachment=True, download_name=download_name)
         response.headers['X-Download-Id'] = download_id
         response.headers['Access-Control-Expose-Headers'] = 'X-Download-Id'
@@ -1095,7 +982,8 @@ def download():
             try:
                 if full_path and os.path.exists(full_path):
                     os.remove(full_path)
-            except: pass
+            except Exception as e:
+                logger.error(f"[CLEANUP] Failed to remove {full_path}: {e}")
             with cancel_events_lock:
                 cancel_events.pop(download_id, None)
 
@@ -1111,31 +999,30 @@ def download():
         if size_exceeded["flag"]:
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
             if sid:
-                socketio.emit('progress', {'status': 'error', 'message': f"Dosya boyutu limiti aşıldı (maksimum {max_mb} MB)."}, room=sid)
-            return jsonify({"error": f"Dosya boyutu limiti aşıldı (maksimum {max_mb} MB)."}), 400
+                safe_emit('progress', {'status': 'error', 'message': f"File size limit exceeded (maximum {max_mb} MB)."}, room=sid)
+            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB)."}), 400
         if sid:
-            socketio.emit('progress', {'percent': 0, 'status': 'cancelled'}, room=sid)
+            safe_emit('progress', {'percent': 0, 'status': 'cancelled'}, room=sid)
         return jsonify({"error": "cancelled"}), 409
     except Exception as e:
         error_msg = str(e)
         logger.error(f"[DL ERR] {error_msg[:200]}")
         with cancel_events_lock:
             cancel_events.pop(download_id, None)
-        # Yarım kalmış indirme dosyalarını temizle
         try:
             for f in os.listdir(DOWNLOAD_DIR):
                 if f.startswith(filename):
                     try: os.remove(os.path.join(DOWNLOAD_DIR, f))
                     except: pass
-        except: pass
+        except Exception:
+            pass
         if sid:
-            socketio.emit('progress', {'status': 'error', 'message': error_msg[:100]}, room=sid)
+            safe_emit('progress', {'status': 'error', 'message': error_msg[:100]}, room=sid)
         parsed = parse_error(error_msg, url)
         if parsed == "instagram_ratelimit":
             return jsonify({"error": "instagram_ratelimit"}), 400
         return jsonify({"error": parsed}), 400
     finally:
-        # Erken return / exception fark etmeksizin slot sızıntısını önler.
         if slot_acquired:
             _release_download_slot()
             slot_acquired = False
@@ -1145,19 +1032,19 @@ def download():
 def download_thumbnail():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Çok fazla istek. 1 dakika bekleyin."}), 429
+        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
     data = request.json or {}
     url = data.get("url", "").strip()
     if not url:
-        return jsonify({"error": "URL gerekli"}), 400
+        return jsonify({"error": "URL required"}), 400
     if not is_safe_url(url):
-        return jsonify({"error": "Geçersiz veya izin verilmeyen URL."}), 400
+        return jsonify({"error": "Invalid or disallowed URL."}), 400
     if is_youtube_live_url(url):
-        return jsonify({"error": "Canlı yayınlar şu anda desteklenmiyor."}), 400
+        return jsonify({"error": "Live streams are not currently supported."}), 400
     if is_unsupported_domain(url):
-        return jsonify({"error": "Bu platform desteklenmiyor."}), 400
+        return jsonify({"error": "This platform is not supported."}), 400
     if not FFMPEG_DIR:
-        return jsonify({"error": "FFmpeg gerekli"}), 400
+        return jsonify({"error": "FFmpeg required"}), 400
 
     filename = str(uuid.uuid4())
     filepath = os.path.join(DOWNLOAD_DIR, filename)
@@ -1189,14 +1076,15 @@ def download_thumbnail():
                 try:
                     if os.path.exists(full_path):
                         os.remove(full_path)
-                except: pass
+                except Exception as e:
+                    logger.error(f"[THUMB CLEANUP] {e}")
 
             return response
         except Exception as e:
             last_err = e
             continue
 
-    error_msg = str(last_err) if last_err else "Thumbnail alınamadı"
+    error_msg = str(last_err) if last_err else "Thumbnail could not be retrieved"
     logger.error(f"[THUMB ERR] {error_msg[:150]}")
     return jsonify({"error": parse_error(error_msg, url)}), 400
 
@@ -1206,11 +1094,6 @@ ALLOWED_CONVERT_FORMATS = {
     "mp4", "webm", "mkv", "avi", "mov",
 }
 
-# target_format zaten whitelist ile kontrol ediliyor ama input dosyasının
-# suffix'i kullanıcının gönderdiği orijinal filename'den türetiliyordu.
-# Bunun yerine input dosyası için de sabit/whitelisted bir uzantı seti
-# kullanıyoruz; gerçek dosya türünü ffmpeg zaten kendi içerik analiziyle
-# tespit eder, uzantıya güvenmemize gerek yok.
 ALLOWED_INPUT_EXTS = {
     ".mp3", ".flac", ".wav", ".ogg", ".opus", ".m4a", ".aac",
     ".mp4", ".webm", ".mkv", ".avi", ".mov", ".m4v", ".flv", ".wmv", ".3gp",
@@ -1218,7 +1101,6 @@ ALLOWED_INPUT_EXTS = {
 
 def safe_input_suffix(original_filename):
     ext = os.path.splitext(original_filename or "")[1].lower()
-    # Sadece harf/rakam/nokta içeren, whitelist'teki bir uzantıya izin ver.
     if ext in ALLOWED_INPUT_EXTS and all(c.isalnum() or c == '.' for c in ext):
         return ext
     return ".bin"
@@ -1227,38 +1109,31 @@ def safe_input_suffix(original_filename):
 def convert_file():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Çok fazla istek. 1 dakika bekleyin."}), 429
+        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
     if 'file' not in request.files:
-        return jsonify({"error": "Dosya gerekli"}), 400
+        return jsonify({"error": "File required"}), 400
     file = request.files['file']
     target_format = request.form.get('target_format', 'mp3').lower()
     if not file or file.filename == '':
-        return jsonify({"error": "Geçersiz dosya"}), 400
+        return jsonify({"error": "Invalid file"}), 400
     if target_format not in ALLOWED_CONVERT_FORMATS:
-        return jsonify({"error": "Desteklenmeyen hedef format"}), 400
+        return jsonify({"error": "Unsupported target format"}), 400
     if not FFMPEG_DIR:
-        return jsonify({"error": "FFmpeg gerekli"}), 400
+        return jsonify({"error": "FFmpeg required"}), 400
 
     input_path = None
     output_path = None
     try:
-        # Kullanıcının gönderdiği filename'e güvenmek yerine whitelist'ten
-        # doğrulanmış bir suffix kullanıyoruz (komut/uzantı enjeksiyonuna karşı).
         suffix = safe_input_suffix(file.filename)
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=DOWNLOAD_DIR) as input_temp:
             input_path = input_temp.name
             file.save(input_path)
 
-        base_no_ext = os.path.basename(input_path).rsplit('.', 1)[0]
-        # target_format whitelist'te olduğu için ekstra güvenli; yine de
-        # basename ile garantiye alıyoruz.
+        base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(os.path.dirname(input_path), base_no_ext + '.' + target_format)
 
-        cmd = [
-            os.path.join(FFMPEG_DIR, 'ffmpeg'),
-            '-i', input_path,
-            '-y'
-        ]
+        ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
+        cmd = [ffmpeg_cmd, '-i', input_path, '-y']
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}
         if target_format in audio_formats:
@@ -1289,20 +1164,16 @@ def convert_file():
 
         cmd.append(output_path)
 
-        # timeout eklendi: kötü amaçlı/bozuk bir dosya ffmpeg'i sonsuz
-        # döngüye sokup worker'ı tıkayabilir (DoS riski).
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT)
         if result.returncode != 0:
-            # stderr içeriği kullanıcıya döndürülmüyor artık; sunucu
-            # tarafında loglanıp kullanıcıya genel bir mesaj veriliyor
-            # (dosya yolu / sistem bilgisi sızıntısını önlemek için).
             logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
-            return jsonify({"error": "Dönüştürme başarısız oldu. Dosya formatını kontrol edin."}), 400
+            return jsonify({"error": "Conversion failed. Please check the file format."}), 400
 
         try:
             if input_path and os.path.exists(input_path):
                 os.unlink(input_path)
-        except: pass
+        except Exception:
+            pass
 
         _out = output_path
         response = send_file(_out, as_attachment=True, download_name=f"converted.{target_format}")
@@ -1312,35 +1183,36 @@ def convert_file():
             try:
                 if _out and os.path.exists(_out):
                     os.unlink(_out)
-            except: pass
+            except Exception as e:
+                logger.error(f"[CONV CLEANUP] {e}")
 
         return response
 
     except subprocess.TimeoutExpired:
         logger.error("[CONV ERR] ffmpeg timeout")
-        # Başarısız/timeout dönüşümde yarım output dosyasını da sil
         try:
             if output_path and os.path.exists(output_path):
                 os.unlink(output_path)
-        except: pass
-        return jsonify({"error": "Dönüştürme zaman aşımına uğradı."}), 400
+        except Exception:
+            pass
+        return jsonify({"error": "Conversion timed out."}), 400
     except Exception as e:
         error_msg = str(e)
         logger.error(f"[CONV ERR] {error_msg[:200]}")
         try:
             if output_path and os.path.exists(output_path):
                 os.unlink(output_path)
-        except: pass
-        # Kullanıcıya genel mesaj; iç hata detayı sadece logda.
-        return jsonify({"error": "Dönüştürme sırasında bir hata oluştu."}), 400
+        except Exception:
+            pass
+        return jsonify({"error": "An error occurred during conversion."}), 400
     finally:
         try:
             if input_path and os.path.exists(input_path):
                 os.unlink(input_path)
-            # Başarılı senaryoda output_path send_file + call_on_close ile silinir;
-            # hata yollarında yukarıda zaten temizlendi.
-        except: pass
+        except Exception:
+            pass
 
+# ── Socket.IO Events ──────────────────────────────────
 @socketio.on('connect')
 def on_connect():
     with connected_sids_lock:
@@ -1355,7 +1227,4 @@ def on_disconnect():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    if not os.environ.get("SECRET_KEY"):
-        logger.warning("[UYARI] SECRET_KEY env variable set edilmemiş; her restart'ta yeni bir tane üretiliyor. "
-              "Üretimde Railway'de SECRET_KEY environment variable olarak sabit bir değer tanımlayın.")
     socketio.run(app, host="0.0.0.0", debug=False, port=port)
