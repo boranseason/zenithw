@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+# Hem ffmpeg hem de aria2 tek seferde kuruluyor, ardından temizlik yapılıyor
+RUN apt-get update && apt-get install -y ffmpeg aria2 && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "app.py"]
