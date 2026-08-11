@@ -82,6 +82,34 @@
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'Cloudflare artık gerçekten devrede, ayarlarda unutulan çeviriler tamamlandı',
+titleEn:'Cloudflare is finally actually in the loop, and a couple of forgotten translations got fixed',
+
+introTr:[
+'Bir süredir Cloudflare\'i domain\'imize bağlamıştık ama site trafiği sessizce onu atlayıp doğrudan sunucumuza gidiyordu — yani DDoS koruması, bot filtreleme ve gerçek IP tabanlı hız sınırlaması fiilen devre dışıydı. Bunu kökten düzelttik.',
+'Bunun yanında sunucu tarafında kullanılmayan eski bir yapılandırma dosyasını temizledik ve indirme kuyruğu ayarlarımızın tam olarak devreye girmesini sağladık.'
+],
+introEn:[
+'We had connected Cloudflare to our domain a while back, but site traffic was quietly bypassing it and going straight to our server — meaning DDoS protection, bot filtering, and real IP-based rate limiting were effectively disabled. We fixed that at the root.',
+'Alongside that, we cleaned up an old unused server configuration file and made sure our download queue settings were actually taking effect.'
+],
+
+sections:[
+{hTr:'trafik artık gerçekten Cloudflare üzerinden geçiyor',hEn:'traffic now genuinely routes through Cloudflare',
+pTr:'Sitenin API adresi artık Cloudflare tarafından korunan özel bir alt alan adı üzerinden sunucumuza ulaşıyor, sunucumuzun kendi adresine doğrudan gidilemiyor. Bu, DDoS koruması ve hız sınırlamasının artık gerçek anlamda çalıştığı anlamına geliyor.',
+pEn:'The site\'s API address now reaches our server through a Cloudflare-protected subdomain, instead of a direct path to our server\'s own address. This means DDoS protection and rate limiting are now genuinely active.'},
+{hTr:'sunucu yapılandırması sadeleştirildi',hEn:'server configuration simplified',
+pTr:'Sunucumuzda unutulmuş, kullanılmayan eski bir yapılandırma dosyası vardı ve bu dosya asıl kullanmak istediğimiz ayarların (uzun indirmeler için zaman aşımı, eşzamanlı bağlantı yönetimi gibi) devreye girmesini engelliyordu. Temizledik; artık sunucu tam olarak istediğimiz ayarlarla çalışıyor.',
+pEn:'Our server had a forgotten, unused old configuration file lying around, and it was preventing the settings we actually wanted (timeouts for long downloads, concurrent connection handling) from taking effect. We removed it — the server now runs exactly on the settings we intended.'},
+{hTr:'ayarlardaki unutulmuş çeviriler düzeltildi',hEn:'a couple of forgotten setting translations fixed',
+pTr:'Ayarlar → metadata bölümündeki "SponsorBlock" ve "altyazı göm" satırları, dili İngilizce/Fransızca/Almanca\'ya çevirseniz bile Türkçe kalıyordu. Sebebi basitti: bu iki satır çeviri sözlüğüne hiç eklenmemişti. Artık dört dilde de doğru gösteriliyor.',
+pEn:'The "SponsorBlock" and "embed subtitles" rows under Settings → metadata kept showing in Turkish even when you switched the interface to English, French, or German. The reason was simple: those two rows had never been added to the translation dictionary. They now display correctly in all four languages.'}
+],
+
+outroTr:'Kısacası: Cloudflare artık süs değil, gerçekten görevini yapıyor; ayarlar sekmesi de artık her dilde tutarlı.',
+outroEn:'In short: Cloudflare is no longer just decoration, it\'s actually doing its job now — and the settings tab is consistent across every language.'
+},
+{ver:'v8.1',latest:false,dateTr:'temmuz 2026',dateEn:'July 2026',
 titleTr:'youtube 4K / AV1 sorunu kökten çözüldü',
 titleEn:'youtube 4K / AV1 issue fixed at the root',
 

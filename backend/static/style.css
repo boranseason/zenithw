@@ -159,53 +159,29 @@ body.light .gh-heart-path{fill:#ff4a97;}
 .gh-eyes-happy{opacity:0;transition:opacity 0.2s;}
 .gh-eyes-normal{opacity:1;transition:opacity 0.2s;}
 
-/* INTERACTIVE FOCUS / HOVER STATES */
-.url-field-wrap:focus-within .gh-eyes-happy,
-.url-field-wrap:hover .gh-eyes-happy,
-.url-cat-wrap:hover .gh-eyes-happy{
-  opacity:1;
-}
-.url-field-wrap:focus-within .gh-eyes-normal,
-.url-field-wrap:hover .gh-eyes-normal,
-.url-cat-wrap:hover .gh-eyes-normal{
-  opacity:0;
-}
+/* INTERACTIVE FOCUS STATES — focus-within stays for keyboard/mobile users typing in the box */
+.url-field-wrap:focus-within .gh-eyes-happy{opacity:1;}
+.url-field-wrap:focus-within .gh-eyes-normal{opacity:0;}
+.url-field-wrap:focus-within .gh-q-group{transform:translateY(-4px) scale(1.15);}
+.url-field-wrap:focus-within .gh-q-bg{fill:#ff4a97;stroke:rgba(255,255,255,0.4);}
+.url-field-wrap:focus-within .gh-q-txt{opacity:0!important;transform:scale(0.3);}
+.url-field-wrap:focus-within .gh-heart-path{opacity:1;transform:scale(1);}
 
-/* Badge Bounces & "?" turns into Heart "♥" on Focus/Hover */
-.url-field-wrap:focus-within .gh-q-group,
-.url-field-wrap:hover .gh-q-group,
-.url-cat-wrap:hover .gh-q-group{
-  transform:translateY(-4px) scale(1.15);
+/* HOVER-ONLY PETTING EFFECTS — real mouse only, so mobile tap never gets a "stuck" hover state
+   or fights with the eyes/badge swap while the user is just trying to tap the input. */
+@media (hover:hover) and (pointer:fine){
+  .url-cat-wrap:hover .gh-eyes-happy{opacity:1;}
+  .url-cat-wrap:hover .gh-eyes-normal{opacity:0;}
+  .url-cat-wrap:hover .gh-q-group{transform:translateY(-4px) scale(1.15);}
+  .url-cat-wrap:hover .gh-q-bg{fill:#ff4a97;stroke:rgba(255,255,255,0.4);}
+  .url-cat-wrap:hover .gh-q-txt{opacity:0!important;transform:scale(0.3);}
+  .url-cat-wrap:hover .gh-heart-path{opacity:1;transform:scale(1);}
+  .url-cat-wrap:hover .gh-octocat{transform: rotate(6deg) translateY(-3px) scale(1.05);}
+  .url-cat-wrap:hover .gh-pet-h1{animation: petHeartPop1 0.85s ease-out infinite;}
+  .url-cat-wrap:hover .gh-pet-h2{animation: petHeartPop2 0.85s ease-out 0.22s infinite;}
 }
-.url-field-wrap:focus-within .gh-q-bg,
-.url-cat-wrap:hover .gh-q-bg{
-  fill:#ff4a97; /* Pink heart badge background */
-  stroke:rgba(255,255,255,0.4);
-}
-.url-field-wrap:focus-within .gh-q-txt,
-.url-cat-wrap:hover .gh-q-txt{
-  opacity:0!important;
-  transform:scale(0.3);
-}
-.url-field-wrap:focus-within .gh-heart-path,
-.url-cat-wrap:hover .gh-heart-path{
-  opacity:1;
-  transform:scale(1);
-}
-
-/* DIRECT CAT PETTING (Hover or Click Directly on Cat Head) */
-.url-cat-wrap:hover .gh-octocat,
-.url-cat-wrap:active .gh-octocat{
-  transform: rotate(6deg) translateY(-3px) scale(1.05);
-}
-.url-cat-wrap:hover .gh-pet-h1,
-.url-cat-wrap:active .gh-pet-h1{
-  animation: petHeartPop1 0.85s ease-out infinite;
-}
-.url-cat-wrap:hover .gh-pet-h2,
-.url-cat-wrap:active .gh-pet-h2{
-  animation: petHeartPop2 0.85s ease-out 0.22s infinite;
-}
+/* Tap feedback on touch/click — one quick pop instead of a looping hover animation */
+.url-cat-wrap:active .gh-octocat{transform: rotate(6deg) translateY(-3px) scale(1.05);}
 
 @keyframes petHeartPop1{
   0%{opacity:0; transform:translateY(3px) scale(0.4);}
@@ -218,9 +194,10 @@ body.light .gh-heart-path{fill:#ff4a97;}
   100%{opacity:0; transform:translateY(-17px) scale(0.7);}
 }
 
-/* Gentle Peeking Idle Float */
+/* Gentle Peeking Idle Float — kept minimal on purpose: the cat is a corner detail,
+   not something that should keep pulling the eye while someone's trying to paste a link. */
 @media(prefers-reduced-motion:no-preference){
-  .gh-octocat{animation:ghCatFloat 4s ease-in-out infinite;}
+  .gh-octocat{animation:ghCatFloat 5s ease-in-out infinite;}
   @keyframes ghCatFloat{
     0%,100%{transform:translateY(0);}
     50%{transform:translateY(-2px);}
@@ -231,44 +208,7 @@ body.light .gh-heart-path{fill:#ff4a97;}
     0%,92%,100%{transform:scaleY(1);}
     95%{transform:scaleY(0.1);}
   }
-
-  /* Paws rhythmically flex their grip on the ledge — tiny, out of sync, tactile */
-  .gh-cat-paw-l{animation:ghPawGripL 3.2s ease-in-out infinite;}
-  .gh-cat-paw-r{animation:ghPawGripR 3.2s ease-in-out infinite 0.6s;}
-  @keyframes ghPawGripL{
-    0%,100%{transform:scaleY(1) rotate(0deg);}
-    50%{transform:scaleY(0.93) rotate(-2deg);}
-  }
-  @keyframes ghPawGripR{
-    0%,100%{transform:scaleY(1) rotate(0deg);}
-    50%{transform:scaleY(0.93) rotate(2deg);}
-  }
-
-  /* One ear flicks now and then, like a cat half-listening to something */
-  .gh-cat-ear-l{transform-origin:24px 11px;animation:ghEarTwitch 5s ease-in-out infinite;}
-  .gh-cat-ear-r{transform-origin:48px 11px;animation:ghEarTwitch 5s ease-in-out infinite 2.6s;}
-  @keyframes ghEarTwitch{
-    0%,88%,100%{transform:rotate(0deg);}
-    90%{transform:rotate(-8deg);}
-    93%{transform:rotate(4deg);}
-    96%{transform:rotate(0deg);}
-  }
-
-  /* Curious glance — pupils drift slightly and settle back */
-  .gh-cat-pupils{animation:ghLookAround 8s ease-in-out infinite;}
-  @keyframes ghLookAround{
-    0%,20%,100%{transform:translate(0,0);}
-    23%,35%{transform:translate(1px,-0.4px);}
-    38%,55%{transform:translate(-1px,0.4px);}
-    58%{transform:translate(0,0);}
-  }
 }
-
-/* Paws grip a little harder while petting, instead of the idle flex */
-.url-cat-wrap:hover .gh-cat-paw-l,
-.url-cat-wrap:active .gh-cat-paw-l{animation:none;transform:scaleY(0.9) rotate(-3deg);}
-.url-cat-wrap:hover .gh-cat-paw-r,
-.url-cat-wrap:active .gh-cat-paw-r{animation:none;transform:scaleY(0.9) rotate(3deg);}
 
 /* ── BORED (10s idle, no text): a little paw nibble ── */
 .url-cat-wrap.bored .gh-octocat{animation:ghNibble 1.6s ease-in-out infinite!important;}

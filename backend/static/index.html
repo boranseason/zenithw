@@ -622,7 +622,7 @@
 <div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
 
 <script>
-const API="https://zenithw-production.up.railway.app";
+const API="https://api.zenithw.space";
 async function downloadThumbnail(){
   if(!videoInfo||!videoInfo.url) return;
   try{
@@ -676,6 +676,8 @@ const TX={
     stLblLang:'dil',stNoteLang:'arayüz dili. tarayıcıdan otomatik algılanır.',
     stLblAccent:'renk teması',stNoteAccent:'arayüzün vurgu renklerini değiştirebilirsiniz.',
     stLblMeta:'dosya metadatası',stMetaName:'metadata göm',stMetaDesc:'dosyaya başlık, sanatçı ve platform bilgisi gömülür.',
+    stSbName:'SponsorBlock',stSbDesc:'sponsor/reklam bölümlerini videodan otomatik keser (YouTube).',
+    stSubName:'altyazı göm',stSubDesc:'mevcutsa altyazıyı videoya gömer (varsayılan dil: tr, yoksa en).',
     stLblFnf:'dosya adı formatı',stNoteFnf:'İndirme başlamadan önce dosya adı bu formata göre oluşturulur.',
     stLblFnfEx:'örnek formatlar',
     connecting:'bağlanıyor...',downloading:'indiriliyor...',merging:'birleştiriliyor...',queued:'sırada bekleniyor...',done:'tamamlandı!',
@@ -735,6 +737,8 @@ const TX={
     stLblLang:'language',stNoteLang:'interface language. auto-detected from browser.',
     stLblAccent:'color accent',stNoteAccent:'change the interface accent colors.',
     stLblMeta:'file metadata',stMetaName:'embed metadata',stMetaDesc:'title, artist, and platform info is embedded into the file.',
+    stSbName:'SponsorBlock',stSbDesc:'automatically cuts sponsor/ad segments from the video (YouTube).',
+    stSubName:'embed subtitles',stSubDesc:'embeds subtitles into the video if available (tries Turkish first, falls back to English).',
     stLblFnf:'filename format',stNoteFnf:'File will be named using this template before download.',
     stLblFnfEx:'example formats',
     connecting:'connecting...',downloading:'downloading...',merging:'merging...',queued:'waiting in queue...',done:'done!',
@@ -796,6 +800,8 @@ const TX={
     stLblLang:'langue',stNoteLang:'langue de l\'interface. détectée automatiquement depuis le navigateur.',
     stLblAccent:'couleur d\'accent',stNoteAccent:'changez les couleurs d\'accent de l\'interface.',
     stLblMeta:'métadonnées du fichier',stMetaName:'intégrer les métadonnées',stMetaDesc:'le titre, l\'artiste et la plateforme sont intégrés au fichier.',
+    stSbName:'SponsorBlock',stSbDesc:'coupe automatiquement les segments sponsorisés/publicitaires de la vidéo (YouTube).',
+    stSubName:'intégrer les sous-titres',stSubDesc:'intègre les sous-titres à la vidéo si disponibles (essaie le turc en premier, puis l\'anglais).',
     stLblFnf:'format du nom de fichier',stNoteFnf:'le nom du fichier sera généré selon ce modèle avant le téléchargement.',
     stLblFnfEx:'exemples de formats',
     connecting:'connexion...',downloading:'téléchargement...',merging:'fusion...',done:'terminé !',
@@ -857,6 +863,8 @@ const TX={
     stLblLang:'sprache',stNoteLang:'sprache der oberfläche. wird automatisch vom browser erkannt.',
     stLblAccent:'akzentfarbe',stNoteAccent:'ändere die akzentfarben der oberfläche.',
     stLblMeta:'datei-metadaten',stMetaName:'metadaten einbetten',stMetaDesc:'titel, künstler und plattform werden in die datei eingebettet.',
+    stSbName:'SponsorBlock',stSbDesc:'schneidet sponsor-/werbeabschnitte automatisch aus dem video (YouTube).',
+    stSubName:'untertitel einbetten',stSubDesc:'bettet Untertitel ins Video ein, falls verfügbar (zuerst Türkisch, sonst Englisch).',
     stLblFnf:'dateinamenformat',stNoteFnf:'der dateiname wird vor dem download nach diesem muster erstellt.',
     stLblFnfEx:'beispielformate',
     connecting:'verbinde...',downloading:'lädt herunter...',merging:'wird zusammengeführt...',done:'fertig!',
