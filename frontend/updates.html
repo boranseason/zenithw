@@ -91,6 +91,34 @@
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'sunucu tarafında büyük bir bakım turu: güvenlik, kararlılık ve temizlik',
+titleEn:'a big backend maintenance pass: security, stability, and cleanup',
+
+introTr:[
+'Bu sefer kullanıcıya doğrudan görünmeyen ama arka planda çok şey değiştiren bir güncelleme yaptık. Sunucu tarafında birikmiş güvenlik açıklarını, kararlılık sorunlarını ve eski/unutulmuş kod parçalarını tek seferde temizledik.',
+'Öne çıkanlar: Cloudflare\'in arkasındaki gerçek istemci IP\'sinin doğru okunmasını sağlayan bir düzeltme, sunucuyu dışarıdan istismara açık bırakabilecek bir SSRF/DNS rebinding açığının kapatılması, ve zamanla artan bellek/sayaç sızıntılarının giderilmesi.'
+],
+introEn:[
+'This one is mostly invisible to you, but it changes a lot under the hood. We cleaned up a batch of accumulated security issues, stability bugs, and old/forgotten code on the server side in one pass.',
+'Highlights: a fix so the real client IP behind Cloudflare is read correctly, closing an SSRF/DNS-rebinding hole that could have been abused from outside, and eliminating memory/counter leaks that built up over time.'
+],
+
+sections:[
+{hTr:'Cloudflare IP tespiti ve güvenlik sağlamlaştırması',hEn:'Cloudflare IP detection and security hardening',
+pTr:'Sunucumuz, Railway\'in kendi internal proxy katmanı yüzünden gerçek Cloudflare IP\'sini bazen yanlış tespit edip meşru istekleri bile reddedebiliyordu. Bunu ProxyFix middleware ile düzelttik ve CORS preflight (OPTIONS) isteklerinin de bu kontrolden doğru şekilde geçmesini sağladık. Ayrıca dışarıdan sunucumuzu kandırıp iç ağa istek attırabilecek bir SSRF/DNS rebinding açığını kapattık: bunun için kullanılan eski indirme aracını (aria2c) tamamen kaldırdık ve ağ isteklerini kontrol eden güvenlik katmanını sağlamlaştırdık.',
+pEn:'Because of Railway\'s own internal proxy layer, our server was sometimes misreading the real Cloudflare IP and rejecting even legitimate requests. We fixed this with ProxyFix middleware, and made sure CORS preflight (OPTIONS) requests pass through that check correctly too. We also closed an SSRF/DNS-rebinding hole that could have tricked our server into making requests into internal networks — we removed the old download helper (aria2c) that enabled it and hardened the socket-level guard that checks outbound network requests.'},
+{hTr:'kararlılık: sızıntılar ve zaman aşımı tutarsızlıkları giderildi',hEn:'stability: leaks and timeout mismatches fixed',
+pTr:'Hız sınırlama (rate limit) mekanizması zamanla bellekte birikip şişebiliyordu; bunu otomatik süresi dolan bir TTLCache yapısıyla değiştirdik. Aynı IP\'den gelen eşzamanlı istek sayacı bazı hata durumlarında sıfırlanmadan kalıyordu, bunu düzelttik. İndirme kuyruğu sayacının bazen negatife düşmesini engelledik. Sunucu artık tek işçi (worker) yerine 2 worker ile, ve subprocess\'lerde gerçek zaman aşımı süreleriyle çalışıyor — gunicorn\'un kendi timeout ayarıyla da koordineli.',
+pEn:'The rate-limiter used to slowly accumulate memory over time; we replaced it with a self-expiring TTLCache. The concurrent-request counter per IP could get stuck without resetting in some error paths — fixed. We also stopped the download queue counter from occasionally dropping below zero. The server now runs with 2 workers instead of one, and subprocesses use real timeouts that are coordinated with gunicorn\'s own timeout setting.'},
+{hTr:'kod temizliği ve küçük düzeltmeler',hEn:'code cleanup and small fixes',
+pTr:'Tüm bağımlılıklar artık sabit sürümlere pinlendi (sürüm sürprizlerini önlemek için), tekrarlanan import\'lar ve kullanılmayan boş fonksiyonlar temizlendi, dosya temizleme işlemleri artık loglanıyor ve periyodik olarak çalışıyor. Sessiz sesi kapatma (mute) özelliğindeki bir uzantı algılama hatası düzeltildi, ffmpeg\'in nerede bulunacağı artık platformdan bağımsız (cross-platform) şekilde tespit ediliyor. Sunucu loglarının tamamı Türkçe\'den İngilizce\'ye çevrildi ve socketio bildirimleri artık hataya dayanıklı bir sarmalayıcı (safe_emit) üzerinden gönderiliyor.',
+pEn:'All dependencies are now pinned to fixed versions (to avoid surprise upgrades), duplicate imports and unused empty functions were removed, and file cleanup now logs its actions and runs on a proper schedule. A file-extension detection bug in the mute feature was fixed, and ffmpeg is now located in a cross-platform way. All server logs were translated from Turkish to English, and socketio notifications now go through an error-resistant wrapper (safe_emit).'}
+],
+
+outroTr:'Kısacası: bu güncellemenin çoğu gözle görünmüyor ama sunucumuzu hem daha güvenli hem daha kararlı hale getirdi.',
+outroEn:'In short: most of this update is invisible, but it makes our server both safer and more stable.'
+},
+{ver:'v9.0',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'Cloudflare artık gerçekten devrede, ayarlarda unutulan çeviriler tamamlandı',
 titleEn:'Cloudflare is finally actually in the loop, and a couple of forgotten translations got fixed',
 
