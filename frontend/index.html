@@ -1022,14 +1022,29 @@ function setAccent(acc){
   const ctx=canvas.getContext('2d');
   const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
   const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
-  const COUNT=isTouch?55:130;
+  const COUNT=isTouch?36:130;
+  // Mobilde DPR'i sinirliyoruz: 3x ekranda canvas'i tam cozunurlukte
+  // cizmek gereksiz GPU/CPU yuku (Android orta/dusuk seviye cihazlarda
+  // belirgin jank). 1.5 civari zaten yeterince keskin gorunuyor.
+  const DPR=isTouch?Math.min(devicePixelRatio||1,1.5):(devicePixelRatio||1);
 
   function resize(){
-    canvas.width=innerWidth;
-    canvas.height=innerHeight;
+    canvas.width=innerWidth*DPR;
+    canvas.height=innerHeight*DPR;
+    canvas.style.width=innerWidth+'px';
+    canvas.style.height=innerHeight+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
   }
   resize();
-  addEventListener('resize',resize);
+  // Chrome'da adres cubugu scroll sirasinda gizlenip/gorunurken 'resize'
+  // art arda tetikleniyor; her seferinde canvas'i yeniden boyutlandirmak
+  // (a) gereksiz reflow/repaint yaratiyor (b) alt bar/modal'lardaki
+  // titremeye katkida bulunuyor. Debounce ile tek seferde toparliyoruz.
+  let resizeT=null;
+  addEventListener('resize',()=>{
+    if(resizeT)clearTimeout(resizeT);
+    resizeT=setTimeout(resize,150);
+  },{passive:true});
 
   const stars=Array.from({length:COUNT},()=>({
     x:Math.random()*innerWidth,
@@ -1043,10 +1058,17 @@ function setAccent(acc){
   }));
 
   let frame=0;
+  // Dokunmatik/mobil cihazlarda 60fps yerine ~30fps yeterli — pil ve
+  // GPU yukunu yariya indiriyor, gozle fark edilmiyor (yavas pulse animasyonu).
+  let skip=0;
   function draw(){
     frame++;
+    if(isTouch){
+      skip++;
+      if(skip%2!==0){requestAnimationFrame(draw);return;}
+    }
     const t=frame;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,innerWidth,innerHeight);
     stars.forEach(s=>{
       const pulse=0.4+0.6*Math.abs(Math.sin(t*s.spd*60+s.ph));
       const alpha=s.a*pulse;
@@ -1062,6 +1084,7 @@ function setAccent(acc){
   if(!reduceMotion)requestAnimationFrame(draw);
   else draw();
 })();
+
 
 socket.on('connect',()=>{socketId=socket.id;});
 socket.on('progress',d=>{
@@ -1767,7 +1790,7 @@ async function reDownload(url){
     el.appendChild(r);
     setTimeout(()=>r.remove(),650);
   });
-  if(!reduceMotion&&!('ontouchstart' in window)){
+  if(!reduceMotion&&window.matchMedia('(hover:hover) and (pointer:fine)').matches){
     const MAG_SEL='.action-btn,.vc-dl,.pl-dl-btn,.url-go-btn,.services-chip';
     document.querySelectorAll(MAG_SEL).forEach(el=>el.setAttribute('data-magnetic',''));
     document.addEventListener('mousemove',e=>{

@@ -755,7 +755,7 @@ body:not(.light) .gh-eyes-normal{animation-duration:7s;}
 .toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 
 /* GLOBAL PRESS FEEDBACK — every clickable control gets a small, consistent tap response */
-button,.services-chip,.mode-btn,.btn-paste,.bulk-toggle,.vc-dl,.pl-sel-btn,.pl-item,.chip,.theme-btn,.st-nav-btn,.more-item,.bar-btn,.save-btn,.don-copy-btn,.pwa-btn{-webkit-tap-highlight-color:transparent;}
+button,.services-chip,.mode-btn,.btn-paste,.bulk-toggle,.vc-dl,.pl-sel-btn,.pl-item,.chip,.theme-btn,.st-nav-btn,.more-item,.bar-btn,.save-btn,.don-copy-btn,.pwa-btn,.url-cat-wrap,.url-go-btn,.url-clear{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 button:active,.services-chip:active,.mode-btn:active,.btn-paste:active,.vc-dl:active,.pl-sel-btn:active,.chip:active,.theme-btn:active,.st-nav-btn:active,.more-item:active,.bar-btn:active,.save-btn:active,.don-copy-btn:active,.pwa-btn:active,.dl-btn:active,.action-btn:active,.save-done:active,.pl-dl-btn:active{transform:scale(0.97);}
 
 /* REDUCED MOTION — respected everywhere; strips ambient/decorative animation, keeps state changes instant */
@@ -778,6 +778,8 @@ button:active,.services-chip:active,.mode-btn:active,.btn-paste:active,.vc-dl:ac
    asked to composite continuously. */
 @media (hover:none) and (pointer:coarse){
   :root{--glass-blur:7px;}
+  .bottom-bar{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+  .overlay.open{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
   .mode-btn svg,
   .mode-btn#modeAuto.active svg,
   .mode-btn#modeAudio.active svg,
