@@ -78,6 +78,10 @@ PLAYLIST_LIMIT = 50
 
 # gevent.Timeout ile durdurulamayan, yt-dlp'nin içeride spawn ettiği
 # subprocess isimleri. Timeout sonrası bunlar taranıp öldürülür.
+# NOT: ARIA2_PATH = None olduğu için aria2c normal şartlarda hiç spawn
+# edilmiyor. "aria2c" burada bilinçli olarak duruyor: yt-dlp konfig hatası
+# veya ileride yanlışlıkla aktif edilmesi durumunda ortaya çıkabilecek
+# aria2c process'lerinin de reap edilebilmesi için bir güvenlik ağı.
 REAPABLE_PROCESS_NAMES = {"ffmpeg", "ffprobe", "aria2c"}
 
 
@@ -276,7 +280,9 @@ def _is_cloudflare_ip(ip_str):
 def _enforce_cloudflare_origin():
     if not ENABLE_ORIGIN_LOCK:
         return None
-    if request.path in ("/health", "/debug-headers"):
+    if request.path == "/health":
+        return None
+    if os.environ.get("FLASK_ENV") == "development" and request.path == "/debug-headers":
         return None
 
     remote_ip = request.remote_addr or ""
@@ -649,24 +655,21 @@ def health():
         "queue_waiting": queue_waiting,
     }), 200
 
-@app.route("/debug-headers")
-def debug_headers():
-    """
-    GEÇİCİ debug endpoint - origin-lock sorununu teşhis etmek için.
-    Cloudflare'den gelen X-Origin-Verify header'ının Flask'a ulaşıp
-    ulaşmadığını ve tam değerini gösterir. SORUN ÇÖZÜLÜNCE BU ROUTE'U SİL.
-    """
-    return jsonify({
-        "received_x_origin_verify": request.headers.get("X-Origin-Verify", "<HEADER YOK>"),
-        "expected_value_set": bool(ORIGIN_SECRET_VALUE),
-        "expected_length": len(ORIGIN_SECRET_VALUE) if ORIGIN_SECRET_VALUE else 0,
-        "received_length": len(request.headers.get("X-Origin-Verify", "")),
-        "match": request.headers.get("X-Origin-Verify", "") == ORIGIN_SECRET_VALUE,
-        "remote_addr": request.remote_addr,
-        "cf_ray": request.headers.get("CF-Ray", "<YOK>"),
-        "cf_connecting_ip": request.headers.get("CF-Connecting-IP", "<YOK>"),
-        "all_headers": dict(request.headers),
-    }), 200
+if os.environ.get("FLASK_ENV") == "development":
+    @app.route("/debug-headers")
+    def debug_headers():
+        """
+        SADECE development ortamında aktif. Production'da bu route hiç
+        register edilmez (bkz. FLASK_ENV kontrolü). Sekret değeri hâlâ
+        expose edilmez; sadece var/yok ve eşleşme durumu döner.
+        """
+        return jsonify({
+            "received_x_origin_verify_present": "X-Origin-Verify" in request.headers,
+            "expected_value_set": bool(ORIGIN_SECRET_VALUE),
+            "match": request.headers.get("X-Origin-Verify", "") == ORIGIN_SECRET_VALUE,
+            "cf_ray_present": "CF-Ray" in request.headers,
+            "cf_connecting_ip_present": "CF-Connecting-IP" in request.headers,
+        }), 200
 
 @app.route("/robots.txt")
 def robots():
@@ -682,6 +685,10 @@ def cancel_route():
             entry = cancel_events.get(download_id)
             if entry and entry[1] == ip:
                 entry[0].set()
+                # Download döngüsü zaten Event objesine kendi referansıyla
+                # erişiyor (dict'ten tekrar okumuyor), bu yüzden burada pop
+                # etmek güvenli ve /cancel sonrası dict'te kalıntı bırakmaz.
+                cancel_events.pop(download_id, None)
         return jsonify({"ok": True}), 200
     return jsonify({"error": "download_id required"}), 400
 
@@ -733,7 +740,9 @@ def get_info():
                         entry_url = e.get("url") or e.get("webpage_url")
                         if not entry_url and e.get("id"):
                             if is_youtube(url):
-                                entry_url = f"https://www.youtube.com/watch?v={e['id']}"
+                                vid = e["id"]
+                                if isinstance(vid, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,32}", vid):
+                                    entry_url = f"https://www.youtube.com/watch?v={vid}"
                         if not entry_url:
                             continue
                         thumbs = e.get("thumbnails") or []
@@ -1014,6 +1023,12 @@ def download():
                 logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
                 _reap_new_children(before_pids, download_id)
                 break
+            except (MemoryError, SystemError, KeyboardInterrupt, SystemExit):
+                # Bunlar bir sonraki opts denemesiyle "düzelmeyecek" ciddi
+                # hatalar; sessizce yutup devam etmek yerine process/worker
+                # seviyesine kadar yükseltiliyor.
+                _reap_new_children(before_pids, download_id)
+                raise
             except Exception as e:
                 last_err = e
                 es = str(e).lower()
@@ -1235,7 +1250,14 @@ ALLOWED_INPUT_EXTS = {
 
 def safe_input_suffix(original_filename):
     ext = os.path.splitext(original_filename or "")[1].lower()
-    if ext in ALLOWED_INPUT_EXTS and all(c.isalnum() or c == '.' for c in ext):
+    # ALLOWED_INPUT_EXTS whitelist zaten ".."/".."-benzeri değerleri dışlıyor,
+    # ama ekstra netlik için tek nokta + kısa uzunluk kontrolü de ekleniyor.
+    if (
+        ext in ALLOWED_INPUT_EXTS
+        and ext.count('.') == 1
+        and 2 <= len(ext) <= 5
+        and all(c.isalnum() for c in ext[1:])
+    ):
         return ext
     return ".bin"
 
