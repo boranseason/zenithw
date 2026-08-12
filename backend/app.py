@@ -23,6 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import yt_dlp
 import gevent
+import psutil
 
 # ── Logging ─────────────────────────────────────────────
 logging.basicConfig(
@@ -73,6 +74,48 @@ RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
 FILE_CLEANUP_INTERVAL = 900   # 15 dakika
 FILE_MAX_AGE = 1800           # 30 dakika
 PLAYLIST_LIMIT = 50
+
+# gevent.Timeout ile durdurulamayan, yt-dlp'nin içeride spawn ettiği
+# subprocess isimleri. Timeout sonrası bunlar taranıp öldürülür.
+REAPABLE_PROCESS_NAMES = {"ffmpeg", "ffprobe", "aria2c"}
+
+
+def _snapshot_child_pids():
+    """Şu anki process'in çocuklarının PID setini döner (timeout öncesi çağrılır)."""
+    try:
+        return {p.pid for p in psutil.Process(os.getpid()).children(recursive=True)}
+    except Exception:
+        return set()
+
+
+def _reap_new_children(before_pids, download_id=None):
+    """
+    Timeout sonrası: before_pids'te olmayan (yani timeout süresince doğan)
+    ffmpeg/ffprobe/aria2c child process'lerini bulup öldürür.
+    yt-dlp bu process'leri kendi içinde subprocess.Popen ile başlattığı için
+    PID'lerine doğrudan erişimimiz yok; bu yüzden process ağacını tarıyoruz.
+    """
+    try:
+        current = psutil.Process(os.getpid()).children(recursive=True)
+    except Exception:
+        return
+    for p in current:
+        try:
+            if p.pid in before_pids:
+                continue
+            name = (p.name() or "").lower()
+            if not any(reapable in name for reapable in REAPABLE_PROCESS_NAMES):
+                continue
+            logger.warning(f"[REAP] killing orphaned process pid={p.pid} name={name} download_id={download_id}")
+            p.kill()
+            try:
+                p.wait(timeout=5)
+            except Exception:
+                pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        except Exception as e:
+            logger.error(f"[REAP ERR] {e}")
 
 # ── İzin verilen origin'ler ────────────────────────────
 ALLOWED_ORIGINS = ["https://zenithw.space", "https://www.zenithw.space"]
@@ -201,7 +244,7 @@ def _is_cloudflare_ip(ip_str):
 def _enforce_cloudflare_origin():
     if not ENABLE_ORIGIN_LOCK:
         return None
-    if request.path == "/health":
+    if request.path in ("/health", "/debug-headers"):
         return None
 
     remote_ip = request.remote_addr or ""
@@ -525,7 +568,11 @@ def build_format_str(url, quality, fmt, codec):
     return (f"bestvideo[ext=mp4][height<={q}]+bestaudio[ext=m4a]"
             f"/bestvideo[height<={q}]+bestaudio/best[height<={q}]/best")
 
-def probe_duration(url):
+def probe_info(url):
+    """
+    Süre kontrolü ve dosya adı için gereken bilgiyi (duration, title) tek
+    extract_info çağrısında döner. Playlist ise (None, None) döner.
+    """
     try:
         opts_list = get_opts_list(url, extra={"skip_download": True, "quiet": True})
         for opts in opts_list:
@@ -533,13 +580,19 @@ def probe_duration(url):
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     if info.get("_type") == "playlist" or "entries" in info:
-                        return None
-                    return info.get("duration") or None
+                        return None, None
+                    return info.get("duration") or None, info.get("title") or None
             except Exception:
                 continue
     except Exception:
         pass
-    return None
+    return None, None
+
+
+def probe_duration(url):
+    """Geriye dönük uyumluluk için: sadece süreyi döner."""
+    duration, _ = probe_info(url)
+    return duration
 
 def sanitize_filename(name):
     """Dosya adı için güvenli string üretir."""
@@ -562,6 +615,25 @@ def health():
         "active_downloads": active_downloads_count,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
         "queue_waiting": queue_waiting,
+    }), 200
+
+@app.route("/debug-headers")
+def debug_headers():
+    """
+    GEÇİCİ debug endpoint - origin-lock sorununu teşhis etmek için.
+    Cloudflare'den gelen X-Origin-Verify header'ının Flask'a ulaşıp
+    ulaşmadığını ve tam değerini gösterir. SORUN ÇÖZÜLÜNCE BU ROUTE'U SİL.
+    """
+    return jsonify({
+        "received_x_origin_verify": request.headers.get("X-Origin-Verify", "<HEADER YOK>"),
+        "expected_value_set": bool(ORIGIN_SECRET_VALUE),
+        "expected_length": len(ORIGIN_SECRET_VALUE) if ORIGIN_SECRET_VALUE else 0,
+        "received_length": len(request.headers.get("X-Origin-Verify", "")),
+        "match": request.headers.get("X-Origin-Verify", "") == ORIGIN_SECRET_VALUE,
+        "remote_addr": request.remote_addr,
+        "cf_ray": request.headers.get("CF-Ray", "<YOK>"),
+        "cf_connecting_ip": request.headers.get("CF-Connecting-IP", "<YOK>"),
+        "all_headers": dict(request.headers),
     }), 200
 
 @app.route("/robots.txt")
@@ -741,7 +813,7 @@ def download():
     with cancel_events_lock:
         cancel_events[download_id] = (cancel_event, ip)
 
-    duration = probe_duration(url)
+    duration, video_title = probe_info(url)
     if duration and duration > MAX_VIDEO_DURATION_SECONDS:
         with cancel_events_lock:
             cancel_events.pop(download_id, None)
@@ -877,27 +949,34 @@ def download():
         for opts in opts_list:
             if cancel_event.is_set():
                 break
+            before_pids = _snapshot_child_pids()
             try:
-                # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz.
-                # Bu timeout sadece Python kodunu kapsar. Uzun süren işlemler
-                # için gunicorn --timeout (660s) devreye girer ve worker'ı
-                # restart eder. Bu yüzden DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
+                # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz,
+                # sadece Python kodunu kapsar. Bu yüzden timeout/exception
+                # sonrası _reap_new_children ile process ağacı taranıp
+                # timeout süresince doğan ffmpeg/aria2c process'leri öldürülür.
+                # Ayrıca uzun süren işlemler için gunicorn --timeout (660s)
+                # devreye girer ve worker'ı restart eder. Bu yüzden
+                # DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
                 with gevent.Timeout(DOWNLOAD_TIMEOUT_SECONDS, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s exceeded")):
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         ydl.download([url])
                 success = True
                 break
             except yt_dlp.utils.DownloadCancelled:
+                _reap_new_children(before_pids, download_id)
                 raise
             except TimeoutError as e:
                 timed_out = True
                 last_err = e
                 logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
+                _reap_new_children(before_pids, download_id)
                 break
             except Exception as e:
                 last_err = e
                 es = str(e).lower()
                 logger.error(f"[DL FAIL] {es[:100]}")
+                _reap_new_children(before_pids, download_id)
                 if "login" in es or "private" in es or "cookie" in es:
                     break
                 continue
@@ -981,11 +1060,10 @@ def download():
             _release_download_slot()
             slot_acquired = False
 
-        # Dosya adını video başlığından türet (mümkünse)
+        # Dosya adını video başlığından türet (mümkünse), yoksa sabit isme düş
         ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
-        # Başlığı bilmediğimiz için sabit isim kullanıyoruz ama güvenli
-        # İleride extract_info ile title alınıp kullanılabilir
-        download_name = f"zenithw.{ext}"
+        safe_title = sanitize_filename(video_title) if video_title else "zenithw"
+        download_name = f"{safe_title}.{ext}"
         logger.info(f"[DL] sending response: {download_name} ({final_size} bytes)")
         response = send_file(full_path, as_attachment=True, download_name=download_name)
         response.headers['X-Download-Id'] = download_id
