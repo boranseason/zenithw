@@ -129,7 +129,7 @@ async function checkStatus(){
     main.textContent=t.ok;
     rowServer.textContent=t.active(ms);
     rowFfmpeg.textContent=(d.ffmpeg&&d.ffmpeg.startsWith('OK'))?t.ready:t.problem;
-    rowCookies.textContent=(d.cookies&&d.cookies.startsWith('✓'))?t.loaded:t.notLoaded;
+    rowCookies.textContent=(d.cookies&&d.cookies.toLowerCase().startsWith('loaded'))?t.loaded:t.notLoaded;
     rowQueue.textContent=(typeof d.active_downloads==='number'&&typeof d.max_concurrent_downloads==='number')
       ?t.queueStatus(d.active_downloads,d.max_concurrent_downloads,d.queue_waiting||0)
       :'—';
