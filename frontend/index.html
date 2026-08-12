@@ -3,7 +3,7 @@
 <head>
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>ZenithW Video Downloader</title>
 <meta name="description" content="ZenithW — better than cobalt.tools, better than savefrom, better than y2mate. Pornhub downloader ve YouTube, TikTok, İnstagram, X/Twitter için ücretsiz, reklamsız, filigransız video indirici.">
 <meta name="keywords" content="pornhub downloader, better than cobalt.tools, better than savefrom, better than y2mate, cobalt.tools alternative, savefrom alternative, y2mate alternative, video downloader, pornhub video indir, youtube video indir, tiktok video indir, instagram video indir, twitter video indir, ücretsiz video indirici">
@@ -973,8 +973,14 @@ function applyStUI(){
 function setTheme(th){
   S.theme=th;saveSt();
   ['Auto','Light','Dark'].forEach(n=>{const b=document.getElementById('theme'+n);if(b)b.classList.toggle('active',th===n.toLowerCase());});
-  if(th==='auto'){document.body.classList.toggle('light',!window.matchMedia('(prefers-color-scheme:dark)').matches);}
-  else{document.body.classList.toggle('light',th==='light');}
+  let isLight;
+  if(th==='auto'){isLight=!window.matchMedia('(prefers-color-scheme:dark)').matches;}
+  else{isLight=(th==='light');}
+  document.body.classList.toggle('light',isLight);
+  // html arkaplanini da senkron tut: iOS rubber-band sirasinda
+  // html'in arkaplani gorunur oluyor, body.light'taki --bg'yi
+  // miras alamadigi icin ayrica isaretliyoruz.
+  document.documentElement.classList.toggle('light',isLight);
 }
 function setAccent(acc){
   S.accent=acc;saveSt();
@@ -982,6 +988,32 @@ function setAccent(acc){
   document.body.classList.remove('theme-default','theme-purple','theme-gray','theme-pink','theme-cobalt');
   document.body.classList.add('theme-'+acc);
 }
+
+// ── MOBILE KEYBOARD FIX (Chrome/Android) ──
+// Android Chrome, klavye acilip kapanirken layout viewport'u gec/yanlis
+// hesaplayabiliyor; bu da position:fixed;bottom:0 olan .bottom-bar'in
+// bir anlik yanlis konumda gorunmesine ("kayma") sebep oluyor.
+// visualViewport API ile klavyenin kapladigi alani olcup navbar'i
+// translateY ile manuel pinliyoruz. Bu, interactive-widget=resizes-content
+// destekleyen yeni Chrome'larda no-op'a yakin calisir (offset ~0),
+// eski Chrome'larda ise gercek duzeltmeyi saglar.
+(function(){
+  const bar=document.querySelector('.bottom-bar');
+  if(!bar||!window.visualViewport)return;
+  const vv=window.visualViewport;
+  let raf=null;
+  function apply(){
+    raf=null;
+    const covered=Math.max(0,(window.innerHeight-vv.height-vv.offsetTop));
+    bar.style.transform=covered>2?`translateY(-${covered}px)`:'';
+  }
+  function onVVChange(){
+    if(raf)cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(apply);
+  }
+  vv.addEventListener('resize',onVVChange);
+  vv.addEventListener('scroll',onVVChange);
+})();
 
 // ── BG — lightweight CSS-canvas particle layer (no Three.js) ────
 (function(){

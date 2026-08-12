@@ -37,7 +37,14 @@ body.light .dl-handle{background:rgba(0,0,0,0.18);}
 body.light .toggle::after{background:rgba(0,0,0,0.3);}
 
 html,body{height:100%;}
-body{background:radial-gradient(ellipse 120% 90% at 50% 20%,#131316,#060606 65%);color:var(--text);font-family:var(--font);display:flex;flex-direction:column;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background 0.2s,color 0.2s;}
+/* iOS Safari: klavye açılışı / adres çubuğu animasyonu sırasında
+   elastic-scroll (rubber-band) ile <html>'in arkaplanı bir anlığına
+   görünür hale gelebiliyor. html'e --bg'yi vererek "1 saniyelik beyaz
+   flaş" önleniyor; overscroll-behavior ise bounce'ın kendisini,
+   dolayısıyla .bottom-bar'ın kısa süreli kaymasını engelliyor. */
+html{background:var(--bg);overscroll-behavior-y:none;}
+html.light{--bg:#f2f2f7;}
+body{background:radial-gradient(ellipse 120% 90% at 50% 20%,#131316,#060606 65%);color:var(--text);font-family:var(--font);display:flex;flex-direction:column;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;overscroll-behavior-y:none;transition:background 0.2s,color 0.2s;}
 #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;display:block;opacity:0.75;}
 body.light #bg-canvas{opacity:0.12;}
 
@@ -447,7 +454,7 @@ body:not(.light) .gh-eyes-normal{animation-duration:7s;}
 .yt-warn.sw-warn::before{content:'🎵';background:rgba(239,68,68,0.14);box-shadow:0 0 0 1px rgba(239,68,68,0.2) inset;}
 
 /* BOTTOM BAR */
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(8,8,8,0.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 4px;height:var(--bar-height);padding-bottom:var(--safe-bottom);}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(8,8,8,0.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 4px;height:var(--bar-height);padding-bottom:var(--safe-bottom);transition:transform 0.15s ease-out;will-change:transform;}
 .bar-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:1;height:100%;background:none;border:none;color:var(--text3);font-size:9px;font-weight:600;font-family:var(--font);letter-spacing:0.3px;text-transform:lowercase;cursor:pointer;border-radius:10px;transition:color 0.15s,background 0.15s,transform 0.1s;padding:8px 2px;min-width:0;}
 .bar-btn svg{width:18px;height:18px;stroke-width:1.6;flex-shrink:0;}
 .bar-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
