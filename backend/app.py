@@ -8,6 +8,7 @@ import uuid
 import threading
 import time
 import subprocess
+import atexit
 import shutil
 import secrets
 import socket
@@ -116,6 +117,37 @@ def _reap_new_children(before_pids, download_id=None):
             continue
         except Exception as e:
             logger.error(f"[REAP ERR] {e}")
+
+
+def _reap_all_children_on_shutdown():
+    """
+    Uygulama kapanırken (worker restart, deploy, SIGTERM vb.) geride kalan
+    tüm ffmpeg/ffprobe/aria2c child process'lerini temizler. Sadece bu
+    process'in kendi child'larını hedef alır; sistemdeki başka process'lere
+    dokunmaz.
+    """
+    try:
+        children = psutil.Process(os.getpid()).children(recursive=True)
+    except Exception:
+        return
+    for p in children:
+        try:
+            name = (p.name() or "").lower()
+            if not any(reapable in name for reapable in REAPABLE_PROCESS_NAMES):
+                continue
+            logger.warning(f"[SHUTDOWN REAP] killing pid={p.pid} name={name}")
+            p.kill()
+            try:
+                p.wait(timeout=5)
+            except Exception:
+                pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        except Exception as e:
+            logger.error(f"[SHUTDOWN REAP ERR] {e}")
+
+
+atexit.register(_reap_all_children_on_shutdown)
 
 # ── İzin verilen origin'ler ────────────────────────────
 ALLOWED_ORIGINS = ["https://zenithw.space", "https://www.zenithw.space"]
@@ -962,6 +994,16 @@ def download():
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         ydl.download([url])
                 success = True
+                # Başarılı tamamlanma sonrası da savunma amaçlı reap:
+                # yt-dlp kendi spawn ettiği ffmpeg/ffprobe process'lerini
+                # normalde kendi içinde reap eder, ancak postprocessor
+                # zincirinde (merge/metadata/sponsorblock/subtitle embed)
+                # birden fazla ffmpeg çağrısı olabiliyor ve gevent altında
+                # nadir durumlarda process arkada kalabiliyor. Bu döngü
+                # sadece BU indirmenin before/after PID farkına bakar,
+                # aynı anda çalışan başka indirmelerin process'lerine
+                # dokunmaz.
+                _reap_new_children(before_pids, download_id)
                 break
             except yt_dlp.utils.DownloadCancelled:
                 _reap_new_children(before_pids, download_id)
