@@ -11,9 +11,9 @@
 <link rel="stylesheet" href="style.css">
 <style>
 body{display:flex;align-items:center;justify-content:center;min-height:100dvh;padding:24px;}
-.admin-egg-card{max-width:460px;width:100%;text-align:center;}
+.admin-egg-card{max-width:460px;width:100%;text-align:center;position:relative;}
 .admin-egg-icon{font-size:34px;margin-bottom:18px;opacity:.85;}
-.admin-egg-txt{font-size:15px;font-weight:600;color:var(--text2);letter-spacing:.2px;line-height:1.9;margin-bottom:26px;min-height:3.8em;}
+.admin-egg-txt{font-size:15px;font-weight:600;color:var(--text2);letter-spacing:.2px;line-height:1.9;margin-bottom:14px;min-height:3.8em;}
 .admin-egg-txt .ew-ch{display:inline-block;animation:eggWave 1.6s ease-in-out infinite;}
 .admin-egg-txt .ew-sp{display:inline-block;width:.32em;}
 @keyframes eggWave{
@@ -25,10 +25,65 @@ body{display:flex;align-items:center;justify-content:center;min-height:100dvh;pa
 .admin-egg-lang{display:flex;justify-content:center;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;width:max-content;margin:0 auto 24px;}
 .admin-egg-lang button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
 .admin-egg-lang button.active{background:var(--text);color:var(--bg);}
+
+/* counter badge */
+.admin-egg-count{font-size:10.5px;color:var(--text3);margin-bottom:16px;letter-spacing:.2px;}
+.admin-egg-count span{color:var(--accent);font-weight:700;}
+
+/* terminal / matrix intro */
+.admin-term{position:fixed;inset:0;background:#000;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;overflow:hidden;}
+.admin-term.hide{display:none;}
+.admin-term canvas{position:absolute;inset:0;}
+.admin-term-box{position:relative;z-index:2;font-family:var(--font);color:#3bff5c;font-size:12px;line-height:1.7;text-align:left;max-width:420px;width:90%;text-shadow:0 0 6px rgba(59,255,92,0.6);white-space:pre-wrap;min-height:120px;}
+.admin-term-cursor{display:inline-block;width:7px;height:13px;background:#3bff5c;animation:termBlink .8s step-end infinite;vertical-align:middle;box-shadow:0 0 6px rgba(59,255,92,0.8);}
+@keyframes termBlink{50%{opacity:0;}}
+.admin-term-final{position:relative;z-index:2;margin-top:22px;font-family:var(--font);font-weight:700;font-size:22px;letter-spacing:1px;color:#ff4d4d;text-shadow:0 0 14px rgba(255,77,77,0.7);opacity:0;animation:termFinalIn .4s ease forwards;}
+@keyframes termFinalIn{to{opacity:1;transform:scale(1);}from{transform:scale(1.15);}}
+
+/* glitch flash on card */
+.admin-egg-card.glitching{animation:glitchShake .25s linear 2;}
+.admin-egg-card.glitching .admin-egg-txt{animation:glitchText .25s linear 2;}
+@keyframes glitchShake{
+  0%{transform:translate(0,0);}
+  20%{transform:translate(-3px,2px);}
+  40%{transform:translate(3px,-2px);}
+  60%{transform:translate(-2px,-2px);filter:hue-rotate(90deg);}
+  80%{transform:translate(2px,2px);}
+  100%{transform:translate(0,0);}
+}
+@keyframes glitchText{
+  0%,100%{opacity:1;}
+  45%{opacity:.3;transform:skewX(6deg);}
+  55%{opacity:.85;transform:skewX(-4deg);}
+}
+
+/* share button */
+.admin-egg-share{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--btn-color);background:var(--btn-bg);border:none;border-radius:20px;padding:9px 18px;cursor:pointer;margin-bottom:14px;transition:opacity .15s,transform .15s;}
+.admin-egg-share:hover{opacity:.85;transform:translateY(-1px);}
+.admin-egg-share:active{transform:translateY(0);}
+.admin-egg-share svg{width:13px;height:13px;flex-shrink:0;}
+.admin-egg-share-row{display:flex;justify-content:center;margin-bottom:18px;}
+.admin-egg-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);font-size:11.5px;font-weight:600;padding:10px 18px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:1200;white-space:nowrap;}
+.admin-egg-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* keyboard easter egg banner */
+.admin-egg-kbd{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--text);color:var(--bg);font-size:11.5px;font-weight:700;padding:9px 16px;border-radius:20px;opacity:0;transition:opacity .25s,transform .25s;z-index:1200;white-space:nowrap;max-width:90vw;text-align:center;}
+.admin-egg-kbd.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
-<div class="admin-egg-card">
+
+<!-- fake hacker terminal intro -->
+<div class="admin-term" id="adminTerm">
+  <canvas id="matrixCanvas"></canvas>
+  <div class="admin-term-box" id="termBox"><span id="termText"></span><span class="admin-term-cursor"></span></div>
+  <div class="admin-term-final" id="termFinal" style="display:none;">ACCESS DENIED — TRY HARDER 🤡</div>
+</div>
+
+<div class="admin-egg-toast" id="eggToast"></div>
+<div class="admin-egg-kbd" id="eggKbd"></div>
+
+<div class="admin-egg-card" id="eggCard">
   <div class="admin-egg-lang" id="eggLangToggle">
     <button data-lang="tr" onclick="setEggLang('tr')">TR</button>
     <button data-lang="en" onclick="setEggLang('en')">EN</button>
@@ -36,31 +91,275 @@ body{display:flex;align-items:center;justify-content:center;min-height:100dvh;pa
     <button data-lang="de" onclick="setEggLang('de')">DE</button>
   </div>
   <div class="admin-egg-icon">🥀🥺</div>
+  <div class="admin-egg-count" id="eggCount"></div>
   <div class="admin-egg-txt" id="eggTxt"></div>
-  <a class="admin-egg-back" href="/">← ana sayfaya dön</a>
+
+  <div class="admin-egg-share-row">
+    <button class="admin-egg-share" id="eggShareBtn" onclick="shareEgg()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
+      <span id="eggShareLabel"></span>
+    </button>
+  </div>
+
+  <a class="admin-egg-back" href="/" id="eggBackLink">← ana sayfaya dön</a>
 </div>
+
 <script>
+/* ─────────────────────────────
+   TEXT TABLES (all languages)
+   ───────────────────────────── */
 const ADMIN_EGG_TX={
   tr:'Dostum cidden anonim sitede admin yetkisi arıyor 🥀🥺',
   en:'Bro is seriously out here looking for admin rights on an anonymous site 🥀🥺',
   fr:'Mec, sérieux, il cherche les droits admin sur un site anonyme 🥀🥺',
   de:'Alter, ernsthaft, du suchst Admin-Rechte auf einer anonymen Seite 🥀🥺'
 };
+// escalating messages shown on repeat visits (index by visit count, caps at last)
+const ADMIN_EGG_ESCALATE={
+  tr:[
+    'Dostum cidden anonim sitede admin yetkisi arıyor 🥀🥺',
+    'Yine mi geldin? Az önce de bulamamıştın 🥀',
+    '3. deneme... bu sefer farklı bir şey mi olacak sandın 🤔',
+    'Kanka pes etmeyi bilmiyor musun, saygı duyuyorum ama olmuyor 😭',
+    'Artık bu sayfayı favorilere ekledin herhalde 🥀🥺     yine de yok admin yetkisi'
+  ],
+  en:[
+    'Bro is seriously out here looking for admin rights on an anonymous site 🥀🥺',
+    'Back again? You didn\'t find it last time either 🥀',
+    'Attempt #3... thought something would be different this time? 🤔',
+    'You really don\'t know how to give up, respect but no 😭',
+    'You\'ve probably bookmarked this page by now 🥀🥺 still no admin though'
+  ],
+  fr:[
+    'Mec, sérieux, il cherche les droits admin sur un site anonyme 🥀🥺',
+    'Encore de retour ? Tu ne l\'avais pas trouvé la dernière fois non plus 🥀',
+    'Tentative n°3... tu pensais que ce serait différent cette fois ? 🤔',
+    'Tu ne sais vraiment pas abandonner, du respect mais non 😭',
+    'Tu as sûrement mis cette page en favori maintenant 🥀🥺 toujours pas d\'admin'
+  ],
+  de:[
+    'Alter, ernsthaft, du suchst Admin-Rechte auf einer anonymen Seite 🥀🥺',
+    'Schon wieder hier? Letztes Mal hast du es auch nicht gefunden 🥀',
+    'Versuch Nr. 3... dachtest du, es wäre diesmal anders? 🤔',
+    'Du weißt wirklich nicht, wie man aufgibt, Respekt aber nein 😭',
+    'Du hast diese Seite bestimmt schon als Lesezeichen gespeichert 🥀🥺 immer noch kein Admin'
+  ]
+};
+const ADMIN_EGG_COUNT_LABEL={
+  tr:n=>`Bu sayfaya ${n}. gelişin`,
+  en:n=>`Visit #${n} to this page`,
+  fr:n=>`${n}${n===1?'ère':'ème'} visite sur cette page`,
+  de:n=>`Besuch Nr. ${n} auf dieser Seite`
+};
+const ADMIN_EGG_BACK={
+  tr:'← ana sayfaya dön',
+  en:'← back to home',
+  fr:'← retour à l\'accueil',
+  de:'← zurück zur Startseite'
+};
+const ADMIN_EGG_SHARE_LABEL={
+  tr:'Ekran görüntüsünü paylaş',
+  en:'Share this screenshot',
+  fr:'Partager cette capture',
+  de:'Screenshot teilen'
+};
+const ADMIN_EGG_SHARE_HINT={
+  tr:'Bu sayfayı arkadaşına at, seninle gurur duyacak 😌 (link kopyalandı)',
+  en:'Send this to a friend, they\'ll be so proud of you 😌 (link copied)',
+  fr:'Envoie ça à un ami, il sera si fier de toi 😌 (lien copié)',
+  de:'Schick das einem Freund, er wird so stolz auf dich sein 😌 (Link kopiert)'
+};
+const ADMIN_EGG_KBD_MSG={
+  tr:'Yazdığın her tuşu görüyoruz 👀 (görmüyoruz ama)',
+  en:'We see every key you press 👀 (we don\'t, but ok)',
+  fr:'On voit chaque touche que tu tapes 👀 (pas vraiment, mais bon)',
+  de:'Wir sehen jede Taste, die du drückst 👀 (tun wir nicht, aber okay)'
+};
+
+let currentLang='tr';
+
 function renderEgg(l){
-  const msg=ADMIN_EGG_TX[l]||ADMIN_EGG_TX.tr;
+  const visitCount=getVisitCount();
+  const arr=ADMIN_EGG_ESCALATE[l]||ADMIN_EGG_ESCALATE.tr;
+  const idx=Math.min(visitCount-1,arr.length-1);
+  const msg=arr[idx];
   document.getElementById('eggTxt').innerHTML=[...msg].map((ch,i)=>ch===' '?'<span class="ew-sp"></span>':`<span class="ew-ch" style="animation-delay:${(i*0.045).toFixed(3)}s">${ch}</span>`).join('');
+
+  const countLabelFn=ADMIN_EGG_COUNT_LABEL[l]||ADMIN_EGG_COUNT_LABEL.tr;
+  document.getElementById('eggCount').innerHTML=countLabelFn(visitCount).replace(/(\d+)/,'<span>$1</span>');
+
+  document.getElementById('eggBackLink').textContent=ADMIN_EGG_BACK[l]||ADMIN_EGG_BACK.tr;
+  document.getElementById('eggShareLabel').textContent=ADMIN_EGG_SHARE_LABEL[l]||ADMIN_EGG_SHARE_LABEL.tr;
 }
+
 function setEggLang(l){
+  currentLang=l;
   document.documentElement.lang=l;
   renderEgg(l);
   document.querySelectorAll('#eggLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
   try{localStorage.setItem('zw_lang',l==='tr'?'tr':l);}catch(e){}
 }
+
+/* ─────────────────────────────
+   VISIT COUNTER
+   ───────────────────────────── */
+function getVisitCount(){
+  let n=1;
+  try{
+    n=parseInt(localStorage.getItem('zw_admin_visits')||'0',10)+0;
+    if(!n)n=1;
+  }catch(e){}
+  return n;
+}
+function bumpVisitCount(){
+  try{
+    let n=parseInt(localStorage.getItem('zw_admin_visits')||'0',10);
+    n=isNaN(n)?1:n+1;
+    localStorage.setItem('zw_admin_visits',String(n));
+    return n;
+  }catch(e){return 1;}
+}
+
+/* ─────────────────────────────
+   SHARE BUTTON
+   ───────────────────────────── */
+function showToast(msg){
+  const t=document.getElementById('eggToast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(window._eggToastTimer);
+  window._eggToastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+async function shareEgg(){
+  const url=location.href;
+  const text=(ADMIN_EGG_SHARE_HINT[currentLang]||ADMIN_EGG_SHARE_HINT.tr);
+  try{
+    if(navigator.share){
+      await navigator.share({title:'ZenithW — 403',text:text,url:url});
+      return;
+    }
+  }catch(e){/* user cancelled or unsupported, fall through to copy */}
+  try{
+    await navigator.clipboard.writeText(url);
+  }catch(e){}
+  showToast(text);
+}
+
+/* ─────────────────────────────
+   KEYBOARD EASTER EGG
+   watches for "admin", "hack", "password" typed anywhere on page
+   ───────────────────────────── */
+(function(){
+  const triggers=['admin','hack','password'];
+  let buf='';
+  let kbdTimer=null;
+  window.addEventListener('keydown',function(e){
+    if(e.key && e.key.length===1){
+      buf=(buf+e.key.toLowerCase()).slice(-20);
+      for(const w of triggers){
+        if(buf.endsWith(w)){
+          const el=document.getElementById('eggKbd');
+          el.textContent=ADMIN_EGG_KBD_MSG[currentLang]||ADMIN_EGG_KBD_MSG.tr;
+          el.classList.add('show');
+          clearTimeout(kbdTimer);
+          kbdTimer=setTimeout(()=>el.classList.remove('show'),3400);
+          buf='';
+          break;
+        }
+      }
+    }
+  });
+})();
+
+/* ─────────────────────────────
+   GLITCH EFFECT (brief, on load, before card settles)
+   ───────────────────────────── */
+function runGlitch(){
+  const card=document.getElementById('eggCard');
+  card.classList.add('glitching');
+  setTimeout(()=>card.classList.remove('glitching'),500);
+}
+
+/* ─────────────────────────────
+   MATRIX / FAKE TERMINAL INTRO
+   ───────────────────────────── */
+function runMatrix(){
+  const canvas=document.getElementById('matrixCanvas');
+  const ctx=canvas.getContext('2d');
+  let w=canvas.width=window.innerWidth;
+  let h=canvas.height=window.innerHeight;
+  const chars='アカサタナハマヤラワ01アイウエオカキクケコ$#@%&';
+  const fontSize=15;
+  const cols=Math.floor(w/fontSize);
+  const drops=new Array(cols).fill(1);
+  let raf;
+  function draw(){
+    ctx.fillStyle='rgba(0,0,0,0.08)';
+    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#2dff5f';
+    ctx.font=fontSize+'px monospace';
+    for(let i=0;i<drops.length;i++){
+      const text=chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+      if(drops[i]*fontSize>h && Math.random()>0.975) drops[i]=0;
+      drops[i]++;
+    }
+    raf=requestAnimationFrame(draw);
+  }
+  draw();
+  window.addEventListener('resize',()=>{w=canvas.width=window.innerWidth;h=canvas.height=window.innerHeight;});
+
+  const linesByLang={
+    tr:['> bağlantı kuruluyor...','> güvenlik duvarı aşılıyor...','> yetki seviyesi kontrol ediliyor...','> ROOT erişimi deneniyor...','> ... hiçbir şey olmuyor çünkü bu site anonim ve admin paneli yok 🤡'],
+    en:['> establishing connection...','> bypassing firewall...','> checking permission level...','> attempting ROOT access...','> ...nothing happens because this site is anonymous and has no admin panel 🤡'],
+    fr:['> établissement de la connexion...','> contournement du pare-feu...','> vérification du niveau d\'accès...','> tentative d\'accès ROOT...','> ...rien ne se passe car ce site est anonyme et n\'a pas de panneau admin 🤡'],
+    de:['> Verbindung wird aufgebaut...','> Firewall wird umgangen...','> Berechtigungsstufe wird geprüft...','> ROOT-Zugriff wird versucht...','> ...nichts passiert, denn diese Seite ist anonym und hat kein Admin-Panel 🤡']
+  };
+  let savedLang='tr';
+  try{savedLang=localStorage.getItem('zw_lang')||'tr';}catch(e){}
+  if(!linesByLang[savedLang])savedLang='en';
+  const lines=linesByLang[savedLang];
+
+  const termText=document.getElementById('termText');
+  let li=0,ci=0;
+  function typeLine(){
+    if(li>=lines.length){
+      setTimeout(()=>{
+        cancelAnimationFrame(raf);
+        document.getElementById('termFinal').style.display='block';
+        setTimeout(finishIntro,1100);
+      },500);
+      return;
+    }
+    const line=lines[li];
+    if(ci<=line.length){
+      termText.textContent=lines.slice(0,li).join('\n')+(li>0?'\n':'')+line.slice(0,ci);
+      ci++;
+      setTimeout(typeLine,18+Math.random()*22);
+    }else{
+      li++;ci=0;
+      setTimeout(typeLine,220);
+    }
+  }
+  setTimeout(typeLine,300);
+}
+
+function finishIntro(){
+  const term=document.getElementById('adminTerm');
+  term.classList.add('hide');
+  runGlitch();
+}
+
+/* ─────────────────────────────
+   INIT
+   ───────────────────────────── */
 (function(){
   let saved='tr';
   try{saved=localStorage.getItem('zw_lang')||'tr';}catch(e){}
   if(!ADMIN_EGG_TX[saved])saved='en';
+  bumpVisitCount();
   setEggLang(saved);
+  runMatrix();
 })();
 </script>
 </body>
