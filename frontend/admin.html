@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>403 — ZenithW</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://zenithw.space/admin.html">
+<meta name="theme-color" content="#0a0a0a">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100dvh;padding:24px;}
+.admin-egg-card{max-width:460px;width:100%;text-align:center;}
+.admin-egg-icon{font-size:34px;margin-bottom:18px;opacity:.85;}
+.admin-egg-txt{font-size:15px;font-weight:600;color:var(--text2);letter-spacing:.2px;line-height:1.9;margin-bottom:26px;min-height:3.8em;}
+.admin-egg-txt .ew-ch{display:inline-block;animation:eggWave 1.6s ease-in-out infinite;}
+.admin-egg-txt .ew-sp{display:inline-block;width:.32em;}
+@keyframes eggWave{
+  0%,60%,100%{transform:translateY(0);}
+  30%{transform:translateY(-6px);color:var(--accent);}
+}
+.admin-egg-back{display:inline-block;font-size:12px;color:var(--text3);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:8px 16px;transition:color .15s,border-color .15s;}
+.admin-egg-back:hover{color:var(--text);border-color:var(--border2);}
+.admin-egg-lang{display:flex;justify-content:center;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;width:max-content;margin:0 auto 24px;}
+.admin-egg-lang button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
+.admin-egg-lang button.active{background:var(--text);color:var(--bg);}
+</style>
+</head>
+<body>
+<div class="admin-egg-card">
+  <div class="admin-egg-lang" id="eggLangToggle">
+    <button data-lang="tr" onclick="setEggLang('tr')">TR</button>
+    <button data-lang="en" onclick="setEggLang('en')">EN</button>
+    <button data-lang="fr" onclick="setEggLang('fr')">FR</button>
+    <button data-lang="de" onclick="setEggLang('de')">DE</button>
+  </div>
+  <div class="admin-egg-icon">🥀🥺</div>
+  <div class="admin-egg-txt" id="eggTxt"></div>
+  <a class="admin-egg-back" href="/">← ana sayfaya dön</a>
+</div>
+<script>
+const ADMIN_EGG_TX={
+  tr:'Dostum cidden anonim sitede admin yetkisi arıyor 🥀🥺',
+  en:'Bro is seriously out here looking for admin rights on an anonymous site 🥀🥺',
+  fr:'Mec, sérieux, il cherche les droits admin sur un site anonyme 🥀🥺',
+  de:'Alter, ernsthaft, du suchst Admin-Rechte auf einer anonymen Seite 🥀🥺'
+};
+function renderEgg(l){
+  const msg=ADMIN_EGG_TX[l]||ADMIN_EGG_TX.tr;
+  document.getElementById('eggTxt').innerHTML=[...msg].map((ch,i)=>ch===' '?'<span class="ew-sp"></span>':`<span class="ew-ch" style="animation-delay:${(i*0.045).toFixed(3)}s">${ch}</span>`).join('');
+}
+function setEggLang(l){
+  document.documentElement.lang=l;
+  renderEgg(l);
+  document.querySelectorAll('#eggLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
+  try{localStorage.setItem('zw_lang',l==='tr'?'tr':l);}catch(e){}
+}
+(function(){
+  let saved='tr';
+  try{saved=localStorage.getItem('zw_lang')||'tr';}catch(e){}
+  if(!ADMIN_EGG_TX[saved])saved='en';
+  setEggLang(saved);
+})();
+</script>
+</body>
+</html>
