@@ -39,6 +39,9 @@ body{display:flex;align-items:center;justify-content:center;min-height:100dvh;pa
 @keyframes termBlink{50%{opacity:0;}}
 .admin-term-final{position:relative;z-index:2;margin-top:22px;font-family:var(--font);font-weight:700;font-size:22px;letter-spacing:1px;color:#ff4d4d;text-shadow:0 0 14px rgba(255,77,77,0.7);opacity:0;animation:termFinalIn .4s ease forwards;}
 @keyframes termFinalIn{to{opacity:1;transform:scale(1);}from{transform:scale(1.15);}}
+.admin-term-skip{position:absolute;bottom:28px;right:28px;z-index:3;font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:.3px;color:rgba(59,255,92,0.7);background:transparent;border:1px solid rgba(59,255,92,0.35);border-radius:20px;padding:8px 16px;cursor:pointer;transition:all .15s;}
+.admin-term-skip:hover{color:#3bff5c;border-color:rgba(59,255,92,0.7);background:rgba(59,255,92,0.08);}
+@media(max-width:600px){.admin-term-skip{bottom:20px;right:20px;padding:7px 14px;font-size:10px;}}
 
 /* glitch flash on card */
 .admin-egg-card.glitching{animation:glitchShake .25s linear 2;}
@@ -78,6 +81,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100dvh;pa
   <canvas id="matrixCanvas"></canvas>
   <div class="admin-term-box" id="termBox"><span id="termText"></span><span class="admin-term-cursor"></span></div>
   <div class="admin-term-final" id="termFinal" style="display:none;">ACCESS DENIED — TRY HARDER 🤡</div>
+  <button class="admin-term-skip" id="termSkipBtn" onclick="skipIntro()">SKIP ⏭</button>
 </div>
 
 <div class="admin-egg-toast" id="eggToast"></div>
@@ -121,28 +125,88 @@ const ADMIN_EGG_ESCALATE={
     'Yine mi geldin? Az önce de bulamamıştın 🥀',
     '3. deneme... bu sefer farklı bir şey mi olacak sandın 🤔',
     'Kanka pes etmeyi bilmiyor musun, saygı duyuyorum ama olmuyor 😭',
-    'Artık bu sayfayı favorilere ekledin herhalde 🥀🥺     yine de yok admin yetkisi'
+    'Artık bu sayfayı favorilere ekledin herhalde 🥀🥺 yine de yok admin yetkisi',
+    '6. deneme. İnat bu kadar mı olur ya 💀',
+    'Ciddi ciddi F5\'e mi basıyorsun şu an 🥀',
+    'Sekizinci kez... bu sayfa senden daha çok emek görüyor kanka',
+    'Bak şimdi düşünsene, bu enerjiyle CV\'ne bakabilirdin 🥀🥺',
+    '10. deneme! Tebrikler, resmi olarak bu sitenin en sadık ziyaretçisisin 🏆',
+    'Hala mı? Saygılarımı sunuyorum ama cevap hala hayır 😭',
+    'Bilgin olsun diye söylüyorum: bu buton hiçbir zaman farklı bir şey yapmayacak 🥀',
+    'Sayı 13... uğursuzluk falan yok, sadece sen varsın burada tek başına',
+    'Artık bunu bir spor dalı yapmışsın resmen 🥀🏃',
+    '15. tur! Olimpiyat olsa altın madalya senin kanka',
+    'Şu ana kadar geçen sürede gerçekten bir admin paneli yazabilirdin 🥀',
+    'Hala buradasın... aile seni arıyordur 🥺',
+    'Efsane bir sabır bu, tebrik ederim, ama admin yetkisi yok 🥀',
+    'Bak son bir kere daha söylüyorum: bu site anonim, admin paneli diye bir şey yok kanka 🥀🥺',
+    '20. deneme sınırına ulaştın. Artık sayaç durdu çünkü sen de artık durmalısın 🥀🥺✨ (saygıyla)'
   ],
   en:[
     'Bro is seriously out here looking for admin rights on an anonymous site 🥀🥺',
     'Back again? You didn\'t find it last time either 🥀',
     'Attempt #3... thought something would be different this time? 🤔',
     'You really don\'t know how to give up, respect but no 😭',
-    'You\'ve probably bookmarked this page by now 🥀🥺 still no admin though'
+    'You\'ve probably bookmarked this page by now 🥀🥺 still no admin though',
+    'Attempt #6. This level of stubbornness is impressive 💀',
+    'Are you seriously mashing F5 right now 🥀',
+    'Eighth time... this page gets more love from you than most people get',
+    'Think about it — with this energy you could\'ve updated your resume by now 🥀🥺',
+    'Attempt #10! Congrats, you\'re officially this site\'s most loyal visitor 🏆',
+    'Still going? Respect, but the answer is still no 😭',
+    'Just so you know: this button will never do anything different 🥀',
+    'Number 13... no bad luck here, just you, alone, still trying',
+    'You\'ve basically turned this into a sport at this point 🥀🏃',
+    'Round 15! If this were the Olympics, gold medal is yours',
+    'In the time you\'ve spent here you could\'ve actually written an admin panel 🥀',
+    'Still here... your family is probably looking for you 🥺',
+    'Legendary patience honestly, but still no admin access 🥀',
+    'Last time saying it: this site is anonymous, there is no admin panel, bro 🥀🥺',
+    'You\'ve hit attempt #20. The counter stops here because you should too 🥀🥺✨ (with love)'
   ],
   fr:[
     'Mec, sérieux, il cherche les droits admin sur un site anonyme 🥀🥺',
     'Encore de retour ? Tu ne l\'avais pas trouvé la dernière fois non plus 🥀',
     'Tentative n°3... tu pensais que ce serait différent cette fois ? 🤔',
     'Tu ne sais vraiment pas abandonner, du respect mais non 😭',
-    'Tu as sûrement mis cette page en favori maintenant 🥀🥺 toujours pas d\'admin'
+    'Tu as sûrement mis cette page en favori maintenant 🥀🥺 toujours pas d\'admin',
+    'Tentative n°6. Ce niveau de tétu est impressionnant 💀',
+    'Tu es sérieusement en train de spammer F5 là 🥀',
+    'Huitième fois... cette page reçoit plus d\'amour de toi que la plupart des gens',
+    'Réfléchis, avec cette énergie tu aurais pu refaire ton CV 🥀🥺',
+    'Tentative n°10 ! Félicitations, tu es officiellement le visiteur le plus fidèle de ce site 🏆',
+    'Toujours là ? Du respect, mais la réponse reste non 😭',
+    'Pour info : ce bouton ne fera jamais rien de différent 🥀',
+    'Numéro 13... pas de malchance ici, juste toi, seul, qui persiste',
+    'Tu as littéralement transformé ça en sport à ce stade 🥀🏃',
+    'Manche 15 ! Si c\'étaient les JO, la médaille d\'or serait pour toi',
+    'Avec le temps passé ici tu aurais pu carrément coder un panneau admin 🥀',
+    'Toujours là... ta famille te cherche sûrement 🥺',
+    'Patience légendaire honnêtement, mais toujours pas d\'accès admin 🥀',
+    'Dernière fois que je le dis : ce site est anonyme, il n\'y a pas de panneau admin, mec 🥀🥺',
+    'Tu as atteint la tentative n°20. Le compteur s\'arrête ici parce que toi aussi tu devrais 🥀🥺✨ (avec amour)'
   ],
   de:[
     'Alter, ernsthaft, du suchst Admin-Rechte auf einer anonymen Seite 🥀🥺',
     'Schon wieder hier? Letztes Mal hast du es auch nicht gefunden 🥀',
     'Versuch Nr. 3... dachtest du, es wäre diesmal anders? 🤔',
     'Du weißt wirklich nicht, wie man aufgibt, Respekt aber nein 😭',
-    'Du hast diese Seite bestimmt schon als Lesezeichen gespeichert 🥀🥺 immer noch kein Admin'
+    'Du hast diese Seite bestimmt schon als Lesezeichen gespeichert 🥀🥺 immer noch kein Admin',
+    'Versuch Nr. 6. Diese Sturheit ist beeindruckend 💀',
+    'Hämmerst du gerade ernsthaft auf F5 🥀',
+    'Achtes Mal... diese Seite bekommt mehr Liebe von dir als die meisten Menschen',
+    'Überleg mal, mit dieser Energie hättest du längst deinen Lebenslauf aktualisieren können 🥀🥺',
+    'Versuch Nr. 10! Glückwunsch, du bist offiziell der treueste Besucher dieser Seite 🏆',
+    'Immer noch dabei? Respekt, aber die Antwort bleibt nein 😭',
+    'Nur damit du es weißt: dieser Button wird nie etwas anderes tun 🥀',
+    'Nummer 13... kein Pech hier, nur du, allein, immer noch am Versuchen',
+    'Du hast das mittlerweile wirklich zu einer Sportart gemacht 🥀🏃',
+    'Runde 15! Wäre das Olympia, wäre Gold dir sicher',
+    'In der Zeit hier hättest du glatt ein eigenes Admin-Panel programmieren können 🥀',
+    'Immer noch hier... deine Familie sucht dich bestimmt 🥺',
+    'Ehrlich, legendäre Geduld, aber immer noch kein Admin-Zugriff 🥀',
+    'Letztes Mal, dass ich es sage: diese Seite ist anonym, es gibt kein Admin-Panel, Alter 🥀🥺',
+    'Du hast Versuch Nr. 20 erreicht. Der Zähler stoppt hier, weil du das auch solltest 🥀🥺✨ (mit Liebe)'
   ]
 };
 const ADMIN_EGG_COUNT_LABEL={
@@ -168,6 +232,12 @@ const ADMIN_EGG_SHARE_HINT={
   en:'Send this to a friend, they\'ll be so proud of you 😌 (link copied)',
   fr:'Envoie ça à un ami, il sera si fier de toi 😌 (lien copié)',
   de:'Schick das einem Freund, er wird so stolz auf dich sein 😌 (Link kopiert)'
+};
+const ADMIN_EGG_SKIP_LABEL={
+  tr:'ATLA ⏭',
+  en:'SKIP ⏭',
+  fr:'PASSER ⏭',
+  de:'ÜBERSPRINGEN ⏭'
 };
 const ADMIN_EGG_KBD_MSG={
   tr:'Yazdığın her tuşu görüyoruz 👀 (görmüyoruz ama)',
@@ -215,6 +285,7 @@ function bumpVisitCount(){
   try{
     let n=parseInt(localStorage.getItem('zw_admin_visits')||'0',10);
     n=isNaN(n)?1:n+1;
+    if(n>20)n=20; // cap — message list tops out at 20
     localStorage.setItem('zw_admin_visits',String(n));
     return n;
   }catch(e){return 1;}
@@ -321,13 +392,16 @@ function runMatrix(){
   const lines=linesByLang[savedLang];
 
   const termText=document.getElementById('termText');
+  const skipBtn=document.getElementById('termSkipBtn');
+  skipBtn.textContent=ADMIN_EGG_SKIP_LABEL[savedLang]||ADMIN_EGG_SKIP_LABEL.tr;
+  window._matrixRaf=raf;
   let li=0,ci=0;
   function typeLine(){
     if(li>=lines.length){
-      setTimeout(()=>{
+      window._termTimer=setTimeout(()=>{
         cancelAnimationFrame(raf);
         document.getElementById('termFinal').style.display='block';
-        setTimeout(finishIntro,1100);
+        window._termTimer=setTimeout(finishIntro,1100);
       },500);
       return;
     }
@@ -335,19 +409,29 @@ function runMatrix(){
     if(ci<=line.length){
       termText.textContent=lines.slice(0,li).join('\n')+(li>0?'\n':'')+line.slice(0,ci);
       ci++;
-      setTimeout(typeLine,18+Math.random()*22);
+      window._termTimer=setTimeout(typeLine,18+Math.random()*22);
     }else{
       li++;ci=0;
-      setTimeout(typeLine,220);
+      window._termTimer=setTimeout(typeLine,220);
     }
   }
-  setTimeout(typeLine,300);
+  window._termTimer=setTimeout(typeLine,300);
 }
 
+let introFinished=false;
 function finishIntro(){
+  if(introFinished)return;
+  introFinished=true;
   const term=document.getElementById('adminTerm');
   term.classList.add('hide');
   runGlitch();
+}
+
+function skipIntro(){
+  if(introFinished)return;
+  clearTimeout(window._termTimer);
+  if(window._matrixRaf)cancelAnimationFrame(window._matrixRaf);
+  finishIntro();
 }
 
 /* ─────────────────────────────
