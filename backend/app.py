@@ -15,7 +15,7 @@ import hmac
 import socket
 import ipaddress
 import tempfile
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, deque
 from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify, send_file, g
@@ -68,8 +68,18 @@ FFMPEG_TIMEOUT = 300  # ffmpeg subprocess timeout (mute vb.)
 DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("DOWNLOAD_TIMEOUT_SECONDS", 600))
 MAX_CONCURRENT_PER_IP = int(os.environ.get("MAX_CONCURRENT_PER_IP", 5))
 MAX_CONCURRENT_DOWNLOADS = int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", 2))
+MAX_CONCURRENT_CONVERSIONS = int(os.environ.get("MAX_CONCURRENT_CONVERSIONS", 1))
+MAX_CONCURRENT_INFO = int(os.environ.get("MAX_CONCURRENT_INFO", 4))
+MAX_CONCURRENT_THUMBNAILS = int(os.environ.get("MAX_CONCURRENT_THUMBNAILS", 2))
+MAX_DOWNLOAD_QUEUE = int(os.environ.get("MAX_DOWNLOAD_QUEUE", 12))
+MAX_QUEUE_WAIT_SECONDS = int(os.environ.get("MAX_QUEUE_WAIT_SECONDS", 120))
+INFO_TIMEOUT_SECONDS = int(os.environ.get("INFO_TIMEOUT_SECONDS", 45))
+THUMBNAIL_TIMEOUT_SECONDS = int(os.environ.get("THUMBNAIL_TIMEOUT_SECONDS", 60))
 MAX_VIDEO_DURATION_SECONDS = int(os.environ.get("MAX_VIDEO_DURATION_SECONDS", 90 * 60))
 MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 1536)) * 1024 * 1024
+MAX_CONVERT_OUTPUT_SIZE_BYTES = int(os.environ.get("MAX_CONVERT_OUTPUT_SIZE_MB", 1024)) * 1024 * 1024
+PREPARED_FILE_TTL = int(os.environ.get("PREPARED_FILE_TTL", 10 * 60))
+PROGRESS_EMIT_INTERVAL = float(os.environ.get("PROGRESS_EMIT_INTERVAL", "0.2"))
 RATE_LIMIT_WINDOW = 60  # saniye
 RATE_LIMIT_MAX_REQUESTS = 10  # istek/dakika
 RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
@@ -99,13 +109,20 @@ def _snapshot_child_pids():
         return set()
 
 
-def _reap_new_children(before_pids, download_id=None):
+def _reap_new_children(before_pids, download_id=None, file_token=None):
     """
-    Timeout sonrası: before_pids'te olmayan (yani timeout süresince doğan)
-    ffmpeg/ffprobe/aria2c child process'lerini bulup öldürür.
+    Timeout sonrası: before_pids'te olmayan ve komut satırında bu indirmeye ait
+    benzersiz dosya token'ını taşıyan ffmpeg/ffprobe/aria2c child process'lerini
+    bulup öldürür.
     yt-dlp bu process'leri kendi içinde subprocess.Popen ile başlattığı için
     PID'lerine doğrudan erişimimiz yok; bu yüzden process ağacını tarıyoruz.
+    Sadece "snapshot'tan sonra doğdu" ölçütü yeterli değildir: eşzamanlı başka
+    bir indirme veya /convert işlemi de aynı aralıkta FFmpeg başlatabilir.
     """
+    if not file_token:
+        logger.warning(f"[REAP] skipped: missing file token for download_id={download_id}")
+        return
+    token = str(file_token).lower()
     try:
         current = psutil.Process(os.getpid()).children(recursive=True)
     except Exception:
@@ -116,6 +133,12 @@ def _reap_new_children(before_pids, download_id=None):
                 continue
             name = (p.name() or "").lower()
             if not any(reapable in name for reapable in REAPABLE_PROCESS_NAMES):
+                continue
+            try:
+                command_line = " ".join(p.cmdline()).lower()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+            if token not in command_line:
                 continue
             logger.warning(f"[REAP] killing orphaned process pid={p.pid} name={name} download_id={download_id}")
             p.kill()
@@ -202,34 +225,58 @@ class TTLCache:
         self._data = OrderedDict()
         self._lock = threading.Lock()
 
-    def _cleanup(self):
+    def _cleanup_all(self):
+        """Tüm key'leri tarayan pahalı (O(n)) temizlik. Sadece periyodik
+        background thread tarafından çağrılmalı -- her request'te DEĞİL
+        (önceden add() içinde her çağrıda tüm cache taranıyordu, bu da
+        eşzamanlı trafik altında her isteği tek bir lock üzerinden
+        O(tracked_ip_count) maliyetle serialize ediyordu)."""
         now = time.time()
-        # En eski kayıtlardan başlayarak temizle
         to_remove = []
-        for key, timestamps in self._data.items():
-            valid = [t for t in timestamps if now - t < self.ttl]
-            if not valid:
-                to_remove.append(key)
-            else:
-                self._data[key] = valid
-        for key in to_remove:
-            del self._data[key]
+        with self._lock:
+            for key, timestamps in self._data.items():
+                while timestamps and now - timestamps[0] >= self.ttl:
+                    timestamps.popleft()
+                if not timestamps:
+                    to_remove.append(key)
+            for key in to_remove:
+                del self._data[key]
 
-        # Boyut limiti aşılırsa en eski kayıtları sil
-        while len(self._data) > self.max_size:
-            self._data.popitem(last=False)
+            # Boyut limiti aşılırsa en eski kayıtları sil
+            while len(self._data) > self.max_size:
+                self._data.popitem(last=False)
 
     def add(self, key):
-        """Adds a timestamp. Returns True if under limit, False if rate limited."""
+        """Adds a timestamp. Returns True if under limit, False if rate limited.
+        Sadece kendi key'inin listesini budar (ucuz, O(kendi kaydı)); süresi
+        dolan diğer key'lerin global temizliği ayrı bir arka plan thread'inde
+        (_cleanup_all) yapılır."""
         now = time.time()
         with self._lock:
-            self._cleanup()
-            if key not in self._data:
-                self._data[key] = []
+            timestamps = self._data.get(key)
+            if timestamps is None:
+                timestamps = deque()
+                self._data[key] = timestamps
+            while timestamps and now - timestamps[0] >= self.ttl:
+                timestamps.popleft()
+
             # En yeni kaydı sona taşı (LRU)
             self._data.move_to_end(key)
-            self._data[key].append(now)
-            return len(self._data[key]) <= RATE_LIMIT_MAX_REQUESTS
+
+            # Reddedilen istekleri kaydetmeyerek tek bir saldırganın timestamp
+            # listesini sınırsız büyütmesini önle. Bu, standart sliding-window
+            # davranışıdır: en eski kabul edilmiş istek süresi dolunca yeni bir
+            # istek için yer açılır.
+            if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+                return False
+            timestamps.append(now)
+
+            # max_size sınırını yalnızca periyodik sweep'e bırakmak, spoofed IP
+            # selinde bir temizlik aralığı boyunca sınırsız büyümeye izin verir.
+            # OrderedDict sayesinde en eski kaydı burada O(1) maliyetle atıyoruz.
+            while len(self._data) > self.max_size:
+                self._data.popitem(last=False)
+            return True
 
 
 rate_limiter = TTLCache(ttl=RATE_LIMIT_WINDOW, max_size=10000)
@@ -238,21 +285,28 @@ rate_limiter = TTLCache(ttl=RATE_LIMIT_WINDOW, max_size=10000)
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
 
 
+def _normalize_client_ip(value):
+    try:
+        return str(ipaddress.ip_address((value or "").strip()))
+    except ValueError:
+        return ""
+
+
 def get_client_ip():
     if TRUST_PROXY:
         # 1. Öncelik: Cloudflare'in kendi header'ı (CF-Connecting-IP)
         cf_ip = request.headers.get('CF-Connecting-IP')
         if cf_ip:
-            candidate = cf_ip.strip()
+            candidate = _normalize_client_ip(cf_ip)
             if candidate:
                 return candidate
         # 2. Fallback: X-Forwarded-For (Railway'de ProxyFix ile parse ediliyor)
         xff = request.headers.get('X-Forwarded-For')
         if xff:
-            candidate = xff.split(',')[0].strip()
+            candidate = _normalize_client_ip(xff.split(',')[0])
             if candidate:
                 return candidate
-    return request.remote_addr or "unknown"
+    return _normalize_client_ip(request.remote_addr) or "unknown"
 
 
 def check_rate_limit(ip):
@@ -277,6 +331,16 @@ _CF_NETWORKS = [ipaddress.ip_network(n) for n in CLOUDFLARE_IPV4 + CLOUDFLARE_IP
 
 ORIGIN_SECRET_HEADER = "X-Origin-Verify"
 ORIGIN_SECRET_VALUE = os.environ.get("ORIGIN_SECRET", "")
+
+if ENABLE_ORIGIN_LOCK and not ORIGIN_SECRET_VALUE:
+    if os.environ.get("FLASK_ENV") == "development" or os.environ.get("ALLOW_INSECURE_ORIGIN_LOCK"):
+        logger.warning("[INIT] Origin lock is running without ORIGIN_SECRET (development override)")
+    else:
+        raise RuntimeError(
+            "ORIGIN_SECRET environment variable is required when ENABLE_ORIGIN_LOCK is enabled. "
+            "Set it in Railway/Cloudflare, disable ENABLE_ORIGIN_LOCK explicitly, or use "
+            "ALLOW_INSECURE_ORIGIN_LOCK=1 only for local development."
+        )
 
 
 def _is_cloudflare_ip(ip_str):
@@ -359,9 +423,27 @@ def _release_concurrent_request_per_ip(exc=None):
 
 # ── Eşzamanlı indirme sınırı ──────────────────────────
 download_slots = threading.Semaphore(MAX_CONCURRENT_DOWNLOADS)
+conversion_slots = threading.Semaphore(MAX_CONCURRENT_CONVERSIONS)
+info_slots = threading.Semaphore(MAX_CONCURRENT_INFO)
+thumbnail_slots = threading.Semaphore(MAX_CONCURRENT_THUMBNAILS)
 queue_lock = threading.Lock()
 queue_waiting = 0
 active_downloads_count = 0
+
+
+class DownloadQueueFull(Exception):
+    pass
+
+
+class DownloadQueueTimeout(Exception):
+    pass
+
+
+def service_busy(message, retry_after=10, status=503):
+    response = jsonify({"error": message})
+    response.status_code = status
+    response.headers["Retry-After"] = str(retry_after)
+    return response
 
 
 def _release_download_slot():
@@ -375,25 +457,37 @@ def acquire_download_slot(sid, cancel_event):
     """Slot boşalana kadar bekler; iptal edilirse DownloadCancelled fırlatır."""
     global queue_waiting, active_downloads_count
     with queue_lock:
+        if queue_waiting >= MAX_DOWNLOAD_QUEUE:
+            raise DownloadQueueFull("Download queue is full")
         queue_waiting += 1
+    wait_deadline = time.monotonic() + MAX_QUEUE_WAIT_SECONDS
+    last_queue_emit = 0.0
+    last_ahead = None
     try:
         while True:
             if cancel_event.is_set():
                 raise yt_dlp.utils.DownloadCancelled("Cancelled")
-            if download_slots.acquire(blocking=True, timeout=1):
+            remaining = wait_deadline - time.monotonic()
+            if remaining <= 0:
+                raise DownloadQueueTimeout("Download queue wait timed out")
+            if download_slots.acquire(blocking=True, timeout=min(1, remaining)):
                 with queue_lock:
                     active_downloads_count += 1
                 return True
             if sid:
                 with queue_lock:
                     ahead = max(0, queue_waiting - 1)
-                try:
-                    socketio.emit('progress', {
-                        'status': 'queued',
-                        'message': f"Server is busy, waiting in queue... ({ahead} ahead)"
-                    }, room=sid)
-                except Exception:
-                    pass  # Emit başarısız olsa bile kuyruk beklemeye devam etsin
+                now = time.monotonic()
+                if ahead != last_ahead or now - last_queue_emit >= 5:
+                    try:
+                        socketio.emit('progress', {
+                            'status': 'queued',
+                            'message': f"Server is busy, waiting in queue... ({ahead} ahead)"
+                        }, room=sid)
+                        last_queue_emit = now
+                        last_ahead = ahead
+                    except Exception:
+                        pass  # Emit başarısız olsa bile kuyruk beklemeye devam etsin
     finally:
         with queue_lock:
             queue_waiting = max(0, queue_waiting - 1)
@@ -442,6 +536,8 @@ logger.info("[INIT] aria2c disabled (SSRF protection)")
 # YENİ: Kesin dosya temizliği için pending cleanups (path -> register timestamp)
 _pending_cleanups = {}
 _pending_cleanups_lock = threading.Lock()
+_prepared_files = {}
+_prepared_files_lock = threading.Lock()
 # Bir dosya bu süreden uzun süredir pending_cleanups'ta kalıyorsa (yani normal
 # akış -- send_file/call_on_close -- onu hiç kapatmamış demektir; muhtemelen
 # terk edilmiş bir download/convert), periyodik cleanup tarafından zorla
@@ -481,6 +577,29 @@ def _force_cleanup(path):
         pass
 
 
+def prepare_native_download(path, download_name, owner_ip):
+    """Tamamlanan dosyayı kısa ömürlü, tahmin edilemez bir indirme token'ına bağlar."""
+    expires_at = time.time() + PREPARED_FILE_TTL
+    with _prepared_files_lock:
+        while True:
+            token = secrets.token_urlsafe(32)
+            if token not in _prepared_files:
+                _prepared_files[token] = (path, download_name, owner_ip, expires_at)
+                return token
+
+
+def cleanup_expired_prepared_files():
+    now = time.time()
+    expired_paths = []
+    with _prepared_files_lock:
+        for token, entry in list(_prepared_files.items()):
+            if now >= entry[3]:
+                expired_paths.append(entry[0])
+                del _prepared_files[token]
+    for path in expired_paths:
+        _force_cleanup(path)
+
+
 def cleanup_old_files():
     try:
         now = time.time()
@@ -508,13 +627,60 @@ def periodic_cleanup():
         time.sleep(FILE_CLEANUP_INTERVAL)
         cleanup_old_files()
         cleanup_stale_cancel_events()  # YENİ
+        cleanup_expired_prepared_files()
+
+
+def periodic_rate_limiter_cleanup():
+    """rate_limiter'ın O(n) global taramasını request path'inden ayırıp
+    kendi periyodik thread'ine taşır (bkz. OPTIMIZATIONS.md Finding 2)."""
+    while True:
+        time.sleep(RATE_LIMIT_CLEANUP_INTERVAL)
+        rate_limiter._cleanup_all()
+
+
+def periodic_prepared_file_cleanup():
+    while True:
+        time.sleep(60)
+        cleanup_expired_prepared_files()
 
 
 threading.Thread(target=periodic_cleanup, daemon=True).start()
+threading.Thread(target=periodic_rate_limiter_cleanup, daemon=True).start()
+threading.Thread(target=periodic_prepared_file_cleanup, daemon=True).start()
 
 # ── İptal ─────────────────────────────────────────────
 cancel_events = {}
 cancel_events_lock = threading.Lock()
+DOWNLOAD_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
+def reserve_download_id(requested_id, cancel_event, ip):
+    """Geçerli ve aktif kayıtlarla çakışmayan bir download_id ayırır.
+
+    Frontend iptal isteğini indirme tamamlanmadan gönderebildiği için istemcinin
+    ürettiği ID korunur; fakat formatı doğrulanır ve aynı aktif ID'nin başka bir
+    isteği ezmesine izin verilmez.
+    """
+    if requested_id not in (None, ""):
+        if not isinstance(requested_id, str):
+            raise ValueError("Invalid download_id")
+        candidate = requested_id.strip()
+        if not DOWNLOAD_ID_RE.fullmatch(candidate):
+            raise ValueError("Invalid download_id")
+        with cancel_events_lock:
+            if candidate in cancel_events:
+                return None
+            cancel_events[candidate] = (cancel_event, ip, time.time())
+        return candidate
+
+    # Server-generated UUID çakışması teorik olarak mümkün olduğundan kayıt
+    # kontrolü ve ekleme aynı lock altında yapılır.
+    with cancel_events_lock:
+        while True:
+            candidate = str(uuid.uuid4())
+            if candidate not in cancel_events:
+                cancel_events[candidate] = (cancel_event, ip, time.time())
+                return candidate
 
 
 # YENİ: Stale cancel event'lerini temizle
@@ -614,23 +780,78 @@ def is_safe_url(u):
 # Socket-level SSRF guard: her bağlantı anında hedef IP kontrolü
 _orig_create_connection = socket.create_connection
 
+# Hostname -> doğrulanmış public IP listesi için kısa TTL'li cache.
+# Yalnızca boolean "safe" sonucu cache'lemek güvenli değildir: sonraki gerçek
+# bağlantı hostname'i tekrar çözümler ve DNS rebinding ile private IP'ye
+# gidebilir. Bu cache doğrulanan IP'leri saklar; bağlantı da hostname yerine
+# doğrudan bu IP'lerden birine kurulur. Engellenen sonuçlar cache'lenmez.
+SSRF_HOST_CACHE_TTL = 30  # saniye -- rebinding penceresini kısa tutmak için
+SSRF_HOST_CACHE_MAX_SIZE = 2000
+_ssrf_safe_host_cache = OrderedDict()  # (host, port) -> (expiry, public_ips)
+_ssrf_safe_host_cache_lock = threading.Lock()
+
+
+def _resolve_safe_host_cached(host, port):
+    """Hostname'i public IP'lere çözümler ve doğrulanan IP listesini döner."""
+    cache_key = (host.lower(), port)
+    now = time.time()
+    with _ssrf_safe_host_cache_lock:
+        cached = _ssrf_safe_host_cache.get(cache_key)
+        if cached is not None and now < cached[0]:
+            _ssrf_safe_host_cache.move_to_end(cache_key)
+            return cached[1]
+        if cached is not None:
+            _ssrf_safe_host_cache.pop(cache_key, None)
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except Exception:
+        return ()
+
+    public_ips = []
+    for info in infos:
+        ip_str = info[4][0]
+        # Bir hostname hem public hem private adres döndürüyorsa tamamını engelle;
+        # resolver sırası değiştiğinde private adrese düşme riski alınmamalı.
+        if _is_private_ip(ip_str):
+            return ()
+        if ip_str not in public_ips:
+            public_ips.append(ip_str)
+    if not public_ips:
+        return ()
+
+    result = tuple(public_ips)
+    with _ssrf_safe_host_cache_lock:
+        _ssrf_safe_host_cache[cache_key] = (now + SSRF_HOST_CACHE_TTL, result)
+        _ssrf_safe_host_cache.move_to_end(cache_key)
+        while len(_ssrf_safe_host_cache) > SSRF_HOST_CACHE_MAX_SIZE:
+            _ssrf_safe_host_cache.popitem(last=False)
+    return result
+
 
 def _guarded_create_connection(address, *args, **kwargs):
-    host = address[0]
+    host, port = address
     try:
         ip = ipaddress.ip_address(host)
         if _is_private_ip(str(ip)):
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
+        return _orig_create_connection(address, *args, **kwargs)
     except ValueError:
-        # hostname ise çözümle ve kontrol et
-        try:
-            infos = socket.getaddrinfo(host, None)
-        except Exception:
-            infos = []
-        for info in infos:
-            if _is_private_ip(info[4][0]):
-                raise PermissionError(f"SSRF protection: connection to {host} blocked")
-    return _orig_create_connection(address, *args, **kwargs)
+        # Hostname'i bir kez çözümle, doğrulanan IP'ye doğrudan bağlan. Böylece
+        # güvenlik kontrolü ile gerçek bağlantı arasında ikinci DNS çözümlemesi
+        # (TOCTOU / DNS rebinding) oluşmaz.
+        safe_ips = _resolve_safe_host_cached(host, port)
+        if not safe_ips:
+            raise PermissionError(f"SSRF protection: connection to {host} blocked")
+
+        last_error = None
+        for safe_ip in safe_ips:
+            try:
+                return _orig_create_connection((safe_ip, port), *args, **kwargs)
+            except OSError as exc:
+                last_error = exc
+        if last_error is not None:
+            raise last_error
+        raise OSError(f"Could not connect to {host}")
 
 
 socket.create_connection = _guarded_create_connection
@@ -640,6 +861,11 @@ AUDIO_FMTS = {"mp3", "flac", "wav", "ogg", "opus", "m4a"}
 # ── Hata mesajları ────────────────────────────────────
 def parse_error(error_msg, url):
     es = error_msg.lower()
+    if "playlist downloads are not supported" in es:
+        return "Playlist downloads are not supported. Select a single video."
+    if "video too long" in es:
+        max_min = MAX_VIDEO_DURATION_SECONDS // 60
+        return f"Video too long (maximum {max_min} minutes)."
     if is_youtube(url):
         if "sign in" in es or "login" in es or "bot" in es:
             return "YouTube bot protection is active. Please wait a few minutes and try again."
@@ -697,10 +923,14 @@ def get_opts_list(url, extra=None):
     if extra:
         o.update(extra)
     opts_list.append(o)
-    o = get_base_opts(url, use_cookies=False)
-    if extra:
-        o.update(extra)
-    opts_list.append(o)
+    # Cookie gerçekten kullanılıyorsa ikinci denemeyi cookie'siz fallback olarak
+    # ekle. Cookie dosyası yokken veya Instagram'da iki özdeş upstream isteği
+    # çalıştırmak yalnızca hata/latency yükünü ikiye katlıyordu.
+    if "cookiefile" in o:
+        o = get_base_opts(url, use_cookies=False)
+        if extra:
+            o.update(extra)
+        opts_list.append(o)
     return opts_list
 
 # ── Format string builder ─────────────────────────────
@@ -735,32 +965,19 @@ def build_format_str(url, quality, fmt, codec):
             f"/bestvideo[height<={q}]+bestaudio/best[height<={q}]/best")
 
 
-# YENİ: Tek extract_info çağrısı ile hem metadata hem indirme hazırlığı
-def probe_info(url):
-    """
-    Süre kontrolü ve dosya adı için gereken bilgiyi (duration, title) tek
-    extract_info çağrısında döner. Playlist ise (None, None) döner.
-    """
-    try:
-        opts_list = get_opts_list(url, extra={"skip_download": True, "quiet": True})
-        for opts in opts_list:
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    if info.get("_type") == "playlist" or "entries" in info:
-                        return None, None
-                    return info.get("duration") or None, info.get("title") or None
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return None, None
-
-
-def probe_duration(url):
-    """Geriye dönük uyumluluk için: sadece süreyi döner."""
-    duration, _ = probe_info(url)
-    return duration
+def enforce_download_limits(info, *, incomplete=False):
+    """Playlist ve süre sınırlarını yt-dlp'nin tek extraction akışında uygular."""
+    # yt-dlp playlist container'ını match_filter'a incomplete=True ve
+    # playlist_index olmadan geçirir. Entry'lerde playlist_index bulunduğu için
+    # yalnızca container reddedilir; video+playlist URL'sinde noplaylist tek
+    # videoyu seçmeye devam eder.
+    if incomplete and info.get("playlist") and info.get("playlist_index") is None:
+        return "Playlist downloads are not supported. Select a single video."
+    duration = info.get("duration")
+    if duration and duration > MAX_VIDEO_DURATION_SECONDS:
+        max_min = MAX_VIDEO_DURATION_SECONDS // 60
+        return f"Video too long (maximum {max_min} minutes)."
+    return None
 
 
 def sanitize_filename(name):
@@ -773,21 +990,151 @@ def sanitize_filename(name):
     name = name[:80]  # Maksimum uzunluk
     return name if name else "zenithw"
 
+
+def safe_download_name(requested_name, fallback_stem, extension):
+    stem = fallback_stem or "zenithw"
+    if isinstance(requested_name, str) and requested_name.strip():
+        stem = os.path.splitext(os.path.basename(requested_name.strip()))[0]
+    return f"{sanitize_filename(stem)}.{extension}"
+
+
+_NON_MEDIA_EXTENSIONS = {
+    ".part", ".ytdl", ".srt", ".vtt", ".ass", ".lrc", ".json",
+    ".jpg", ".jpeg", ".png", ".webp",
+}
+
+
+def _validated_output_path(path, file_token, allowed_extensions=None):
+    """yt-dlp'den gelen yolu DOWNLOAD_DIR içinde var olan güvenli dosyaya çevirir."""
+    if not isinstance(path, (str, os.PathLike)):
+        return None
+    candidate = os.path.realpath(os.path.abspath(os.fspath(path)))
+    download_root = os.path.realpath(os.path.abspath(DOWNLOAD_DIR))
+    try:
+        if os.path.commonpath((candidate, download_root)) != download_root:
+            return None
+    except ValueError:
+        return None
+    basename = os.path.basename(candidate)
+    if not basename.startswith(f"{file_token}.") or not os.path.isfile(candidate):
+        return None
+    extension = os.path.splitext(candidate)[1].lower()
+    if allowed_extensions is not None:
+        if extension not in allowed_extensions:
+            return None
+    elif extension in _NON_MEDIA_EXTENSIONS:
+        return None
+    return candidate
+
+
+def resolve_downloaded_media_path(info, file_token):
+    """yt-dlp'nin döndürdüğü resmi filepath alanlarından final medyayı bulur.
+
+    Klasörü prefix ile taramak; subtitle, thumbnail, .part veya fragment dosyasını
+    asıl medya sanabiliyordu. Burada yalnızca extraction sonucuna bağlı yollar
+    kabul edilir ve her aday DOWNLOAD_DIR/file_token sınırına karşı doğrulanır.
+    """
+    if not isinstance(info, dict):
+        return None
+    candidates = [info.get("filepath"), info.get("_filename")]
+    for item in info.get("requested_downloads") or ():
+        if isinstance(item, dict):
+            candidates.append(item.get("filepath"))
+    for item in info.get("requested_formats") or ():
+        if isinstance(item, dict):
+            candidates.append(item.get("filepath"))
+    for candidate in candidates:
+        resolved = _validated_output_path(candidate, file_token)
+        if resolved:
+            return resolved
+    return None
+
+
+def resolve_downloaded_thumbnail_path(info, file_token):
+    """Thumbnail sonucunu yt-dlp metadata'sından veya deterministik JPG yolundan bulur."""
+    candidates = []
+    if isinstance(info, dict):
+        for item in info.get("thumbnails") or ():
+            if isinstance(item, dict):
+                candidates.append(item.get("filepath"))
+    candidates.append(os.path.join(DOWNLOAD_DIR, f"{file_token}.jpg"))
+    for candidate in candidates:
+        resolved = _validated_output_path(candidate, file_token, {".jpg", ".jpeg"})
+        if resolved:
+            return resolved
+    return None
+
+
 # ── Routes ────────────────────────────────────────────
+PREPARED_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{40,64}$")
+
+
+@app.route("/files/<token>")
+def download_prepared_file(token):
+    if not PREPARED_TOKEN_RE.fullmatch(token):
+        return jsonify({"error": "Not Found"}), 404
+
+    owner_ip = get_client_ip()
+    expired_path = None
+    with _prepared_files_lock:
+        entry = _prepared_files.get(token)
+        if entry is None:
+            return jsonify({"error": "Download expired or already used"}), 410
+        path, download_name, expected_ip, expires_at = entry
+        if time.time() >= expires_at:
+            expired_path = path
+            del _prepared_files[token]
+        elif not hmac.compare_digest(expected_ip, owner_ip):
+            return jsonify({"error": "Not Found"}), 404
+        else:
+            # Flask GET route'ları HEAD'i de kabul eder. HEAD token'ı tüketirse
+            # tarayıcının sonraki gerçek GET'i 410 alır; yalnızca GET tüketir.
+            if request.method != "HEAD":
+                # Token tek kullanımlıktır; eşzamanlı ikinci GET aynı dosyayı açamaz.
+                del _prepared_files[token]
+
+    if expired_path is not None:
+        _force_cleanup(expired_path)
+        return jsonify({"error": "Download expired"}), 410
+    if not os.path.isfile(path):
+        _force_cleanup(path)
+        return jsonify({"error": "Download no longer available"}), 410
+
+    try:
+        response = send_file(path, as_attachment=True, download_name=download_name)
+    except Exception:
+        _force_cleanup(path)
+        raise
+
+    if request.method != "HEAD":
+        @response.call_on_close
+        def _cleanup_prepared_file():
+            _force_cleanup(path)
+
+    return response
+
+
 @app.route("/health")
 def health():
     # YENİ: queue_lock ile korundu, race condition önlendi
     with queue_lock:
         _active = active_downloads_count
         _waiting = queue_waiting
+    # NOT: os.listdir(DOWNLOAD_DIR) yerine zaten bakımı yapılan
+    # _pending_cleanups sayacı kullanılıyor -- /health sık pollanabilen bir
+    # endpoint olduğu için her çağrıda dizin taramak gereksiz I/O ekliyordu
+    # (bkz. OPTIMIZATIONS.md Finding 7).
+    with _pending_cleanups_lock:
+        _disk_files = len(_pending_cleanups)
     return jsonify({
         "status": "ok",
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
         "js_solver": "OK" if (_DENO_PATH and _EJS_AVAILABLE) else "INCOMPLETE",
         "cookies": f"Loaded ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "Missing",
-        "disk_files": len(os.listdir(DOWNLOAD_DIR)),
+        "disk_files": _disk_files,
         "active_downloads": _active,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
+        "max_download_queue": MAX_DOWNLOAD_QUEUE,
         "queue_waiting": _waiting,
     }), 200
 
@@ -822,11 +1169,16 @@ def cancel_route():
     data = request.json or {}
     download_id = data.get("download_id", "")
     if download_id:
+        if not isinstance(download_id, str) or not DOWNLOAD_ID_RE.fullmatch(download_id.strip()):
+            return jsonify({"error": "Invalid download_id"}), 400
+        download_id = download_id.strip()
         with cancel_events_lock:
             entry = cancel_events.get(download_id)
             if entry and entry[1] == ip:
                 entry[0].set()
-                cancel_events.pop(download_id, None)
+                # Kayıt, indirme greenlet'i gerçekten sonlanana kadar tutulur.
+                # Burada silmek aynı ID'nin erken yeniden ayrılmasına ve eski
+                # isteğin yeni kaydı temizlemesine izin verirdi.
         return jsonify({"ok": True}), 200
     return jsonify({"error": "download_id required"}), 400
 
@@ -854,23 +1206,36 @@ def get_info():
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"error": "URL required"}), 400
-    if not is_safe_url(url):
-        return jsonify({"error": "Invalid or disallowed URL."}), 400
-    if is_youtube_live_url(url):
-        return jsonify({"error": "Live streams are not currently supported."}), 400
-    if is_unsupported_domain(url):
-        return jsonify({"error": "This platform is not supported."}), 400
+    if not info_slots.acquire(blocking=False):
+        return service_busy("Metadata service is busy. Please try again shortly.", retry_after=5)
+    try:
+        if not is_safe_url(url):
+            return jsonify({"error": "Invalid or disallowed URL."}), 400
+        if is_youtube_live_url(url):
+            return jsonify({"error": "Live streams are not currently supported."}), 400
+        if is_unsupported_domain(url):
+            return jsonify({"error": "This platform is not supported."}), 400
+        return get_info_with_slot(url)
+    finally:
+        info_slots.release()
 
+
+def get_info_with_slot(url):
     extra_opts = {
         "extract_flat": "in_playlist",
         "playlistend": PLAYLIST_LIMIT,
     }
     opts_list = get_opts_list(url, extra=extra_opts)
     last_err = None
-    for opts in opts_list:
+    deadline = time.monotonic() + INFO_TIMEOUT_SECONDS
+    for attempt_index, opts in enumerate(opts_list):
         try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Metadata extraction timed out")
+            with gevent.Timeout(remaining, TimeoutError("Metadata extraction timed out")):
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
                 if info.get("_type") == "playlist" or "entries" in info:
                     entries = info.get("entries") or []
                     items = []
@@ -916,15 +1281,22 @@ def get_info():
                     "subtitles": sub_langs,
                     "has_manual_subtitles": bool(subs),
                 })
+        except TimeoutError as e:
+            last_err = e
+            break
         except Exception as e:
             last_err = e
             es = str(e).lower()
-            if "login" in es or "private" in es or "cookie" in es:
+            if "cookie" in es and attempt_index + 1 < len(opts_list):
+                continue
+            if "login" in es or "private" in es:
                 break
             continue
 
     error_msg = str(last_err) if last_err else "Unknown error"
     logger.error(f"[INFO ERR] {url[:60]}: {error_msg[:150]}")
+    if isinstance(last_err, TimeoutError):
+        return jsonify({"error": "Metadata request timed out. Please try again."}), 504
     parsed = parse_error(error_msg, url)
     if parsed == "instagram_ratelimit":
         return jsonify({"error": "instagram_ratelimit"}), 400
@@ -936,7 +1308,11 @@ def download():
     ip = get_client_ip()
     if not check_rate_limit(ip):
         return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
-    cleanup_old_files()
+    # NOT: cleanup_old_files() burada senkron çağrılmıyor artık -- zaten
+    # periodic_cleanup() arka plan thread'i FILE_CLEANUP_INTERVAL'de bir
+    # aynı işi yapıyor. Her /download isteğinde tüm DOWNLOAD_DIR'i
+    # listeleyip stat'lamak gereksiz I/O + gecikme ekliyordu (bkz.
+    # OPTIMIZATIONS.md Finding 3).
     data = request.json or {}
     url = data.get("url", "").strip()
     quality = str(data.get("quality", "1080"))
@@ -944,7 +1320,8 @@ def download():
     codec = data.get("codec", "h264").lower()
     audio_q = str(data.get("audioQ", "256"))
     sid = validate_sid(data.get("sid", ""))
-    download_id = data.get("download_id") or str(uuid.uuid4())
+    requested_download_id = data.get("download_id")
+    requested_download_name = data.get("download_name")
     add_meta = bool(data.get("metadata", True))
 
     want_subs = bool(data.get("subtitles", False))
@@ -991,20 +1368,35 @@ def download():
     is_audio = fmt in AUDIO_FMTS
     cancel_event = threading.Event()
     size_exceeded = {"flag": False}
-    # YENİ: cancel_events'e timestamp eklendi
-    with cancel_events_lock:
-        cancel_events[download_id] = (cancel_event, ip, time.time())
+    try:
+        download_id = reserve_download_id(requested_download_id, cancel_event, ip)
+    except ValueError:
+        return jsonify({"error": "Invalid download_id"}), 400
+    if download_id is None:
+        # Frontend 409'u kullanıcı iptali olarak özel ele alıyor; çakışmayı 400
+        # döndürerek gerçek hata mesajının gösterilmesini sağla.
+        return jsonify({"error": "download_id is already active"}), 400
 
-    duration, video_title = probe_info(url)
-    if duration and duration > MAX_VIDEO_DURATION_SECONDS:
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
-        max_min = MAX_VIDEO_DURATION_SECONDS // 60
-        return jsonify({"error": f"Video too long (maximum {max_min} minutes)."}), 400
-
+    video_title = None
     filename = str(uuid.uuid4())
     filepath = os.path.join(DOWNLOAD_DIR, filename)
+    full_path = None
     dl_start_time = time.time()
+    request_deadline = time.monotonic() + DOWNLOAD_TIMEOUT_SECONDS
+    last_progress = {"time": 0.0, "percent": None, "status": None}
+
+    def emit_progress(payload, force=False):
+        if not sid:
+            return
+        now = time.monotonic()
+        percent = payload.get("percent")
+        status = payload.get("status")
+        same_value = percent == last_progress["percent"] and status == last_progress["status"]
+        too_soon = now - last_progress["time"] < PROGRESS_EMIT_INTERVAL
+        if not force and (same_value or too_soon):
+            return
+        last_progress.update(time=now, percent=percent, status=status)
+        safe_emit("progress", payload, room=sid)
 
     def progress_hook(d):
         if cancel_event.is_set():
@@ -1032,19 +1424,20 @@ def download():
                 else:
                     pct = min(80, 5 + int(time.time() - dl_start_time) * 2)
             if pct is not None and sid:
-                safe_emit('progress', {
+                emit_progress({
                     'percent': pct,
                     'speed': d.get('_speed_str', '').strip(),
                     'eta': d.get('_eta_str', '').strip(),
                     'status': 'downloading'
-                }, room=sid)
+                })
         elif d['status'] == 'finished' and sid:
-            safe_emit('progress', {'percent': 88, 'status': 'merging'}, room=sid)
+            emit_progress({'percent': 88, 'status': 'merging'}, force=True)
 
     slot_acquired = False
     try:
         acquire_download_slot(sid, cancel_event)
         slot_acquired = True
+
         fmt_str = build_format_str(url, quality, fmt, codec)
         logger.info(f"[DL] q={quality} fmt={fmt} codec={codec} audio={is_audio}")
 
@@ -1126,13 +1519,18 @@ def download():
             if postprocessors:
                 extra["postprocessors"] = postprocessors
 
+        # Metadata ve indirme aynı extract_info(download=True) çağrısında
+        # yapılır. noplaylist, video+playlist URL'lerinde tek videoyu seçer;
+        # match_filter ise saf playlist container'ını ve uzun videoyu reddeder.
+        extra["noplaylist"] = True
+        extra["match_filter"] = enforce_download_limits
         opts_list = get_opts_list(url, extra=extra)
         success = False
         last_err = None
         timed_out = False
         logger.info(f"[DL] starting download (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
 
-        for opts in opts_list:
+        for attempt_index, opts in enumerate(opts_list):
             if cancel_event.is_set():
                 break
             before_pids = _snapshot_child_pids()
@@ -1144,30 +1542,51 @@ def download():
                 # Ayrıca uzun süren işlemler için gunicorn --timeout (660s)
                 # devreye girer ve worker'ı restart eder. Bu yüzden
                 # DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
-                with gevent.Timeout(DOWNLOAD_TIMEOUT_SECONDS, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s exceeded")):
+                remaining = request_deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")
+                with gevent.Timeout(remaining, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")):
                     with yt_dlp.YoutubeDL(opts) as ydl:
-                        ydl.download([url])
+                        download_info = ydl.extract_info(url, download=True)
+                        if not isinstance(download_info, dict):
+                            raise ValueError(
+                                "Playlist downloads are not supported. Select a single video."
+                            )
+                        if download_info.get("_type") in ("playlist", "multi_video") or "entries" in download_info:
+                            raise ValueError(
+                                "Playlist downloads are not supported. Select a single video."
+                            )
+                        limit_error = enforce_download_limits(download_info, incomplete=False)
+                        if limit_error:
+                            raise ValueError(limit_error)
+                        full_path = resolve_downloaded_media_path(download_info, filename)
+                        if not full_path:
+                            raise FileNotFoundError("Downloaded media file path not found")
+                        video_title = download_info.get("title") or video_title
                         success = True
-                        _reap_new_children(before_pids, download_id)
                         break
             except yt_dlp.utils.DownloadCancelled:
-                _reap_new_children(before_pids, download_id)
+                _reap_new_children(before_pids, download_id, filename)
                 raise
             except TimeoutError as e:
                 timed_out = True
                 last_err = e
                 logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
-                _reap_new_children(before_pids, download_id)
+                _reap_new_children(before_pids, download_id, filename)
                 break
             except (MemoryError, SystemError, KeyboardInterrupt, SystemExit):
-                _reap_new_children(before_pids, download_id)
+                _reap_new_children(before_pids, download_id, filename)
                 raise
             except Exception as e:
                 last_err = e
                 es = str(e).lower()
                 logger.error(f"[DL FAIL] {es[:100]}")
-                _reap_new_children(before_pids, download_id)
-                if "login" in es or "private" in es or "cookie" in es:
+                _reap_new_children(before_pids, download_id, filename)
+                if "cookie" in es and attempt_index + 1 < len(opts_list):
+                    continue
+                if ("login" in es or "private" in es or "video too long" in es
+                        or "playlist downloads are not supported" in es
+                        or "downloaded media file path not found" in es):
                     break
                 continue
 
@@ -1191,12 +1610,6 @@ def download():
             raise last_err or Exception("All attempts failed")
 
         logger.info("[DL] download completed, processing file...")
-
-        full_path = None
-        for f in sorted(os.listdir(DOWNLOAD_DIR)):
-            if f.startswith(filename):
-                full_path = os.path.join(DOWNLOAD_DIR, f)
-                break
 
         if not full_path:
             with cancel_events_lock:
@@ -1259,21 +1672,33 @@ def download():
             slot_acquired = False
 
         ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
-        safe_title = sanitize_filename(video_title) if video_title else "zenithw"
-        download_name = f"{safe_title}.{ext}"
-        logger.info(f"[DL] sending response: {download_name} ({final_size} bytes)")
-        response = send_file(full_path, as_attachment=True, download_name=download_name)
-        response.headers['X-Download-Id'] = download_id
-        response.headers['Access-Control-Expose-Headers'] = 'X-Download-Id'
+        fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
+        download_name = safe_download_name(requested_download_name, fallback_title, ext)
+        token = prepare_native_download(full_path, download_name, ip)
+        with cancel_events_lock:
+            cancel_events.pop(download_id, None)
+        logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
+        return jsonify({
+            "ok": True,
+            "download_id": download_id,
+            "download_url": f"/files/{token}",
+            "filename": download_name,
+            "size": final_size,
+            "expires_in": PREPARED_FILE_TTL,
+        }), 200
 
-        @response.call_on_close
-        def cleanup():
-            _force_cleanup(full_path)
-            with cancel_events_lock:
-                cancel_events.pop(download_id, None)
-
-        return response
-
+    except DownloadQueueFull:
+        with cancel_events_lock:
+            cancel_events.pop(download_id, None)
+        if sid:
+            safe_emit('progress', {'status': 'error', 'message': 'Download queue is full.'}, room=sid)
+        return service_busy("Download queue is full. Please try again shortly.", retry_after=10)
+    except DownloadQueueTimeout:
+        with cancel_events_lock:
+            cancel_events.pop(download_id, None)
+        if sid:
+            safe_emit('progress', {'status': 'error', 'message': 'Download queue wait timed out.'}, room=sid)
+        return service_busy("Download queue wait timed out. Please try again.", retry_after=10)
     except yt_dlp.utils.DownloadCancelled:
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(filename):
@@ -1326,15 +1751,23 @@ def download_thumbnail():
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"error": "URL required"}), 400
-    if not is_safe_url(url):
-        return jsonify({"error": "Invalid or disallowed URL."}), 400
-    if is_youtube_live_url(url):
-        return jsonify({"error": "Live streams are not currently supported."}), 400
-    if is_unsupported_domain(url):
-        return jsonify({"error": "This platform is not supported."}), 400
-    if not FFMPEG_DIR:
-        return jsonify({"error": "FFmpeg required"}), 400
+    if not thumbnail_slots.acquire(blocking=False):
+        return service_busy("Thumbnail service is busy. Please try again shortly.", retry_after=5)
+    try:
+        if not is_safe_url(url):
+            return jsonify({"error": "Invalid or disallowed URL."}), 400
+        if is_youtube_live_url(url):
+            return jsonify({"error": "Live streams are not currently supported."}), 400
+        if is_unsupported_domain(url):
+            return jsonify({"error": "This platform is not supported."}), 400
+        if not FFMPEG_DIR:
+            return jsonify({"error": "FFmpeg required"}), 400
+        return download_thumbnail_with_slot(url)
+    finally:
+        thumbnail_slots.release()
 
+
+def download_thumbnail_with_slot(url):
     filename = str(uuid.uuid4())
     filepath = os.path.join(DOWNLOAD_DIR, filename)
     extra = {
@@ -1347,15 +1780,17 @@ def download_thumbnail():
     }
     opts_list = get_opts_list(url, extra=extra)
     last_err = None
+    deadline = time.monotonic() + THUMBNAIL_TIMEOUT_SECONDS
     for opts in opts_list:
+        before_pids = _snapshot_child_pids()
         try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                ydl.download([url])
-                full_path = None
-                for f in sorted(os.listdir(DOWNLOAD_DIR)):
-                    if f.startswith(filename):
-                        full_path = os.path.join(DOWNLOAD_DIR, f)
-                        break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Thumbnail request timed out")
+            with gevent.Timeout(remaining, TimeoutError("Thumbnail request timed out")):
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                full_path = resolve_downloaded_thumbnail_path(info, filename)
                 if not full_path:
                     continue
                 _register_cleanup(full_path)
@@ -1366,12 +1801,19 @@ def download_thumbnail():
                     _force_cleanup(full_path)
 
                 return response
+        except TimeoutError as e:
+            last_err = e
+            _reap_new_children(before_pids, "thumbnail", filename)
+            break
         except Exception as e:
             last_err = e
+            _reap_new_children(before_pids, "thumbnail", filename)
             continue
 
     error_msg = str(last_err) if last_err else "Thumbnail could not be retrieved"
     logger.error(f"[THUMB ERR] {error_msg[:150]}")
+    if isinstance(last_err, TimeoutError):
+        return jsonify({"error": "Thumbnail request timed out. Please try again."}), 504
     return jsonify({"error": parse_error(error_msg, url)}), 400
 
 # ── /convert ───────────────────────────────────────────
@@ -1403,10 +1845,22 @@ def convert_file():
     ip = get_client_ip()
     if not check_rate_limit(ip):
         return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+    # Slot, request.files multipart gövdesini parse edip diske almadan önce
+    # ayrılır; dolu sunucu 230 MB'a kadar gereksiz upload kabul etmez.
+    if not conversion_slots.acquire(blocking=False):
+        return service_busy("Server is busy with another conversion. Please try again shortly.", retry_after=10)
+    try:
+        return convert_file_with_slot(ip)
+    finally:
+        conversion_slots.release()
+
+
+def convert_file_with_slot(ip):
     if 'file' not in request.files:
         return jsonify({"error": "File required"}), 400
     file = request.files['file']
     target_format = request.form.get('target_format', 'mp3').lower()
+    requested_download_name = request.form.get('download_name')
     if not file or file.filename == '':
         return jsonify({"error": "Invalid file"}), 400
     if target_format not in ALLOWED_CONVERT_FORMATS:
@@ -1428,7 +1882,7 @@ def convert_file():
         _register_cleanup(output_path)
 
         ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
-        cmd = [ffmpeg_cmd, '-i', input_path, '-y']
+        cmd = [ffmpeg_cmd, '-hide_banner', '-loglevel', 'error', '-nostdin', '-i', input_path, '-y']
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}
         if target_format in audio_formats:
@@ -1457,12 +1911,28 @@ def convert_file():
             elif target_format == 'mov':
                 cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
 
-        cmd.append(output_path)
+        # FFmpeg'in sıkıştırılmış bir girdiden sınırsız büyüklükte WAV/AVI vb.
+        # üretip diski doldurmasını engelle. Sonrasında gerçek boyut ayrıca
+        # kontrol edilir; -fs erken durdurma için savunma katmanıdır.
+        cmd.extend(['-fs', str(MAX_CONVERT_OUTPUT_SIZE_BYTES), output_path])
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT)
         if result.returncode != 0:
             logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
+            _force_cleanup(output_path)
             return jsonify({"error": "Conversion failed. Please check the file format."}), 400
+
+        try:
+            output_size = os.path.getsize(output_path)
+        except OSError:
+            output_size = 0
+        if output_size <= 0:
+            _force_cleanup(output_path)
+            return jsonify({"error": "Conversion did not produce a valid output file."}), 400
+        if output_size >= MAX_CONVERT_OUTPUT_SIZE_BYTES:
+            _force_cleanup(output_path)
+            max_mb = MAX_CONVERT_OUTPUT_SIZE_BYTES // (1024 * 1024)
+            return jsonify({"error": f"Converted file exceeds the {max_mb} MB limit."}), 400
 
         try:
             if input_path and os.path.exists(input_path):
@@ -1471,14 +1941,15 @@ def convert_file():
         except Exception:
             pass
 
-        _out = output_path
-        response = send_file(_out, as_attachment=True, download_name=f"converted.{target_format}")
-
-        @response.call_on_close
-        def _cleanup_conv():
-            _force_cleanup(_out)
-
-        return response
+        download_name = safe_download_name(requested_download_name, "converted", target_format)
+        token = prepare_native_download(output_path, download_name, ip)
+        return jsonify({
+            "ok": True,
+            "download_url": f"/files/{token}",
+            "filename": download_name,
+            "size": output_size,
+            "expires_in": PREPARED_FILE_TTL,
+        }), 200
 
     except subprocess.TimeoutExpired:
         logger.error("[CONV ERR] ffmpeg timeout")

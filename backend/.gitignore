@@ -5,3 +5,4 @@ download/
 .env
 cookies.txt
 backend/cookies.txt
+OPTIMIZATIONS.md

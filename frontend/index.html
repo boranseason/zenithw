@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>ZenithW Video Downloader</title>
@@ -52,7 +51,6 @@
 }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <link rel="stylesheet" href="style.css">
 <script src="version.js"></script>
 </head>
@@ -622,6 +620,7 @@
 
 <div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const API="https://api.zenithw.space";
 async function downloadThumbnail(){
@@ -631,11 +630,13 @@ async function downloadThumbnail(){
     if(!res.ok){ return; }
     const blob=await res.blob();
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
+    const objectUrl=URL.createObjectURL(blob);
+    a.href=objectUrl;
     a.download='thumbnail.jpg';
     document.body.appendChild(a);
     a.click();
     a.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
   }catch(e){ console.error('thumb dl err',e); }
 }
 
@@ -654,8 +655,34 @@ function safeThumbHtml(url,fallback){
   }catch(e){return fallback;}
   return `<img src="${escapeHtml(url)}">`;
 }
-const socket=io(API);
-let socketId=null,videoInfo={},dlId=null,dlAbort=null,ytErrTimer=null,pendingBlob=null,pendingFilename=null;
+const socket=io(API,{autoConnect:false,reconnection:true});
+let socketId=null,videoInfo={},dlId=null,dlAbort=null,ytErrTimer=null,pendingBlob=null,pendingFilename=null,pendingObjectUrl=null;
+let socketDisconnectTimer=null;
+
+function ensureSocket(){
+  if(socketDisconnectTimer){clearTimeout(socketDisconnectTimer);socketDisconnectTimer=null;}
+  if(socket.connected){socketId=socket.id;return Promise.resolve(socketId);}
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=()=>{
+      if(settled)return;
+      settled=true;
+      socket.off('connect',finish);
+      socketId=socket.connected?socket.id:null;
+      resolve(socketId);
+    };
+    socket.once('connect',finish);
+    socket.connect();
+    setTimeout(finish,1500);
+  });
+}
+function scheduleSocketDisconnect(delay){
+  if(socketDisconnectTimer)clearTimeout(socketDisconnectTimer);
+  socketDisconnectTimer=setTimeout(()=>{
+    if(!plQueueRunning&&!dlAbort&&socket.connected)socket.disconnect();
+    socketDisconnectTimer=null;
+  },delay||5000);
+}
 
 // ── i18n — defined FIRST so t() is available everywhere ──
 let LANG='tr';
@@ -1087,6 +1114,7 @@ function setAccent(acc){
 
 
 socket.on('connect',()=>{socketId=socket.id;});
+socket.on('disconnect',()=>{socketId=null;});
 socket.on('progress',d=>{
   if(d.status==='downloading')setProgress(d.percent,t('downloading'),d.speed,false);
   else if(d.status==='merging')setProgress(88,t('merging'),'',false);
@@ -1318,7 +1346,7 @@ async function fetchVideo(opts){
     const res=await fetch(API+'/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
     const d=await res.json();
     if(d.error==='instagram_ratelimit'){if(!opts.silent)showErr('⏳',t('igBusy'));return false;}
-    if(d.error){if(!opts.silent){if(isYT(url))showYtErr();else showErr('❌',d.error);}return false;}
+    if(d.error){if(!opts.silent){if([429,503,504].includes(res.status))toast(d.error,'#ed4245');else if(isYT(url))showYtErr();else showErr('❌',d.error);}return false;}
 
     if(d.is_playlist){
       // Toplu indirme tek video bekler; playlist bulursa bu URL fail sayılır.
@@ -1488,6 +1516,7 @@ function openPlaylistQueueModal(){
 async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
   if(plQueueRunning)return;
   plQueueRunning=true;
+  await ensureSocket();
   alreadyDone=alreadyDone||[];
   const doneSet=new Set(alreadyDone);
   const errSet=new Set();
@@ -1507,14 +1536,15 @@ async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
     if(statusEl){statusEl.classList.remove('err');statusEl.textContent=t('plQueueDownloadingItem');}
     try{
       const dId=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
-      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']})});
+      const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',{title:it.title,uploader:'',url:it.url},fmt);
+      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']})});
+      const payload=await res.json().catch(()=>({}));
       if(!res.ok){
         errSet.add(i);
         if(statusEl){statusEl.textContent=t('plQueueItemErr');statusEl.classList.add('err');}
       }else{
-        const blob=await res.blob();
-        const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',{title:it.title,uploader:'',url:it.url},fmt);
-        triggerBlobDownload(blob,filename);
+        if(!payload.download_url)throw new Error('Download file was not prepared');
+        triggerNativeDownload(payload.download_url);
         addToLocalHistory({url:it.url,title:it.title||'video',platform:getPlatformName(it.url||''),format:fmt});
         doneSet.add(i);errSet.delete(i);
         if(statusEl){statusEl.textContent=t('plQueueItemDone');statusEl.classList.remove('err');statusEl.classList.add('done');}
@@ -1537,13 +1567,25 @@ async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
   }
   const plqct=document.getElementById('plQueueCancelTxt');if(plqct)plqct.textContent=t('plQueueCloseBtn');
   checkQueueResume();
+  scheduleSocketDisconnect();
 }
-function triggerBlobDownload(blob,filename){
-  const url=URL.createObjectURL(blob);
+function triggerNativeDownload(path){
+  if(!path)return;
   const a=document.createElement('a');
-  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  a.href=path.startsWith('http')?path:API+path;document.body.appendChild(a);a.click();
   document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+const BLOB_SAVE_LIMIT=32*1024*1024;
+async function handoffPreparedDownload(payload,allowSaveModal){
+  if(!payload||!payload.download_url)throw new Error('Download file was not prepared');
+  if(allowSaveModal&&Number(payload.size)>0&&Number(payload.size)<=BLOB_SAVE_LIMIT){
+    const transfer=await fetch(payload.download_url.startsWith('http')?payload.download_url:API+payload.download_url);
+    if(!transfer.ok)throw new Error('Prepared download expired');
+    openSaveModal(await transfer.blob(),payload.filename||'download');
+    return 'save-modal';
+  }
+  triggerNativeDownload(payload.download_url);
+  return 'native';
 }
 function cancelPlaylistQueue(){
   if(plQueueRunning){
@@ -1609,6 +1651,7 @@ function resetProgress(){
 async function startDownload(){
   if(!videoInfo.url)return;
   const isAudio=(DL_MODE==='audio'),isMute=(DL_MODE==='mute'),fmt=isAudio?S.afmt:S.vfmt;
+  await ensureSocket();
   const btn=document.getElementById('dlBtn');
   const btnTxt=document.getElementById('dlBtnTxt');
   if(btn)btn.disabled=true;
@@ -1619,21 +1662,24 @@ async function startDownload(){
   dlId=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
   dlAbort=new AbortController();
   try{
-    const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url,quality:S.quality,format:fmt,codec:S.codec,audioQ:S.audioQ,metadata:S.metadata,sid:socketId,download_id:dlId,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']}),signal:dlAbort.signal});
+    const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',videoInfo,fmt);
+    const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url,quality:S.quality,format:fmt,codec:S.codec,audioQ:S.audioQ,metadata:S.metadata,sid:socketId,download_id:dlId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']}),signal:dlAbort.signal});
     dlAbort=null;
     if(res.status===409)return;
-    if(!res.ok){const e=await res.json().catch(()=>({}));resetProgress();if(e.error==='instagram_ratelimit')showErr('⏳',t('igBusy'));else if(isYT(videoInfo.url))showYtErr();else toast(e.error||t('error'),'#ed4245');return;}
-    const blob=await res.blob();
-    const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',videoInfo,fmt);
-    pendingBlob=blob;pendingFilename=filename;
+    const payload=await res.json().catch(()=>({}));
+    if(!res.ok){resetProgress();if(payload.error==='instagram_ratelimit')showErr('⏳',t('igBusy'));else if([429,503,504].includes(res.status))toast(payload.error||t('error'),'#ed4245');else if(isYT(videoInfo.url))showYtErr();else toast(payload.error||t('error'),'#ed4245');return;}
+    const handoff=await handoffPreparedDownload(payload,true);
     addToLocalHistory({url:videoInfo.url,title:videoInfo.title||'video',platform:getPlatformName(videoInfo.url||''),format:fmt});
-    resetProgress();closeOverlay('dlOverlay');openSaveModal(blob,filename);
+    resetProgress();closeOverlay('dlOverlay');
+    if(handoff==='save-modal')document.body.style.overflow='hidden';
+    else{toast(t('downloaded'),'#3bba64');fireConfetti();}
   }catch(e){dlAbort=null;resetProgress();if(e.name!=='AbortError')toast(t('error')+': '+e.message,'#ed4245');}
+  finally{scheduleSocketDisconnect();}
 }
 async function cancelDownload(){
   if(dlAbort){dlAbort.abort();dlAbort=null;}
   if(dlId){try{fetch(API+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({download_id:dlId,sid:socketId})});}catch(e){}dlId=null;}
-  resetProgress();toast(t('cancelled'),'#f59e0b');
+  resetProgress();toast(t('cancelled'),'#f59e0b');scheduleSocketDisconnect();
 }
 
 // ── SAVE MODAL ────────────────────────────────────────
@@ -1661,14 +1707,17 @@ function fireConfetti(){
   }
   setTimeout(()=>host.remove(),1400);
 }
-function openSaveModal(blob,filename){pendingBlob=blob;pendingFilename=filename;document.getElementById('saveOverlay').classList.add('open');document.body.style.overflow='hidden';}
+function releasePendingBlob(){if(pendingObjectUrl)URL.revokeObjectURL(pendingObjectUrl);pendingObjectUrl=null;pendingBlob=null;pendingFilename=null;}
+function openSaveModal(blob,filename){releasePendingBlob();pendingBlob=blob;pendingFilename=filename;document.getElementById('saveOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function saveAction(type){
   if(!pendingBlob)return;
   const url=URL.createObjectURL(pendingBlob);
-  if(type==='download'){const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(t('downloaded'),'#3bba64');fireConfetti();closeOverlay('saveOverlay');}
-  else if(type==='share'){if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([pendingBlob],pendingFilename)]})){navigator.share({files:[new File([pendingBlob],pendingFilename)],title:pendingFilename}).catch(()=>{});fireConfetti();}else{const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(t('downloaded'),'#3bba64');fireConfetti();closeOverlay('saveOverlay');}}
+  pendingObjectUrl=url;
+  setTimeout(()=>{URL.revokeObjectURL(url);if(pendingObjectUrl===url){pendingObjectUrl=null;pendingBlob=null;pendingFilename=null;}},60000);
+  if(type==='download'){const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(t('downloaded'),'#3bba64');fireConfetti();closeOverlay('saveOverlay',true);}
+  else if(type==='share'){if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([pendingBlob],pendingFilename)]})){navigator.share({files:[new File([pendingBlob],pendingFilename)],title:pendingFilename}).catch(()=>{});fireConfetti();}else{const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(t('downloaded'),'#3bba64');fireConfetti();closeOverlay('saveOverlay',true);}}
   else if(type==='copy'){
-    const fallback=()=>{const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(LANG==='en'?'Copy not supported here, downloaded instead':'Bu tarayıcıda kopyalama desteklenmiyor, indirildi','#f59e0b');closeOverlay('saveOverlay');};
+    const fallback=()=>{const a=document.createElement('a');a.href=url;a.download=pendingFilename;a.click();toast(LANG==='en'?'Copy not supported here, downloaded instead':'Bu tarayıcıda kopyalama desteklenmiyor, indirildi','#f59e0b');closeOverlay('saveOverlay',true);};
     if(navigator.clipboard&&window.ClipboardItem){
       navigator.clipboard.write([new ClipboardItem({[pendingBlob.type]:pendingBlob})])
         .then(()=>toast(LANG==='en'?'copied!':'kopyalandı!','#3bba64'))
@@ -1699,7 +1748,7 @@ function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+ke
 
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){document.getElementById('remuxOverlay').classList.add('open');document.body.style.overflow='hidden';}
-function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${f.name}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download='remuxed_'+f.name;a.click();toast(t('remuxDone'),'#3bba64');setTimeout(()=>{document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">🤖</div><div class="drop-title">${t('remuxDropTitle')}</div><div class="drop-sub">${t('remuxDropSub')}</div>`;},2000);}
+function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${f.name}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;const a=document.createElement('a'),objectUrl=URL.createObjectURL(f);a.href=objectUrl;a.download='remuxed_'+f.name;a.click();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);toast(t('remuxDone'),'#3bba64');setTimeout(()=>{document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">🤖</div><div class="drop-title">${t('remuxDropTitle')}</div><div class="drop-sub">${t('remuxDropSub')}</div>`;},2000);}
 function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;handleRemuxFile({files:[f]});}
 
 // ── CONVERT ───────────────────────────────────────────
@@ -1715,13 +1764,16 @@ async function startConvert(){
   const prog=document.getElementById('convProgress'),btn=document.getElementById('convBtn'),lbl=document.getElementById('convProgLabel'),pct=document.getElementById('convProgPct');
   prog.classList.add('show');btn.disabled=true;lbl.textContent=t('uploading');pct.textContent='—';
   try{
-    const fd=new FormData();fd.append('file',convFile);fd.append('target_format',convTargetFmt);
+    const parts=convFile.name.split('.');parts[parts.length-1]=convTargetFmt;
+    const outputName=parts.join('.');
+    const fd=new FormData();fd.append('file',convFile);fd.append('target_format',convTargetFmt);fd.append('download_name',outputName);
     lbl.textContent=t('converting');
     const res=await fetch(API+'/convert',{method:'POST',body:fd});
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||t('error'));}
+    const payload=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(payload.error||t('error'));
+    if(!payload.download_url)throw new Error('Converted file was not prepared');
     lbl.textContent=t('convDoneLabel');pct.textContent='✓';
-    const blob=await res.blob();const parts=convFile.name.split('.');parts[parts.length-1]=convTargetFmt;
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=parts.join('.');a.click();
+    triggerNativeDownload(payload.download_url);
     toast(t('convDone'),'#3bba64');
     setTimeout(()=>{prog.classList.remove('show');btn.disabled=false;_updateConvBtn();},1500);
   }catch(e){lbl.textContent=t('error')+': '+e.message;btn.disabled=false;toast(t('error'),'#ed4245');}
@@ -1729,7 +1781,7 @@ async function startConvert(){
 
 // ── OVERLAYS ─────────────────────────────────────────
 function handleOverlay(e,id){if(e.target===document.getElementById(id)){if(id==='plQueueOverlay'){closePlaylistQueue();}else{closeOverlay(id);}}}
-function closeOverlay(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+function closeOverlay(id,preservePending){document.getElementById(id).classList.remove('open');document.body.style.overflow='';if(id==='saveOverlay'&&!preservePending)releasePendingBlob();}
 function openDonate(){document.getElementById('donOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function openHistory(){document.getElementById('historyOverlay').classList.add('open');document.body.style.overflow='hidden';loadHistory();}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){['dlOverlay','stOverlay','remuxOverlay','convOverlay','donOverlay','saveOverlay','historyOverlay','servicesOverlay'].forEach(id=>closeOverlay(id));closePlaylistQueue();document.getElementById('servicesChip').classList.remove('open');}});

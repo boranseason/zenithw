@@ -91,6 +91,212 @@
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'büyük dosyalar artık tarayıcıyı yormadan indiriliyor',
+titleEn:'large files now download without exhausting the browser',
+introTr:[
+'v10 serisinin son adımında indirme teslimatını baştan sona yeniledik. Büyük video ve dönüşüm çıktıları artık JavaScript belleğinde tamamen biriktirilmiyor; tarayıcının kendi indirme sistemi üzerinden doğrudan akıtılıyor.',
+'Bu sürüm, v10.1 ile başlayan mobil arayüz düzeltmelerinden sunucu kapasite korumalarına kadar yapılan bütün çalışmaları tamamlıyor.'
+],
+introEn:[
+'For the final step of the v10 series, we rebuilt the download handoff from end to end. Large videos and conversion outputs are no longer fully accumulated in JavaScript memory; they stream through the browser\'s native download system instead.',
+'This release completes the work that started with the v10.1 mobile interface fixes and continued through the new server capacity protections.'
+],
+sections:[
+{hTr:'büyük indirmeler için yerel tarayıcı akışı',hEn:'native browser streaming for large downloads',
+pTr:'Hazırlanan dosyalar artık kısa ömürlü, tahmin edilemez ve tek kullanımlık bağlantılarla teslim ediliyor. 32 MB üzerindeki dosyalar Blob belleğine alınmadan doğrudan indiriliyor; daha küçük dosyalarda paylaş ve panoya kopyala seçenekleri korunuyor.',
+pEn:'Prepared files are now delivered through short-lived, unpredictable, single-use links. Files larger than 32 MB download directly without entering Blob memory, while share and clipboard options remain available for smaller files.'},
+{hTr:'dönüştürme çıktıları da aynı güvenli akışta',hEn:'conversion outputs use the same safe handoff',
+pTr:'Format dönüştürme sonuçları artık devasa bir Blob oluşturmak yerine yerel indirme bağlantısı üzerinden geliyor. Sunucu doluysa büyük yükleme gövdesi alınmadan önce istek reddediliyor; böylece gereksiz ağ ve geçici disk kullanımı önleniyor.',
+pEn:'Converted files now arrive through a native download link instead of creating a huge Blob. When conversion capacity is full, the request is rejected before the large upload body is accepted, avoiding wasted network and temporary-disk use.'},
+{hTr:'geçici dosyalar ve bağlantılar otomatik temizleniyor',hEn:'temporary files and links clean themselves up',
+pTr:'Hazır dosya bağlantıları süre dolduğunda otomatik siliniyor, HEAD kontrolleri gerçek indirme hakkını tüketmiyor ve yarım kalan tarayıcı akışları mevcut periyodik temizlik sistemi tarafından güvenli biçimde toplanıyor.',
+pEn:'Prepared-file links expire automatically, HEAD checks no longer consume the real download, and abandoned browser transfers are safely collected by the existing periodic cleanup system.'}
+],
+outroTr:'Kısacası: büyük dosya indirirken tarayıcının belleğini dolduran dönem bitti.',
+outroEn:'In short: large downloads no longer fill up the browser\'s memory.'
+},
+{ver:'v10.8',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'sunucu yoğunken artık kontrollü ve ölçülü davranıyor',
+titleEn:'the server now stays controlled under load',
+introTr:[
+'Yoğunluk anlarında bütün istekleri kabul edip sonradan yavaşlamak yerine, sunucunun kaldırabileceği işi baştan sınırlayan yeni bir kapasite katmanı ekledik.'
+],
+introEn:[
+'Instead of accepting everything and slowing down later, the server now limits expensive work at admission time to match its real capacity.'
+],
+sections:[
+{hTr:'sınırlı indirme kuyruğu ve bekleme süresi',hEn:'bounded download queue and wait time',
+pTr:'İndirme kuyruğuna üst sınır ve maksimum bekleme süresi eklendi. Kuyruk dolduğunda istekler sonsuza kadar bağlantı tutmak yerine Retry-After bilgisiyle kontrollü şekilde geri çevriliyor; indirme zaman aşımı artık kuyrukta geçen süreyi de hesaba katıyor.',
+pEn:'The download queue now has a hard size limit and maximum wait time. When it is full, requests are rejected with Retry-After instead of holding connections forever, and the download deadline now includes time spent waiting in the queue.'},
+{hTr:'bilgi ve kapak görseli işlemleri de sınırlandı',hEn:'metadata and thumbnail work is bounded too',
+pTr:'/info ve /thumbnail işlemlerine ayrı eşzamanlılık sınırları ile gerçek zaman aşımı süreleri eklendi. Kapak görseli zaman aşımında geride kalabilecek ffmpeg süreçleri de güvenli biçimde sonlandırılıyor.',
+pEn:'The /info and /thumbnail paths now have their own concurrency limits and real deadlines. FFmpeg processes that could remain after a thumbnail timeout are safely terminated as well.'},
+{hTr:'yoğunluk hataları kullanıcıya doğru gösteriliyor',hEn:'capacity errors are shown correctly',
+pTr:'429, 503 ve 504 yanıtları artık YouTube hatası sanılmıyor; kullanıcı doğrudan kuyruk, yoğunluk veya zaman aşımı mesajını görüyor.',
+pEn:'429, 503, and 504 responses are no longer mistaken for YouTube failures; users now see the actual queue, capacity, or timeout message.'}
+],
+outroTr:'Kısacası: yoğunluk artık tüm sistemi sürüklemek yerine sınırda durduruluyor.',
+outroEn:'In short: overload is stopped at the boundary instead of dragging down the whole service.'
+},
+{ver:'v10.7',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'canlı ilerleme daha hafif, bağlantılar daha akıllı',
+titleEn:'lighter live progress and smarter connections',
+introTr:[
+'Gerçek zamanlı ilerleme özelliğini korurken, kullanılmadığı zamanlarda sunucuya yük bindirmesini engelledik.'
+],
+introEn:[
+'We kept realtime progress while removing the server cost it used to create when nobody was downloading.'
+],
+sections:[
+{hTr:'Socket.IO yalnızca gerektiğinde bağlanıyor',hEn:'Socket.IO connects only when needed',
+pTr:'Ana sayfayı açan her ziyaretçi için otomatik bağlantı kurmak yerine Socket.IO artık indirme veya oynatma listesi kuyruğu başladığında bağlanıyor, iş bittikten kısa süre sonra kapanıyor. Harici Socket.IO betiği de sayfanın başından sonuna taşındı; ilk görünüm artık onu beklemiyor.',
+pEn:'Instead of opening a connection for every visitor, Socket.IO now connects when a download or playlist queue begins and disconnects shortly after the work finishes. Its external script was also moved out of the page head so the first render no longer waits for it.'},
+{hTr:'ilerleme mesajları saniyede yaklaşık beş kez',hEn:'progress updates capped at about five per second',
+pTr:'yt-dlp tarafından çok sık üretilen aynı ilerleme olayları birleştiriliyor. Yüzde veya durum değişmediğinde bildirim gönderilmiyor; kuyruk mesajları da yalnızca sıra değiştiğinde ya da seyrek bir hatırlatma gerektiğinde iletiliyor.',
+pEn:'Duplicate progress events produced by yt-dlp are now coalesced. Nothing is sent when percentage and state stay unchanged, and queue messages are emitted only when position changes or an occasional reminder is needed.'},
+{hTr:'Object URL yaşam döngüsü temizlendi',hEn:'Object URL lifecycle cleaned up',
+pTr:'Kapak görseli, küçük dosya paylaşımı ve yerel dosya işlemlerinde oluşturulan geçici Object URL adresleri artık kullanım sonrası iptal ediliyor; eski Blob referansları bellekte tutulmuyor.',
+pEn:'Temporary Object URLs created for thumbnails, small-file sharing, and local file actions are now revoked after use, and stale Blob references are released.'}
+],
+outroTr:'Kısacası: aynı canlı deneyim, çok daha az bağlantı ve mesaj yüküyle çalışıyor.',
+outroEn:'In short: the same live experience now runs with far fewer connections and messages.'
+},
+{ver:'v10.6',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'indirme motoru gereksiz tekrarları bıraktı',
+titleEn:'the download engine stopped repeating unnecessary work',
+introTr:[
+'İndirme öncesinde aynı videoyu tekrar tekrar sorgulayan yolları sadeleştirdik ve gerçek çıktı dosyasını bulma işlemini güvenli hale getirdik.'
+],
+introEn:[
+'We simplified paths that queried the same video repeatedly before download and made final output-file resolution deterministic and safe.'
+],
+sections:[
+{hTr:'tek metadata ve indirme akışı',hEn:'one metadata and download flow',
+pTr:'Süre, başlık ve indirme hazırlığı için ayrı probe isteği kaldırıldı. Playlist ve maksimum süre kontrolleri doğrudan yt-dlp\'nin tek extraction akışında uygulanıyor; böylece başarılı bir indirmede fazladan upstream isteği yapılmıyor.',
+pEn:'The separate probe request for duration, title, and preparation was removed. Playlist and duration limits now run inside yt-dlp\'s single extraction flow, eliminating an extra upstream request on successful downloads.'},
+{hTr:'çıktı dosyası artık tahmin edilmiyor',hEn:'the output file is no longer guessed',
+pTr:'İndirme klasöründeki ilk benzer adı seçmek yerine yt-dlp\'nin resmi filepath alanları doğrulanıyor. Altyazı, küçük resim, .part veya metadata dosyasının yanlışlıkla video sanılması engellendi.',
+pEn:'Instead of picking the first similar filename in the download directory, official yt-dlp filepath fields are validated. Subtitles, thumbnails, .part files, and metadata can no longer be mistaken for the final media.'},
+{hTr:'cookie fallback yalnızca gerçekten gerektiğinde',hEn:'cookie fallback only when it can help',
+pTr:'Cookie dosyası kullanılmıyorsa aynı upstream isteğini ikinci kez yapan özdeş fallback kaldırıldı. Cookie hatalarında kontrollü olarak cookie\'siz tekrar deneniyor; terminal hatalarda gereksiz ikinci tur çalıştırılmıyor.',
+pEn:'When no cookie file is in use, the identical fallback that repeated the same upstream request is gone. Cookie failures can retry without cookies, while terminal failures avoid a pointless second pass.'}
+],
+outroTr:'Kısacası: daha az istek, daha güvenli çıktı seçimi ve daha kısa hata yolları.',
+outroEn:'In short: fewer requests, safer output selection, and shorter failure paths.'
+},
+{ver:'v10.5',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'ağ güvenliği ve süreç temizliği daha hassas',
+titleEn:'more precise network security and process cleanup',
+introTr:[
+'Dış bağlantı güvenliğini hızdan ödün vermeden güçlendirdik ve bir indirme zaman aşımının başka işi etkilemesini engelledik.'
+],
+introEn:[
+'We strengthened outbound network security without giving up speed and stopped one timed-out download from affecting unrelated work.'
+],
+sections:[
+{hTr:'DNS rebinding koruması doğrulanmış IP\'ye bağlanıyor',hEn:'DNS rebinding protection connects to the verified IP',
+pTr:'Bağlantı katmanında alan adı public IP adreslerine çözümleniyor, sonuç kısa süreli ve sınırlı bir cache içinde tutuluyor ve gerçek bağlantı doğrudan doğrulanmış IP\'ye yapılıyor. Güvenlik kontrolü ile gerçek bağlantı arasında yeniden DNS çözümlemesi bırakılmadı.',
+pEn:'At connection time, a hostname is resolved to public IPs, stored in a short-lived bounded cache, and the real connection goes directly to the verified IP. There is no new DNS lookup between the security check and the actual connection.'},
+{hTr:'timeout yalnızca kendi alt sürecini sonlandırıyor',hEn:'timeouts terminate only their own child process',
+pTr:'ffmpeg veya ffprobe süreçleri artık yalnızca ilgili indirmenin benzersiz dosya token\'ı komut satırında bulunuyorsa sonlandırılıyor. Eşzamanlı başka indirme ve dönüştürmeler yanlışlıkla öldürülmüyor.',
+pEn:'FFmpeg and ffprobe processes are now terminated only when the command line contains the unique file token for that download. Unrelated concurrent downloads and conversions are left untouched.'},
+{hTr:'üretim sırları eksikse erken ve açık hata',hEn:'clear fail-fast behavior for missing production secrets',
+pTr:'Origin lock açıkken ORIGIN_SECRET eksikse production artık sessizce güvensiz moda düşmüyor. İstemci IP değerleri de kullanılmadan önce gerçek IPv4/IPv6 olarak normalize ediliyor.',
+pEn:'When origin lock is enabled, production no longer silently falls back to an insecure mode if ORIGIN_SECRET is missing. Client IP values are also normalized as real IPv4 or IPv6 addresses before use.'}
+],
+outroTr:'Kısacası: ağ koruması daha güçlü, zaman aşımı temizliği daha hedefli.',
+outroEn:'In short: stronger network protection and more targeted timeout cleanup.'
+},
+{ver:'v10.4',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'hız sınırlama ve dosya temizliği sıcak yoldan çıkarıldı',
+titleEn:'rate limiting and cleanup moved off the hot path',
+introTr:[
+'Her istekte bütün kayıtları ve indirme klasörünü tekrar tarayan pahalı işleri arka plana taşıdık.'
+],
+introEn:[
+'Expensive work that rescanned every record and the download directory on each request has been moved into the background.'
+],
+sections:[
+{hTr:'O(1) hız sınırlama sıcak yolu',hEn:'O(1) rate-limit hot path',
+pTr:'Her istek geldiğinde bütün IP kayıtlarını tarayan yapı yerine yalnızca o IP\'nin küçük zaman damgası kuyruğu temizleniyor. Genel TTL temizliği ayrı bir periyodik işte çalışıyor; cache boyutu saldırı altında bile anında sınırda tutuluyor.',
+pEn:'Instead of scanning every tracked IP on each request, only that IP\'s small timestamp queue is trimmed. Global TTL cleanup runs periodically, while the cache size stays bounded immediately even under abusive traffic.'},
+{hTr:'indirme isteğinde klasör taraması yok',hEn:'no directory scan on every download',
+pTr:'Her /download çağrısında os.listdir ve stat çalıştıran senkron temizlik kaldırıldı. Eski dosyalar ve unutulmuş cleanup kayıtları arka plan işçisi tarafından temizleniyor.',
+pEn:'The synchronous cleanup that ran os.listdir and stat for every /download call is gone. Old files and abandoned cleanup records are handled by the background worker.'},
+{hTr:'health kontrolü ucuz sayaçlar kullanıyor',hEn:'health checks use cheap counters',
+pTr:'Sık sorgulanabilen /health endpoint\'i artık her çağrıda indirme klasörünü taramıyor; kilitle korunan mevcut sayaçlardan aktif iş ve kuyruk durumunu okuyor.',
+pEn:'The frequently polled /health endpoint no longer scans the download directory on every call; it reads active-work and queue state from existing lock-protected counters.'}
+],
+outroTr:'Kısacası: kullanıcı isteği yalnızca kendi işi için gereken maliyeti ödüyor.',
+outroEn:'In short: each request now pays only for the work it actually needs.'
+},
+{ver:'v10.3',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'iptal, dönüştürme ve dosya sınırları sağlamlaştırıldı',
+titleEn:'cancellation, conversion, and file limits hardened',
+introTr:[
+'İptal kimliklerinde yarış durumlarını kapattık ve dönüştürme işlemlerinin CPU ile diski sınırsız tüketmesini engelledik.'
+],
+introEn:[
+'We closed cancellation-ID race conditions and stopped conversion work from consuming CPU and disk without firm bounds.'
+],
+sections:[
+{hTr:'indirme kimlikleri doğrulanıyor ve atomik ayrılıyor',hEn:'download IDs are validated and reserved atomically',
+pTr:'İstemciden gelen download_id yalnızca güvenli biçimde kabul ediliyor, aktif başka bir işi ezemiyor ve iptal isteği geldiğinde eski kayıt işlem gerçekten bitmeden yeniden kullanıma açılmıyor.',
+pEn:'Client-provided download IDs are accepted only in a safe format, cannot overwrite another active job, and are not made reusable until the cancelled work has actually finished.'},
+{hTr:'dönüştürme için eşzamanlılık ve çıktı sınırı',hEn:'conversion concurrency and output limits',
+pTr:'Dönüştürmeler ayrı bir semaphore ile sınırlandı. FFmpeg -fs ile çıktı büyüklüğünü erken kesiyor; sonuç dosyası boşsa veya limite ulaştıysa hemen siliniyor. -nostdin ve düşük log seviyesi gereksiz bekleme ile bellek kullanımını azaltıyor.',
+pEn:'Conversions now have their own semaphore. FFmpeg stops oversized output early with -fs; empty or limit-sized results are deleted immediately. -nostdin and reduced logging avoid needless blocking and memory use.'},
+{hTr:'hazır ve geçici dosya yolları doğrulanıyor',hEn:'prepared and temporary file paths are validated',
+pTr:'Sunucunun kullanıcıya teslim ettiği dosyalar indirme kökü, benzersiz token, gerçek dosya varlığı ve izin verilen uzantı kurallarından geçiriliyor.',
+pEn:'Files delivered to users are checked against the download root, unique token, real file existence, and allowed-extension rules.'}
+],
+outroTr:'Kısacası: iptal daha güvenilir, dönüştürme kaynakları artık kesin sınırlar içinde.',
+outroEn:'In short: cancellation is more reliable and conversion resources now stay within firm limits.'
+},
+{ver:'v10.2',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'mobildeki kayma ve titreme sorunları düzeltildi',
+titleEn:'mobile layout shifting and jitter fixed',
+introTr:[
+'Özellikle Android Chrome\'da klavye açılıp kapanırken alt menünün zıplaması, adres çubuğu hareketlerinde arka planın yeniden boyutlanması ve bazı elemanların yatay kayması artık yaşanmıyor.'
+],
+introEn:[
+'The bottom bar no longer jumps when the keyboard opens or closes in Android Chrome, background resizing no longer jitters with the address bar, and several sources of horizontal shifting are gone.'
+],
+sections:[
+{hTr:'alt menü visualViewport ile sabitlendi',hEn:'bottom bar pinned with visualViewport',
+pTr:'Mobil klavyenin kapladığı gerçek alan visualViewport üzerinden ölçülüyor ve sabit alt menü requestAnimationFrame ile doğru noktaya taşınıyor. Yeni interactive-widget davranışıyla uyumlu, eski Chrome sürümlerinde ise doğrudan düzeltme sağlıyor.',
+pEn:'The real area covered by the mobile keyboard is measured through visualViewport, and the fixed bottom bar is placed correctly through requestAnimationFrame. It works with modern interactive-widget behavior and directly fixes older Chrome versions.'},
+{hTr:'adres çubuğu hareketlerinde canvas yeniden kurulumu azaltıldı',hEn:'canvas resizing reduced during address-bar movement',
+pTr:'Arka plan canvas\'ı art arda gelen resize olaylarında her defasında yeniden oluşturulmuyor; 150 ms debounce ile tek sefer güncelleniyor. Mobil DPR 1.5 ile sınırlandı, yıldız sayısı azaltıldı ve animasyon yaklaşık 30 FPS\'e çekildi.',
+pEn:'The background canvas is no longer rebuilt for every burst of resize events; a 150 ms debounce performs one update. Mobile DPR is capped at 1.5, star count is reduced, and animation runs at roughly 30 FPS.'},
+{hTr:'iOS açık tema arka planı senkron',hEn:'iOS light-theme background stays in sync',
+pTr:'Rubber-band kaydırmada görünür hale gelen html arka planı body temasıyla eşitlendi; açık temada kenarlarda anlık koyu renk parlaması kaldırıldı.',
+pEn:'The html background exposed during rubber-band scrolling now follows the body theme, removing the brief dark flash around the edges in light mode.'}
+],
+outroTr:'Kısacası: mobil arayüz artık klavye, adres çubuğu ve kaydırma sırasında yerinden oynamıyor.',
+outroEn:'In short: the mobile interface now stays in place through keyboard, address-bar, and scroll changes.'
+},
+{ver:'v10.1',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'kedi artık dokununca konuşuyor ve ekranı taşırmıyor',
+titleEn:'the cat now talks when tapped without shifting the page',
+introTr:[
+'Link kutusundaki küçük GitHub kedisine biraz daha karakter verdik. Kediye tıklayınca rastgele bir cümle söylüyor; boşta kalınca pati kemirme, nadir esneme ve arkasına bakma animasyonları gösteriyor.'
+],
+introEn:[
+'We gave the little GitHub cat on the URL box more personality. Tap it for a random line; leave it idle and it may nibble its paw, rarely yawn, or look behind itself.'
+],
+sections:[
+{hTr:'tıklayınca konuşma balonu',hEn:'speech bubble on tap',
+pTr:'Kediye basıldığında seçili dile göre rastgele bir replik gösteriliyor. Yeni bağlantı algılandığında gözleri büyüyüp kısa süre heyecanlanıyor; on saniyelik boşta kalma sonrasında küçük sürpriz animasyonlar devreye giriyor.',
+pEn:'Tapping the cat shows a random line in the selected language. It briefly gets excited when a fresh link is detected, while small surprise animations appear after ten seconds of idle time.'},
+{hTr:'konuşma balonu ekran sınırında kalıyor',hEn:'speech bubble stays inside the viewport',
+pTr:'Uzun repliklerin mobilde ekran dışına taşıp navbar ve chip satırını yatay kaydırmasına neden olan hata düzeltildi. Balon gösterilmeden önce gerçek genişliği ölçülüyor ve yalnızca gerektiği kadar içeri alınıyor.',
+pEn:'Fixed a bug where long lines could extend beyond the mobile viewport and shift the navbar and chip row horizontally. The bubble is measured before display and moved inward only as much as necessary.'}
+],
+outroTr:'Kısacası: kedi daha canlı, sayfa ise yerinde duruyor. Miyav.',
+outroEn:'In short: the cat feels more alive while the page stays put. Meow.'
+},
+{ver:'v10.0',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'sunucu tarafında büyük bir bakım turu: güvenlik, kararlılık ve temizlik',
 titleEn:'a big backend maintenance pass: security, stability, and cleanup',
 
