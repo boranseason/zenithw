@@ -41,10 +41,22 @@ html,body{height:100%;}
    elastic-scroll (rubber-band) ile <html>'in arkaplanı bir anlığına
    görünür hale gelebiliyor. html'e --bg'yi vererek "1 saniyelik beyaz
    flaş" önleniyor; overscroll-behavior ise bounce'ın kendisini,
-   dolayısıyla .bottom-bar'ın kısa süreli kaymasını engelliyor. */
-html{background:var(--bg);overscroll-behavior-y:none;}
+   dolayısıyla .bottom-bar'ın kısa süreli kaymasını engelliyor.
+   overflow-x:hidden burada da (sadece body'de değil) tanımlı, çünkü
+   overflow'u viewport'a sadece body taşıyor (root'ta 'visible' iken) —
+   bazı mobil motorlarda bu propagasyon güvenilir çalışmıyor ve taşan bir
+   alt-öğe (ör. kedi konuşma balonu) layout viewport'unu anlık büyüterek
+   TÜM sabit konumlu öğelerin (navbar, chip) sıçramasına yol açabiliyor. */
+html{background:var(--bg);overflow-x:hidden;overscroll-behavior-y:none;}
 html.light{--bg:#f2f2f7;}
 body{background:radial-gradient(ellipse 120% 90% at 50% 20%,#131316,#060606 65%);color:var(--text);font-family:var(--font);display:flex;flex-direction:column;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;overscroll-behavior-y:none;transition:background 0.2s,color 0.2s;}
+/* ANA UYGULAMA EKRANI (index.html'deki .page) — içerik zaten 100dvh'e tam
+   oturuyor, bu yüzden dikey scroll'u da burada kilitliyoruz: kullanıcı asla
+   sayfayı "çekip" boşluk göremez, elastic bounce hissi kalmaz. Bu kural
+   sadece .page barındıran body'lere (uygulama ekranı) uygulanır — terms.html,
+   privacy.html gibi uzun metinli sayfalar .legal-page kullanır ve normal
+   şekilde kaymaya devam eder. Modaller kendi iç overflow'larıyla ayrı kayar. */
+body:has(>.page){overflow-y:hidden;overscroll-behavior-y:none;}
 #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;display:block;opacity:0.75;}
 body.light #bg-canvas{opacity:0.12;}
 
@@ -253,11 +265,20 @@ body.light .gh-heart-path{fill:#ff4a97;}
 .url-cat-wrap.rare-lookback .gh-eyes-happy{animation:ghLookBackEyes 2.2s ease-in-out!important;}
 @keyframes ghLookBackEyes{0%,30%,70%,100%{opacity:0;}40%,60%{opacity:1;}}
 
-/* ── SPEECH BUBBLE (click the cat) ── */
+/* ── SPEECH BUBBLE (click the cat) ──
+   Kedi sağ kenara yakın oturduğu için balon rastgele/uzun bir replikte
+   viewport'un sağından taşabiliyordu; bu da (html{overflow-x} yokken)
+   layout viewport'un anlık büyümesine ve navbar/chip'in "sıçramasına"
+   sebep oluyordu. max-width + wrap taşmayı büyük ölçüde önler; JS
+   tarafında ayrıca gerçek genişliğe göre ince bir yatay düzeltme
+   uygulanıyor (bkz. catSpeak()), böylece hiçbir dilde/uzunlukta taşma
+   kalmaz. */
 .gh-speech-bubble{
   position:absolute;
   bottom:calc(100% + 6px);
   left:50%;
+  max-width:min(62vw,220px);
+  width:max-content;
   transform:translateX(-50%) translateY(4px) scale(0.85);
   background:var(--text);
   color:var(--bg);
@@ -266,7 +287,9 @@ body.light .gh-heart-path{fill:#ff4a97;}
   font-weight:700;
   padding:6px 10px;
   border-radius:10px;
-  white-space:nowrap;
+  white-space:normal;
+  text-align:center;
+  line-height:1.35;
   opacity:0;
   pointer-events:none;
   z-index:5;

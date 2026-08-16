@@ -1173,6 +1173,20 @@ function catSpeak(){
   if(!bubble)return;
   const lines=CAT_LINES[LANG]||CAT_LINES.en;
   bubble.textContent=lines[Math.floor(Math.random()*lines.length)];
+  // Balon varsayılan olarak kedinin tam ortasına hizalanıyor (CSS: left:50%),
+  // ama kedi sağ kenara yakın oturduğu için uzun/geniş bir replik ekranın
+  // dışına taşabilir. Animasyon başlamadan ÖNCE gerçek genişliğe göre ölçüp
+  // `left`'i içeri çekiyoruz (transform'a değil left'e dokunuyoruz, çünkü
+  // pop animasyonu zaten kendi transform'unu kullanıyor — böylece ne bir
+  // "sıçrama" oluyor ne de html/body seviyesinde yatay taşma kalıyor,
+  // eskiden navbar/chip'in kaymasına sebep olan da buydu).
+  bubble.style.left='50%';
+  const r=bubble.getBoundingClientRect();
+  const margin=8;
+  let shift=0;
+  if(r.right>innerWidth-margin)shift=(innerWidth-margin)-r.right;
+  else if(r.left<margin)shift=margin-r.left;
+  bubble.style.left=shift?`calc(50% + ${shift}px)`:'50%';
   bubble.classList.remove('show');
   void bubble.offsetWidth; // restart animation
   bubble.classList.add('show');
