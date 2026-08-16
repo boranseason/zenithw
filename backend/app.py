@@ -411,6 +411,28 @@ FFMPEG_DIR = find_ffmpeg()
 FFMPEG_PATH = shutil.which('ffmpeg')  # Doğrudan tam path
 logger.info(f"[INIT] ffmpeg={FFMPEG_DIR}")
 
+# yt-dlp n-challenge çözücüsü için Deno (veya Node/PhantomJS) JS runtime'ı ve
+# yt-dlp-ejs paketi gerekiyor. Bunlardan biri eksikse yt-dlp sessizce yavaş/
+# eksik bir fallback'e düşüyor (throttle veya "bot" hatası olarak karşımıza
+# çıkabiliyor). Deploy sonrası loglardan görünür olsun diye burada kontrol
+# ediyoruz.
+_DENO_PATH = shutil.which("deno")
+try:
+    import yt_dlp_ejs  # noqa: F401
+    _EJS_AVAILABLE = True
+except ImportError:
+    _EJS_AVAILABLE = False
+
+if _DENO_PATH and _EJS_AVAILABLE:
+    logger.info(f"[INIT] yt-dlp JS solver: OK (deno={_DENO_PATH}, yt-dlp-ejs=loaded)")
+else:
+    logger.warning(
+        f"[INIT] yt-dlp JS solver INCOMPLETE (deno={'found' if _DENO_PATH else 'MISSING'}, "
+        f"yt-dlp-ejs={'loaded' if _EJS_AVAILABLE else 'MISSING'}) — "
+        "n-challenge çözümü yavaş/eksik fallback'e düşebilir, throttle veya "
+        "bot-detection hatalarına yol açabilir."
+    )
+
 # aria2c SSRF bypass riski nedeniyle tamamen devre dışı bırakıldı.
 # Gelecekte container seviyesinde egress firewall kurulursa tekrar açılabilir.
 ARIA2_PATH = None
@@ -761,6 +783,7 @@ def health():
     return jsonify({
         "status": "ok",
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
+        "js_solver": "OK" if (_DENO_PATH and _EJS_AVAILABLE) else "INCOMPLETE",
         "cookies": f"Loaded ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "Missing",
         "disk_files": len(os.listdir(DOWNLOAD_DIR)),
         "active_downloads": _active,
