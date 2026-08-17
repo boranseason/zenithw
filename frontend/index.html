@@ -620,7 +620,9 @@
 
 <div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"
+        integrity="sha512-Xm9qbB6Pu06k3PUwPj785dyTl6oHxgsv9nHp7ej7nCpAqGZT3OZpsELuCYX05DdonFpTlBpXMOxjavIAIUwr0w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 const API="https://api.zenithw.space";
 async function downloadThumbnail(){
@@ -1615,7 +1617,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 function showYtErr(){const p=document.getElementById('ytPopup');p.classList.add('show');if(ytErrTimer)clearTimeout(ytErrTimer);ytErrTimer=setTimeout(()=>p.classList.remove('show'),4500);}
 
 // ── QR ────────────────────────────────────────────────
-function showQR(url){if(innerWidth<=600)return;const canvas=document.getElementById('qrCanvas');const img=new Image();img.crossOrigin='anonymous';img.src='https://api.qrserver.com/v1/create-qr-code/?data='+encodeURIComponent(url)+'&size=120x120&bgcolor=ffffff&color=000000&margin=0';img.onload=()=>{const ctx=canvas.getContext('2d');ctx.clearRect(0,0,120,120);ctx.drawImage(img,0,0,120,120);document.getElementById('qrWrap').classList.add('show');};img.onerror=()=>document.getElementById('qrWrap').classList.remove('show');}
+// URL'leri üçüncü taraf bir QR servisine göndermemek için otomatik QR üretimi
+// kapalıdır. Yerel bir QR üretici eklendiğinde bu fonksiyon yeniden açılabilir.
+function showQR(){hideQR();}
 function hideQR(){document.getElementById('qrWrap').classList.remove('show');}
 
 // ── DL MODAL ─────────────────────────────────────────
@@ -1748,15 +1752,15 @@ function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+ke
 
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){document.getElementById('remuxOverlay').classList.add('open');document.body.style.overflow='hidden';}
-function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${f.name}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;const a=document.createElement('a'),objectUrl=URL.createObjectURL(f);a.href=objectUrl;a.download='remuxed_'+f.name;a.click();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);toast(t('remuxDone'),'#3bba64');setTimeout(()=>{document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">🤖</div><div class="drop-title">${t('remuxDropTitle')}</div><div class="drop-sub">${t('remuxDropSub')}</div>`;},2000);}
+function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;const a=document.createElement('a'),objectUrl=URL.createObjectURL(f);a.href=objectUrl;a.download='remuxed_'+f.name;a.click();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);toast(t('remuxDone'),'#3bba64');setTimeout(()=>{document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">🤖</div><div class="drop-title">${t('remuxDropTitle')}</div><div class="drop-sub">${t('remuxDropSub')}</div>`;},2000);}
 function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;handleRemuxFile({files:[f]});}
 
 // ── CONVERT ───────────────────────────────────────────
 let convFile=null,convTargetFmt='mp3';
 function openConvert(){document.getElementById('convOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
-function handleConvFile(inp){const f=inp.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${f.name}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
-function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${f.name}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
+function handleConvFile(inp){const f=inp.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
+function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
 function _updateConvBtn(){const btn=document.getElementById('convBtn'),txt=document.getElementById('convBtnTxt');if(!btn||!txt)return;if(convFile){btn.disabled=false;txt.textContent=LANG==='en'?`Convert to ${convTargetFmt.toUpperCase()}`:`${convTargetFmt.toUpperCase()} olarak dönüştür`;}else{btn.disabled=true;txt.textContent=t('convBtnSel');}}
 function updateConvBtn(){_updateConvBtn();}// alias for legacy calls
 async function startConvert(){

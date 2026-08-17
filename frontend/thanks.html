@@ -1,148 +1,106 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-8ZVQX4STQC"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-8ZVQX4STQC');
-</script>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Teşekkürler — ZenithW</title>
-<meta name="description" content="ZenithW'nin ilk demo günlerinde yanımızda olan arkadaşlara teşekkürler.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://zenithw.space/thanks.html">
-<meta name="theme-color" content="#0a0a0a">
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<style>
-.thx-hero{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:6px;}
-.thx-hero-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#3a3a3a,#151515);border:1px solid var(--border);margin-bottom:16px;font-size:22px;}
-.thx-title{font-size:21px;font-weight:800;letter-spacing:-.3px;line-height:1.3;margin:0 0 8px;color:var(--text);}
-.thx-sub{font-size:13px;color:var(--text3);line-height:1.7;margin:0;max-width:440px;}
-
-.thx-grid{display:flex;flex-direction:column;gap:12px;margin-top:32px;}
-
-.thx-card{position:relative;display:flex;align-items:center;gap:14px;padding:16px;background:var(--chip-bg);border:1px solid var(--border);border-radius:16px;text-decoration:none;overflow:hidden;transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;}
-.thx-card::before{content:'';position:absolute;inset:0;background:radial-gradient(120px 60px at 0% 0%, rgba(255,255,255,.05), transparent 70%);opacity:0;transition:opacity .18s ease;}
-.thx-card:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,.28);}
-.thx-card:hover::before{opacity:1;}
-
-.thx-avatar-wrap{position:relative;flex-shrink:0;}
-.thx-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.2px;}
-.thx-ig-badge{position:absolute;bottom:-3px;right:-3px;width:19px;height:19px;border-radius:7px;background:var(--bg);border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;}
-.thx-ig-badge svg{width:12px;height:12px;}
-
-.thx-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
-.thx-name{font-size:14.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;}
-.thx-handle{font-size:12px;color:var(--text3);}
-
-.thx-arrow{margin-left:auto;flex-shrink:0;width:16px;height:16px;color:var(--text3);opacity:.5;transition:all .18s ease;}
-.thx-card:hover .thx-arrow{opacity:1;transform:translate(2px,-2px);color:var(--text);}
-
-.thx-badge{font-size:9.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;background:var(--text);color:var(--bg);padding:4px 8px;border-radius:8px;white-space:nowrap;flex-shrink:0;}
-
-.thx-card.owner{background:linear-gradient(135deg, rgba(59,186,100,.10), var(--chip-bg) 60%);border-color:rgba(59,186,100,.35);}
-.thx-card.owner:hover{box-shadow:0 8px 28px rgba(59,186,100,.16);}
-.thx-card.owner .thx-badge{background:#3bba64;color:#fff;display:flex;align-items:center;gap:4px;}
-.thx-card.owner .thx-avatar{box-shadow:0 0 0 3px rgba(59,186,100,.18);}
-
-.thx-note{margin-top:36px;font-size:13px;line-height:1.9;color:var(--text2);padding-top:24px;border-top:1px solid var(--border);}
-.thx-signoff{margin-top:20px;font-size:13px;color:var(--text3);text-align:center;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title id="pgTitle">Teşekkürler — ZenithW</title>
+  <meta name="description" id="pgDesc" content="ZenithW'nin ilk günlerinden beri test eden, hata bildiren ve gelişmesine yardımcı olan kişilere teşekkürler.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://zenithw.space/thanks.html">
+  <meta name="theme-color" content="#060606">
+  <link rel="icon" type="image/png" href="zenithw.png">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="legal-page">
-  <div class="legal-nav">
-    <a href="/" class="legal-logo">ZenithW<span>.</span></a>
-    <a href="/" class="legal-back">← ana sayfa</a>
-  </div>
-
-  <div class="legal-body" style="max-width:640px;margin:0 auto;padding:24px 20px 80px;">
-
-    <div class="thx-hero">
-      <div class="thx-hero-icon">🤍</div>
-      <h1 class="thx-title">özel teşekkürler</h1>
-      <p class="thx-sub">ZenithW'nin ilk demo günlerinde siteyi deneyip geri bildirim veren, hataları bulmamıza yardım eden arkadaşlara teşekkürler.</p>
-    </div>
-
-    <div class="thx-grid">
-
-      <div class="thx-card">
-        <div class="thx-avatar-wrap">
-          <div class="thx-avatar" style="background:linear-gradient(135deg,#3bba64,#1f7a41);">B</div>
+<body class="info-page">
+  <main class="info-shell">
+    <nav class="info-nav" aria-label="Sayfa navigasyonu">
+      <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
+      <div class="info-actions">
+        <div class="lang-switch" id="langSwitch" aria-label="Dil seçimi">
+          <button type="button" data-lang="tr" onclick="setPageLang('tr')">TR</button>
+          <button type="button" data-lang="en" onclick="setPageLang('en')">EN</button>
         </div>
-        <div class="thx-info">
-          <span class="thx-name">boranseason</span>
-        </div>
+        <a href="/" class="info-back" id="pgBack">← ana sayfa</a>
       </div>
+    </nav>
+    <header class="info-hero">
+      <div class="info-kicker" id="pgKicker">özel teşekkürler</div>
+      <h1 id="pgH1">Bu proje tek başına yazıldı.<br>Ama tek başına büyümedi.</h1>
+      <p class="info-lead" id="pgLead">İlk demoları deneyen, bozuk düğmeleri bulan ve “kanka çalışmıyor” demekten çekinmeyen herkese teşekkürler.</p>
+    </header>
+    <article class="info-card" id="pgBody"></article>
+    <footer class="info-footer" id="pgFooter"></footer>
+  </main>
 
-      <div class="thx-card">
-        <div class="thx-avatar-wrap">
-          <div class="thx-avatar" style="background:linear-gradient(135deg,#e8a75b,#8c5b2f);">E</div>
-        </div>
-        <div class="thx-info">
-          <span class="thx-name">egeseason</span>
-        </div>
-      </div>
+  <script>
+    const PEOPLE = ['boranseason', 'egeseason', 'bilalseason', 'husoseason', 'elaseason'];
+    const peopleMarkup = () => PEOPLE.map(name => `
+      <div class="person-card">
+        <div class="person-avatar" aria-hidden="true">${name.charAt(0).toUpperCase()}</div>
+        <div><h3>${name}</h3><p>early tester · feedback</p></div>
+      </div>`).join('');
 
-      <div class="thx-card">
-        <div class="thx-avatar-wrap">
-          <div class="thx-avatar" style="background:linear-gradient(135deg,#e85b7d,#8c2f4c);">B</div>
-        </div>
-        <div class="thx-info">
-          <span class="thx-name">bilalseason</span>
-        </div>
-      </div>
-
-      <div class="thx-card">
-        <div class="thx-avatar-wrap">
-          <div class="thx-avatar" style="background:linear-gradient(135deg,#5b6ee8,#2f3a8c);">H</div>
-        </div>
-        <div class="thx-info">
-          <span class="thx-name">husoseason</span>
-        </div>
-      </div>
-
-      <div class="thx-card">
-        <div class="thx-avatar-wrap">
-          <div class="thx-avatar" style="background:linear-gradient(135deg,#a75be8,#5b2f8c);">E</div>
-        </div>
-        <div class="thx-info">
-          <span class="thx-name">elaseason</span>
-        </div>
-      </div>
-
-    </div>
-
-    <div class="thx-note">
-      <p style="margin:0 0 14px;">
-        Doğrusunu isterseniz bu hikaye ZenithW ile başlamadı. İlk hali <b>VidDrop</b> diye bir isimle çıkmıştı ortaya —
-        kulağa havalı geliyordu ama site öyle değildi. Butonlar bazen çalışıyordu, bazen "biraz keyfim yok" der gibi
-        hiçbir şey yapmıyordu. İndirmeler yarıda kesiliyor, bazı linkler açılmıyor, bir video indirdim derken bazen
-        elimize garip bir dosya geçiyordu. Kısacası VidDrop, kendi ağırlığı altında sessizce battı. Resmi bir cenaze
-        töreni yapmadık ama içten içe biliyorduk: bu hâliyle olmuyordu.
-      </p>
-      <p style="margin:0 0 14px;">
-        Ama pes etmedik, sadece isim değiştirip yeniden doğduk — ZenithW olarak. Ve o günlerden itibaren mesai gece
-        gündüz demeden devam etti. Bu arkadaşlar erken demoları deneyip hangi düğmenin çalışmadığını, hangi videonun
-        indirilmediğini, hangi sayfanın "404 sanki burada bir şey olması gerekiyordu ama yok" dediğini bize bildirdi —
-        bazen sabahın körü saatlerinde bile "kanka çalışmıyo" mesajıyla uyandık. Hata bulduk, düzelttik, tekrar bozuldu,
-        tekrar düzelttik. Bu döngü aylarca sürdü.
-      </p>
-      <p style="margin:0;">
-        Bugün ZenithW'nin ayakta durabiliyor olmasının tek bir sebebi var: pes etmeyen birkaç kişi. Erken saatlerde
-        test eden, sabrı taşınca da bize bunu söylemekten çekinmeyen bu arkadaşlara gerçekten minnettarız. Bir
-        zamanlar battığımızı hatırlayınca, bugün buradayız diye biraz gururlanmayı hak ediyoruz galiba.
-      </p>
-    </div>
-
-    <p class="thx-signoff">~ ZenithW ekibi 🤍</p>
-  </div>
-</div>
+    const COPY = {
+      tr: {
+        title: 'Teşekkürler — ZenithW',
+        desc: 'ZenithW\'nin ilk günlerinden beri test eden, hata bildiren ve gelişmesine yardımcı olan kişilere teşekkürler.',
+        back: '← ana sayfa', kicker: 'özel teşekkürler',
+        h1: 'Bu proje tek başına yazıldı.<br>Ama tek başına büyümedi.',
+        lead: 'İlk demoları deneyen, bozuk düğmeleri bulan ve “kanka çalışmıyor” demekten çekinmeyen herkese teşekkürler.',
+        body: `
+          <section class="info-section">
+            <h2>İlk günden beri buradalar.</h2>
+            <p>ZenithW daha tamamlanmamış bir demoyken farklı platformları, bağlantıları ve cihazları deneyerek gerçek sorunları ortaya çıkardılar. Bu geri bildirimler projeyi daha kararlı, daha anlaşılır ve daha kullanışlı yaptı.</p>
+            <div class="people-grid">${peopleMarkup()}</div>
+          </section>
+          <section class="info-section">
+            <h2>VidDrop'tan ZenithW'ye</h2>
+            <p>Projenin ilk adı VidDrop'tı. Erken sürüm kırılgan ve tutarsızdı; fakat işe yarayan fikri geride bırakmak yerine temel yeniden kuruldu. Yeni isimle birlikte arayüz, indirme akışı ve arka plan mimarisi adım adım gelişti.</p>
+            <p>Bugün çalışan her özelliğin arkasında yalnızca yazılan kod değil; sabırla yapılan testler, açık geri bildirimler ve tekrar tekrar deneme cesareti var.</p>
+            <div class="notice"><span class="notice-mark">♥</span><span>ZenithW'yi ilk günden beri ciddiye alan herkese: iyi ki vardınız.</span></div>
+          </section>`,
+        footer: '<a href="/about.html">hakkında</a><a href="/privacy.html">gizlilik</a><a href="/terms.html">kullanım koşulları</a><a href="/status.html">durum</a>'
+      },
+      en: {
+        title: 'Thanks — ZenithW',
+        desc: 'A thank-you to the people who tested ZenithW, reported bugs, and helped it improve from the earliest days.',
+        back: '← home', kicker: 'special thanks',
+        h1: 'Built by one person.<br>Improved by more than one.',
+        lead: 'Thank you to everyone who tested the first demos, found broken buttons, and never hesitated to say, “this isn\'t working.”',
+        body: `
+          <section class="info-section">
+            <h2>Here since the early days.</h2>
+            <p>When ZenithW was still an unfinished demo, they tested different platforms, links, and devices to uncover real problems. Their feedback made the project more stable, clearer, and more useful.</p>
+            <div class="people-grid">${peopleMarkup()}</div>
+          </section>
+          <section class="info-section">
+            <h2>From VidDrop to ZenithW</h2>
+            <p>The project's first name was VidDrop. That early version was fragile and inconsistent, but instead of abandoning the useful idea, its foundation was rebuilt. Under a new name, the interface, download flow, and backend architecture improved step by step.</p>
+            <p>Behind every feature that works today is more than code: patient testing, honest feedback, and the willingness to try again.</p>
+            <div class="notice"><span class="notice-mark">♥</span><span>To everyone who took ZenithW seriously from day one: thank you.</span></div>
+          </section>`,
+        footer: '<a href="/about.html">about</a><a href="/privacy.html">privacy</a><a href="/terms.html">terms</a><a href="/status.html">status</a>'
+      }
+    };
+    function setPageLang(lang) {
+      const active = COPY[lang] ? lang : 'en';
+      const text = COPY[active];
+      document.documentElement.lang = active;
+      document.getElementById('pgTitle').textContent = text.title;
+      document.getElementById('pgDesc').setAttribute('content', text.desc);
+      document.getElementById('pgBack').textContent = text.back;
+      document.getElementById('pgKicker').textContent = text.kicker;
+      document.getElementById('pgH1').innerHTML = text.h1;
+      document.getElementById('pgLead').textContent = text.lead;
+      document.getElementById('pgBody').innerHTML = text.body;
+      document.getElementById('pgFooter').innerHTML = text.footer;
+      document.querySelectorAll('#langSwitch button').forEach(button => button.classList.toggle('active', button.dataset.lang === active));
+      try { localStorage.setItem('zw_lang', active); } catch (_) {}
+    }
+    let savedLanguage = 'tr';
+    try { savedLanguage = localStorage.getItem('zw_lang') || 'tr'; } catch (_) {}
+    setPageLang(savedLanguage === 'tr' ? 'tr' : 'en');
+  </script>
 </body>
 </html>

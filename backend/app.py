@@ -64,7 +64,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 230 * 1024 * 1024
 
 # ── Constants ──────────────────────────────────────────
-FFMPEG_TIMEOUT = 300  # ffmpeg subprocess timeout (mute vb.)
+FFMPEG_TIMEOUT = int(os.environ.get("FFMPEG_TIMEOUT_SECONDS", 120))
 DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("DOWNLOAD_TIMEOUT_SECONDS", 600))
 MAX_CONCURRENT_PER_IP = int(os.environ.get("MAX_CONCURRENT_PER_IP", 5))
 MAX_CONCURRENT_DOWNLOADS = int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", 2))
@@ -82,6 +82,8 @@ PREPARED_FILE_TTL = int(os.environ.get("PREPARED_FILE_TTL", 10 * 60))
 PROGRESS_EMIT_INTERVAL = float(os.environ.get("PROGRESS_EMIT_INTERVAL", "0.2"))
 RATE_LIMIT_WINDOW = 60  # saniye
 RATE_LIMIT_MAX_REQUESTS = 10  # istek/dakika
+CONVERSION_RATE_LIMIT_WINDOW = int(os.environ.get("CONVERSION_RATE_LIMIT_WINDOW", 600))
+CONVERSION_RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("CONVERSION_RATE_LIMIT_MAX_REQUESTS", 2))
 RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
 FILE_CLEANUP_INTERVAL = 900  # 15 dakika
 FILE_MAX_AGE = 1800  # 30 dakika
@@ -219,9 +221,10 @@ else:
 # ── Rate limiting (TTL-based) ─────────────────────────
 class TTLCache:
     """Thread-safe TTL-based cache for rate limiting."""
-    def __init__(self, ttl=60, max_size=10000):
+    def __init__(self, ttl=60, max_size=10000, max_requests=RATE_LIMIT_MAX_REQUESTS):
         self.ttl = ttl
         self.max_size = max_size
+        self.max_requests = max_requests
         self._data = OrderedDict()
         self._lock = threading.Lock()
 
@@ -267,7 +270,7 @@ class TTLCache:
             # listesini sınırsız büyütmesini önle. Bu, standart sliding-window
             # davranışıdır: en eski kabul edilmiş istek süresi dolunca yeni bir
             # istek için yer açılır.
-            if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+            if len(timestamps) >= self.max_requests:
                 return False
             timestamps.append(now)
 
@@ -279,7 +282,16 @@ class TTLCache:
             return True
 
 
-rate_limiter = TTLCache(ttl=RATE_LIMIT_WINDOW, max_size=10000)
+rate_limiter = TTLCache(
+    ttl=RATE_LIMIT_WINDOW,
+    max_size=10000,
+    max_requests=RATE_LIMIT_MAX_REQUESTS,
+)
+conversion_rate_limiter = TTLCache(
+    ttl=CONVERSION_RATE_LIMIT_WINDOW,
+    max_size=10000,
+    max_requests=CONVERSION_RATE_LIMIT_MAX_REQUESTS,
+)
 
 # ── Client IP tespiti ─────────────────────────────────
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
@@ -636,6 +648,7 @@ def periodic_rate_limiter_cleanup():
     while True:
         time.sleep(RATE_LIMIT_CLEANUP_INTERVAL)
         rate_limiter._cleanup_all()
+        conversion_rate_limiter._cleanup_all()
 
 
 def periodic_prepared_file_cleanup():
@@ -779,6 +792,8 @@ def is_safe_url(u):
 
 # Socket-level SSRF guard: her bağlantı anında hedef IP kontrolü
 _orig_create_connection = socket.create_connection
+_orig_socket_connect = socket.socket.connect
+_orig_socket_connect_ex = socket.socket.connect_ex
 
 # Hostname -> doğrulanmış public IP listesi için kısa TTL'li cache.
 # Yalnızca boolean "safe" sonucu cache'lemek güvenli değildir: sonraki gerçek
@@ -854,7 +869,43 @@ def _guarded_create_connection(address, *args, **kwargs):
         raise OSError(f"Could not connect to {host}")
 
 
+def _safe_socket_address(address):
+    """Low-level socket kullanıcılarını da private/link-local ağlardan uzak tutar.
+
+    requests/urllib3 gibi bazı istemciler socket.create_connection yerine
+    socket.socket.connect çağırabildiği için yalnızca üst seviye wrapper yeterli
+    değildir. Hostname gelirse güvenli public IP'ye burada sabitlenir; IP gelirse
+    bağlantıdan hemen önce tekrar kontrol edilir.
+    """
+    if not isinstance(address, tuple) or len(address) < 2:
+        return address
+    host, port, *rest = address
+    if not isinstance(host, str):
+        raise PermissionError("SSRF protection: invalid socket destination")
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        safe_ips = _resolve_safe_host_cached(host, port)
+        if not safe_ips:
+            raise PermissionError(f"SSRF protection: connection to {host} blocked")
+        host = safe_ips[0]
+    else:
+        if _is_private_ip(str(ip)):
+            raise PermissionError(f"SSRF protection: connection to {host} blocked")
+    return (host, port, *rest)
+
+
+def _guarded_socket_connect(sock, address):
+    return _orig_socket_connect(sock, _safe_socket_address(address))
+
+
+def _guarded_socket_connect_ex(sock, address):
+    return _orig_socket_connect_ex(sock, _safe_socket_address(address))
+
+
 socket.create_connection = _guarded_create_connection
+socket.socket.connect = _guarded_socket_connect
+socket.socket.connect_ex = _guarded_socket_connect_ex
 
 AUDIO_FMTS = {"mp3", "flac", "wav", "ogg", "opus", "m4a"}
 
@@ -901,10 +952,30 @@ def parse_error(error_msg, url):
     return error_msg[:200]
 
 # ── Base opts ─────────────────────────────────────────
+FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
+
+
 def get_base_opts(url, use_cookies=True):
     opts = {
         "quiet": True,
         "no_warnings": True,
+        # Ağ indirmelerini Python içinde tut; böylece socket seviyesindeki SSRF
+        # koruması her bağlantıda uygulanır. FFmpeg yalnızca yerel post-process
+        # girdilerini okuyabilir ve uzak manifest/segment açamaz.
+        "hls_prefer_native": True,
+        "external_downloader": {
+            "default": "native",
+            "http": "native",
+            "https": "native",
+            "m3u8": "native",
+            "dash": "native",
+        },
+        "external_downloader_args": {
+            "ffmpeg_i": ["-protocol_whitelist", FFMPEG_LOCAL_PROTOCOLS],
+        },
+        "postprocessor_args": {
+            "ffmpeg_i": ["-protocol_whitelist", FFMPEG_LOCAL_PROTOCOLS],
+        },
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         },
@@ -977,6 +1048,13 @@ def enforce_download_limits(info, *, incomplete=False):
     if duration and duration > MAX_VIDEO_DURATION_SECONDS:
         max_min = MAX_VIDEO_DURATION_SECONDS // 60
         return f"Video too long (maximum {max_min} minutes)."
+    protocol = (info.get("protocol") or "").lower()
+    safe_protocols = {
+        "", "http", "https", "m3u8", "m3u8_native",
+        "dash", "http_dash_segments", "https_fragments",
+    }
+    if protocol not in safe_protocols:
+        return "Remote media protocol is not allowed."
     return None
 
 
@@ -1626,7 +1704,8 @@ def download():
             try:
                 ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
                 result = subprocess.run(
-                    [ffmpeg_cmd, "-y", "-i", full_path,
+                    [ffmpeg_cmd, "-y", "-protocol_whitelist", FFMPEG_LOCAL_PROTOCOLS,
+                     "-i", full_path,
                      "-c", "copy", "-an", muted_path],
                     capture_output=True, text=True, timeout=FFMPEG_TIMEOUT
                 )
@@ -1845,6 +1924,13 @@ def convert_file():
     ip = get_client_ip()
     if not check_rate_limit(ip):
         return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+    if not conversion_rate_limiter.add(ip):
+        response = jsonify({
+            "error": "Conversion quota exceeded. Please try again later."
+        })
+        response.status_code = 429
+        response.headers["Retry-After"] = str(CONVERSION_RATE_LIMIT_WINDOW)
+        return response
     # Slot, request.files multipart gövdesini parse edip diske almadan önce
     # ayrılır; dolu sunucu 230 MB'a kadar gereksiz upload kabul etmez.
     if not conversion_slots.acquire(blocking=False):
@@ -1882,7 +1968,13 @@ def convert_file_with_slot(ip):
         _register_cleanup(output_path)
 
         ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
-        cmd = [ffmpeg_cmd, '-hide_banner', '-loglevel', 'error', '-nostdin', '-i', input_path, '-y']
+        cmd = [
+            ffmpeg_cmd,
+            '-hide_banner', '-loglevel', 'fatal', '-nostdin',
+            '-protocol_whitelist', FFMPEG_LOCAL_PROTOCOLS,
+            '-probesize', '10M', '-analyzeduration', '10M',
+            '-i', input_path, '-y', '-threads', '2',
+        ]
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}
         if target_format in audio_formats:
@@ -1914,7 +2006,11 @@ def convert_file_with_slot(ip):
         # FFmpeg'in sıkıştırılmış bir girdiden sınırsız büyüklükte WAV/AVI vb.
         # üretip diski doldurmasını engelle. Sonrasında gerçek boyut ayrıca
         # kontrol edilir; -fs erken durdurma için savunma katmanıdır.
-        cmd.extend(['-fs', str(MAX_CONVERT_OUTPUT_SIZE_BYTES), output_path])
+        cmd.extend([
+            '-t', str(MAX_VIDEO_DURATION_SECONDS),
+            '-fs', str(MAX_CONVERT_OUTPUT_SIZE_BYTES),
+            output_path,
+        ])
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT)
         if result.returncode != 0:

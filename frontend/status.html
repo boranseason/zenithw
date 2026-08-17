@@ -1,155 +1,168 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-</script>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title id="pgTitle">Durum — ZenithW</title>
-<meta name="description" id="pgDesc" content="ZenithW sunucu durumu — anlık sağlık kontrolü.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://zenithw.space/status.html">
-<meta name="theme-color" content="#0a0a0a">
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<style>.legal-lang-toggle{display:flex;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;}
-.legal-lang-toggle button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
-.legal-lang-toggle button.active{background:var(--text);color:var(--bg,#0a0a0a);}
-.legal-nav{gap:10px;flex-wrap:wrap;}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title id="pgTitle">Sistem Durumu — ZenithW</title>
+  <meta name="description" id="pgDesc" content="ZenithW API, FFmpeg, platform erişimi ve indirme kuyruğu için canlı sistem durumu.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://zenithw.space/status.html">
+  <meta name="theme-color" content="#060606">
+  <link rel="icon" type="image/png" href="zenithw.png">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="legal-page">
-  <div class="legal-nav">
-    <a href="/" class="legal-logo">ZenithW<span>.</span></a>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div class="legal-lang-toggle" id="legalLangToggle">
-        <button data-lang="tr" onclick="setLegalLang('tr')">TR</button>
-        <button data-lang="en" onclick="setLegalLang('en')">EN</button>
+<body class="info-page">
+  <main class="info-shell">
+    <nav class="info-nav" aria-label="Sayfa navigasyonu">
+      <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
+      <div class="info-actions">
+        <div class="lang-switch" id="langSwitch" aria-label="Dil seçimi">
+          <button type="button" data-lang="tr" onclick="setPageLang('tr')">TR</button>
+          <button type="button" data-lang="en" onclick="setPageLang('en')">EN</button>
+        </div>
+        <a href="/" class="info-back" id="pgBack">← ana sayfa</a>
       </div>
-      <a href="/" class="legal-back" id="pgBack">← ana sayfa</a>
-    </div>
-  </div>
-  <div class="legal-hero">
-    <h1 id="pgH1">Sunucu Durumu</h1>
-    <div class="legal-updated" id="statusLastCheck">kontrol ediliyor…</div>
-  </div>
-  <div class="legal-body">
-    <div class="status-badge" id="statusBadge">
-      <span class="status-dot warn" id="statusDot"></span>
-      <span id="statusMain">durum kontrol ediliyor…</span>
-    </div>
+    </nav>
+    <header class="info-hero">
+      <div class="info-kicker" id="pgKicker">canlı sağlık kontrolü</div>
+      <h1 id="pgH1">Sistem durumu.</h1>
+      <p class="info-lead" id="pgLead">Temel servisler doğrudan API üzerinden kontrol edilir. Sonuçlar her 30 saniyede bir yenilenir.</p>
+      <p class="info-meta" id="lastChecked">İlk kontrol hazırlanıyor…</p>
+    </header>
 
-    <div class="status-row"><span class="status-row-name" id="rowServerName">Sunucu (API)</span><span class="status-row-val" id="rowServer">—</span></div>
-    <div class="status-row"><span class="status-row-name">FFmpeg</span><span class="status-row-val" id="rowFfmpeg">—</span></div>
-    <div class="status-row"><span class="status-row-name" id="rowCookiesName">Çerezler (YouTube erişimi)</span><span class="status-row-val" id="rowCookies">—</span></div>
-    <div class="status-row"><span class="status-row-name" id="rowQueueName">Aktif indirme</span><span class="status-row-val" id="rowQueue">—</span></div>
+    <article class="info-card">
+      <div class="status-summary" role="status" aria-live="polite">
+        <span class="status-indicator" id="statusIndicator" aria-hidden="true"></span>
+        <span class="status-main" id="statusMain">Durum kontrol ediliyor…</span>
+        <button class="info-button" id="refreshButton" type="button" onclick="checkStatus()">yenile</button>
+      </div>
+      <div class="status-list">
+        <div class="status-item"><span class="status-name" id="apiLabel">Sunucu / API</span><span class="status-value" id="apiValue">—</span></div>
+        <div class="status-item"><span class="status-name">FFmpeg</span><span class="status-value" id="ffmpegValue">—</span></div>
+        <div class="status-item"><span class="status-name" id="accessLabel">YouTube erişimi</span><span class="status-value" id="accessValue">—</span></div>
+        <div class="status-item"><span class="status-name" id="queueLabel">İndirme kuyruğu</span><span class="status-value" id="queueValue">—</span></div>
+      </div>
+      <section class="info-section">
+        <h2 id="dependencyTitle">Platforma özel kesintiler</h2>
+        <p id="dependencyText">ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.</p>
+      </section>
+      <section class="info-section">
+        <h2 id="helpTitle">Sorun devam mı ediyor?</h2>
+        <p id="helpText">Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.</p>
+      </section>
+    </article>
+    <footer class="info-footer" id="pgFooter"></footer>
+  </main>
 
-    <h2 id="pgH2a" style="margin-top:28px;">Bilinen durumlar</h2>
-    <p id="pgP1">ZenithW, indirme işlemleri için üçüncü taraf platformlara (YouTube, TikTok, Instagram vb.) bağımlıdır. Bu platformlardan biri kendi tarafında bot koruması güncellerse veya erişimi geçici olarak kısıtlarsa, o platforma özel indirmeler etkilenebilir — bu, ZenithW sunucusunun çökmesi anlamına gelmez, genellikle birkaç dakika-saat içinde kendiliğinden düzelir.</p>
+  <script>
+    const API = 'https://api.zenithw.space';
+    const COPY = {
+      tr: {
+        title: 'Sistem Durumu — ZenithW', desc: 'ZenithW API, FFmpeg, platform erişimi ve indirme kuyruğu için canlı sistem durumu.',
+        back: '← ana sayfa', kicker: 'canlı sağlık kontrolü', h1: 'Sistem durumu.',
+        lead: 'Temel servisler doğrudan API üzerinden kontrol edilir. Sonuçlar her 30 saniyede bir yenilenir.',
+        initial: 'İlk kontrol hazırlanıyor…', checking: 'Durum kontrol ediliyor…', refresh: 'yenile',
+        api: 'Sunucu / API', access: 'YouTube erişimi', queue: 'İndirme kuyruğu',
+        dependencyTitle: 'Platforma özel kesintiler',
+        dependencyText: 'ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API\'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.',
+        helpTitle: 'Sorun devam mı ediyor?',
+        helpText: 'Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.',
+        checkingMeta: 'kontrol ediliyor…', ok: 'Tüm temel sistemler çalışıyor', down: 'Sunucuya şu anda ulaşılamıyor',
+        apiActive: ms => `çalışıyor · ${ms} ms`, unreachable: 'ulaşılamıyor', ready: 'hazır', issue: 'kontrol gerekli', loaded: 'hazır', notLoaded: 'erişim sınırlı',
+        queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} aktif · ${waiting} bekliyor` : `${active}/${max} aktif`,
+        checked: 'son kontrol: ', locale: 'tr-TR',
+        footer: '<a href="/about.html">hakkında</a><a href="/privacy.html">gizlilik</a><a href="/terms.html">kullanım koşulları</a><a href="/dmca.html">telif</a>'
+      },
+      en: {
+        title: 'System Status — ZenithW', desc: 'Live status for the ZenithW API, FFmpeg, platform access, and download queue.',
+        back: '← home', kicker: 'live health check', h1: 'System status.',
+        lead: 'Core services are checked directly through the API. Results refresh every 30 seconds.',
+        initial: 'Preparing the first check…', checking: 'Checking system status…', refresh: 'refresh',
+        api: 'Server / API', access: 'YouTube access', queue: 'Download queue',
+        dependencyTitle: 'Platform-specific interruptions',
+        dependencyText: 'ZenithW depends on third-party platforms such as YouTube, TikTok, and Instagram. If a platform changes its bot protection or access method, downloads from that source may be temporarily affected; a healthy API does not guarantee that every platform is available.',
+        helpTitle: 'Still having trouble?',
+        helpText: 'If the status is healthy but you still receive an error, send the source link and the error message to <a href="mailto:info@zenithw.space?subject=ZenithW%20Issue%20Report">info@zenithw.space</a>.',
+        checkingMeta: 'checking…', ok: 'All core systems operational', down: 'The server is currently unreachable',
+        apiActive: ms => `operational · ${ms} ms`, unreachable: 'unreachable', ready: 'ready', issue: 'check required', loaded: 'ready', notLoaded: 'access limited',
+        queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} active · ${waiting} waiting` : `${active}/${max} active`,
+        checked: 'last checked: ', locale: 'en-US',
+        footer: '<a href="/about.html">about</a><a href="/privacy.html">privacy</a><a href="/terms.html">terms</a><a href="/dmca.html">copyright</a>'
+      }
+    };
+    let currentLanguage = 'tr';
+    let requestInProgress = false;
 
-    <h2 id="pgH2b">Sorun mu yaşıyorsunuz?</h2>
-    <p id="pgP2">Yukarıdaki durum "çalışıyor" görünmesine rağmen bir sorunla karşılaşıyorsanız, bize <a href="mailto:info@zenithw.space">info@zenithw.space</a> adresinden ulaşabilirsiniz.</p>
-  </div>
-  <div class="legal-footer" id="pgFooter">
-    <a href="/">ana sayfa</a>·<a href="/privacy.html">gizlilik</a>·<a href="/terms.html">kullanım koşulları</a>·<a href="/dmca.html">telif bildirimi</a>
-  </div>
-</div>
+    function setPageLang(lang) {
+      currentLanguage = COPY[lang] ? lang : 'en';
+      const text = COPY[currentLanguage];
+      document.documentElement.lang = currentLanguage;
+      document.getElementById('pgTitle').textContent = text.title;
+      document.getElementById('pgDesc').setAttribute('content', text.desc);
+      document.getElementById('pgBack').textContent = text.back;
+      document.getElementById('pgKicker').textContent = text.kicker;
+      document.getElementById('pgH1').textContent = text.h1;
+      document.getElementById('pgLead').textContent = text.lead;
+      document.getElementById('refreshButton').textContent = text.refresh;
+      document.getElementById('apiLabel').textContent = text.api;
+      document.getElementById('accessLabel').textContent = text.access;
+      document.getElementById('queueLabel').textContent = text.queue;
+      document.getElementById('dependencyTitle').textContent = text.dependencyTitle;
+      document.getElementById('dependencyText').textContent = text.dependencyText;
+      document.getElementById('helpTitle').textContent = text.helpTitle;
+      document.getElementById('helpText').innerHTML = text.helpText;
+      document.getElementById('pgFooter').innerHTML = text.footer;
+      document.querySelectorAll('#langSwitch button').forEach(button => button.classList.toggle('active', button.dataset.lang === currentLanguage));
+      try { localStorage.setItem('zw_lang', currentLanguage); } catch (_) {}
+      checkStatus();
+    }
 
-<script>
-const TX={
-  tr:{
-    title:'Durum — ZenithW', desc:'ZenithW sunucu durumu — anlık sağlık kontrolü.',
-    h1:'Sunucu Durumu', back:'← ana sayfa',
-    checking:'kontrol ediliyor…', mainChecking:'durum kontrol ediliyor…',
-    rowServerName:'Sunucu (API)', rowCookiesName:'Çerezler (YouTube erişimi)',
-    rowQueueName:'Aktif indirme',
-    queueStatus:(active,max,waiting)=>waiting>0?`${active}/${max} kullanılıyor · ${waiting} kişi sırada`:`${active}/${max} kullanılıyor`,
-    h2a:'Bilinen durumlar',
-    p1:'ZenithW, indirme işlemleri için üçüncü taraf platformlara (YouTube, TikTok, Instagram vb.) bağımlıdır. Bu platformlardan biri kendi tarafında bot koruması güncellerse veya erişimi geçici olarak kısıtlarsa, o platforma özel indirmeler etkilenebilir — bu, ZenithW sunucusunun çökmesi anlamına gelmez, genellikle birkaç dakika-saat içinde kendiliğinden düzelir.',
-    h2b:'Sorun mu yaşıyorsunuz?',
-    p2:'Yukarıdaki durum "çalışıyor" görünmesine rağmen bir sorunla karşılaşıyorsanız, bize <a href="mailto:info@zenithw.space">info@zenithw.space</a> adresinden ulaşabilirsiniz.',
-    footer:'<a href="/">ana sayfa</a>·<a href="/privacy.html">gizlilik</a>·<a href="/terms.html">kullanım koşulları</a>·<a href="/dmca.html">telif bildirimi</a>',
-    ok:'tüm sistemler çalışıyor ✓', down:'sunucuya şu an ulaşılamıyor',
-    active:ms=>`aktif · ${ms}ms`, unreachable:'ulaşılamıyor ✗',
-    ready:'hazır ✓', problem:'sorunlu ⚠️', loaded:'yüklü ✓', notLoaded:'yüklü değil ⚠️',
-    lastCheck:'son kontrol: ', locale:'tr-TR'
-  },
-  en:{
-    title:'Status — ZenithW', desc:'ZenithW server status — live health check.',
-    h1:'Server Status', back:'← home',
-    checking:'checking…', mainChecking:'checking status…',
-    rowServerName:'Server (API)', rowCookiesName:'Cookies (YouTube access)',
-    rowQueueName:'Active downloads',
-    queueStatus:(active,max,waiting)=>waiting>0?`${active}/${max} in use · ${waiting} waiting`:`${active}/${max} in use`,
-    h2a:'Known conditions',
-    p1:'ZenithW depends on third-party platforms (YouTube, TikTok, Instagram, etc.) to perform downloads. If one of these platforms updates its bot protection or temporarily restricts access on their end, downloads specific to that platform may be affected — this does not mean the ZenithW server is down, and it usually resolves on its own within minutes to hours.',
-    h2b:'Having an issue?',
-    p2:'If the status above shows "operational" but you\'re still running into a problem, you can reach us at <a href="mailto:info@zenithw.space">info@zenithw.space</a>.',
-    footer:'<a href="/">home</a>·<a href="/privacy.html">privacy</a>·<a href="/terms.html">terms of service</a>·<a href="/dmca.html">copyright notice</a>',
-    ok:'all systems operational ✓', down:'server is currently unreachable',
-    active:ms=>`active · ${ms}ms`, unreachable:'unreachable ✗',
-    ready:'ready ✓', problem:'issue ⚠️', loaded:'loaded ✓', notLoaded:'not loaded ⚠️',
-    lastCheck:'last checked: ', locale:'en-US'
-  }
-};
-let CUR_LANG='tr';
-function setLegalLang(l){
-  const t=TX[l]||TX.en;
-  CUR_LANG=TX[l]?l:'en';
-  document.documentElement.lang=CUR_LANG;
-  document.getElementById('pgTitle').textContent=t.title;
-  document.getElementById('pgDesc').setAttribute('content',t.desc);
-  document.getElementById('pgH1').textContent=t.h1;
-  document.getElementById('pgBack').textContent=t.back;
-  document.getElementById('rowServerName').textContent=t.rowServerName;
-  document.getElementById('rowCookiesName').textContent=t.rowCookiesName;
-  document.getElementById('rowQueueName').textContent=t.rowQueueName;
-  document.getElementById('pgH2a').textContent=t.h2a;
-  document.getElementById('pgP1').textContent=t.p1;
-  document.getElementById('pgH2b').textContent=t.h2b;
-  document.getElementById('pgP2').innerHTML=t.p2;
-  document.getElementById('pgFooter').innerHTML=t.footer;
-  document.querySelectorAll('#legalLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===CUR_LANG));
-  try{localStorage.setItem('zw_lang',CUR_LANG);}catch(e){}
-  checkStatus();
-}
+    async function checkStatus() {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      const text = COPY[currentLanguage];
+      const refreshButton = document.getElementById('refreshButton');
+      const indicator = document.getElementById('statusIndicator');
+      refreshButton.disabled = true;
+      indicator.className = 'status-indicator';
+      document.getElementById('statusMain').textContent = text.checking;
+      document.getElementById('lastChecked').textContent = text.checkingMeta;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const startedAt = performance.now();
+        const response = await fetch(`${API}/health`, { cache: 'no-store', signal: controller.signal });
+        const latency = Math.round(performance.now() - startedAt);
+        if (!response.ok) throw new Error('health check failed');
+        const data = await response.json();
+        indicator.className = 'status-indicator ok';
+        document.getElementById('statusMain').textContent = text.ok;
+        document.getElementById('apiValue').textContent = text.apiActive(latency);
+        document.getElementById('ffmpegValue').textContent = data.ffmpeg && String(data.ffmpeg).startsWith('OK') ? text.ready : text.issue;
+        document.getElementById('accessValue').textContent = data.cookies && String(data.cookies).toLowerCase().startsWith('loaded') ? text.loaded : text.notLoaded;
+        document.getElementById('queueValue').textContent = Number.isFinite(data.active_downloads) && Number.isFinite(data.max_concurrent_downloads)
+          ? text.queueValue(data.active_downloads, data.max_concurrent_downloads, data.queue_waiting || 0)
+          : '—';
+      } catch (_) {
+        indicator.className = 'status-indicator down';
+        document.getElementById('statusMain').textContent = text.down;
+        document.getElementById('apiValue').textContent = text.unreachable;
+        document.getElementById('ffmpegValue').textContent = '—';
+        document.getElementById('accessValue').textContent = '—';
+        document.getElementById('queueValue').textContent = '—';
+      } finally {
+        clearTimeout(timeout);
+        document.getElementById('lastChecked').textContent = text.checked + new Date().toLocaleTimeString(text.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        refreshButton.disabled = false;
+        requestInProgress = false;
+      }
+    }
 
-const API="https://api.zenithw.space";
-async function checkStatus(){
-  const t=TX[CUR_LANG]||TX.en;
-  const dot=document.getElementById('statusDot'),main=document.getElementById('statusMain');
-  const rowServer=document.getElementById('rowServer'),rowFfmpeg=document.getElementById('rowFfmpeg'),rowCookies=document.getElementById('rowCookies'),rowQueue=document.getElementById('rowQueue');
-  const lastCheck=document.getElementById('statusLastCheck');
-  try{
-    const t0=performance.now();
-    const res=await fetch(API+'/health',{cache:'no-store'});
-    const ms=Math.round(performance.now()-t0);
-    if(!res.ok)throw new Error('bad status');
-    const d=await res.json();
-    dot.className='status-dot';
-    main.textContent=t.ok;
-    rowServer.textContent=t.active(ms);
-    rowFfmpeg.textContent=(d.ffmpeg&&d.ffmpeg.startsWith('OK'))?t.ready:t.problem;
-    rowCookies.textContent=(d.cookies&&d.cookies.toLowerCase().startsWith('loaded'))?t.loaded:t.notLoaded;
-    rowQueue.textContent=(typeof d.active_downloads==='number'&&typeof d.max_concurrent_downloads==='number')
-      ?t.queueStatus(d.active_downloads,d.max_concurrent_downloads,d.queue_waiting||0)
-      :'—';
-  }catch(e){
-    dot.className='status-dot down';
-    main.textContent=t.down;
-    rowServer.textContent=t.unreachable;
-    rowFfmpeg.textContent='—';
-    rowCookies.textContent='—';
-    rowQueue.textContent='—';
-  }
-  lastCheck.textContent=t.lastCheck+new Date().toLocaleTimeString(t.locale);
-}
-(function(){
-  let saved='tr';
-  try{saved=localStorage.getItem('zw_lang')||'tr';}catch(e){}
-  if(saved!=='tr')saved='en';
-  setLegalLang(saved);
-})();
-setInterval(checkStatus,30000);
-</script>
+    let savedLanguage = 'tr';
+    try { savedLanguage = localStorage.getItem('zw_lang') || 'tr'; } catch (_) {}
+    setPageLang(savedLanguage === 'tr' ? 'tr' : 'en');
+    setInterval(checkStatus, 30000);
+  </script>
 </body>
 </html>

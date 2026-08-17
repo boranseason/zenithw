@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 download/
+downloads/
 *.pyc
 .env
 cookies.txt

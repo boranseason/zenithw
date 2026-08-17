@@ -1,121 +1,136 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-</script>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title id="pgTitle">Gizlilik Politikası — ZenithW</title>
-<meta name="description" id="pgDesc" content="ZenithW gizlilik politikası: hangi verileri topluyoruz, hangilerini toplamıyoruz ve kullanıcı verilerini nasıl koruyoruz.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://zenithw.space/privacy.html">
-<meta name="theme-color" content="#0a0a0a">
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<style>.legal-lang-toggle{display:flex;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;}
-.legal-lang-toggle button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
-.legal-lang-toggle button.active{background:var(--text);color:var(--bg,#0a0a0a);}
-.legal-nav{gap:10px;flex-wrap:wrap;}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title id="pgTitle">Gizlilik — ZenithW</title>
+  <meta name="description" id="pgDesc" content="ZenithW gizlilik politikası: işlenen teknik veriler, geçici dosyalar, yerel geçmiş ve üçüncü taraf hizmetler.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://zenithw.space/privacy.html">
+  <meta name="theme-color" content="#060606">
+  <link rel="icon" type="image/png" href="zenithw.png">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="legal-page">
-  <div class="legal-nav">
-    <a href="/" class="legal-logo">ZenithW<span>.</span></a>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div class="legal-lang-toggle" id="legalLangToggle">
-        <button data-lang="tr" onclick="setLegalLang('tr')">TR</button>
-        <button data-lang="en" onclick="setLegalLang('en')">EN</button>
+<body class="info-page">
+  <main class="info-shell">
+    <nav class="info-nav" aria-label="Sayfa navigasyonu">
+      <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
+      <div class="info-actions">
+        <div class="lang-switch" id="langSwitch" aria-label="Dil seçimi">
+          <button type="button" data-lang="tr" onclick="setPageLang('tr')">TR</button>
+          <button type="button" data-lang="en" onclick="setPageLang('en')">EN</button>
+        </div>
+        <a href="/" class="info-back" id="pgBack">← ana sayfa</a>
       </div>
-      <a href="/" class="legal-back" id="pgBack">← ana sayfa</a>
-    </div>
-  </div>
-  <div class="legal-hero">
-    <h1 id="pgH1">Gizlilik Politikası</h1>
-    <div class="legal-updated" id="pgUpdated">Son güncelleme: 11 Temmuz 2026</div>
-  </div>
-  <div class="legal-body" id="pgBody"></div>
-  <div class="legal-footer" id="pgFooter"></div>
-</div>
+    </nav>
+    <header class="info-hero">
+      <div class="info-kicker" id="pgKicker">şeffaflık</div>
+      <h1 id="pgH1">Gizlilik, sonradan eklenen bir ayar değil.</h1>
+      <p class="info-lead" id="pgLead">ZenithW yalnızca hizmeti çalıştırmak ve kötüye kullanımı önlemek için gerekli olan sınırlı verileri işler.</p>
+      <p class="info-meta" id="pgUpdated">Son güncelleme: 17 Ağustos 2026</p>
+    </header>
+    <article class="info-card" id="pgBody"></article>
+    <footer class="info-footer" id="pgFooter"></footer>
+  </main>
 
-<script>
-const TX={
-  tr:{
-    title:'Gizlilik Politikası — ZenithW',
-    desc:'ZenithW gizlilik politikası: hangi verileri topluyoruz, hangilerini toplamıyoruz ve kullanıcı verilerini nasıl koruyoruz.',
-    h1:'Gizlilik Politikası', updated:'Son güncelleme: 11 Temmuz 2026', back:'← ana sayfa',
-    body:`
-      <h2>Ne topluyoruz, ne toplamıyoruz</h2>
-      <p>ZenithW, video/ses indirme işlemini gerçekleştirebilmek için girdiğiniz linki geçici olarak sunucuya iletir. Bu istek dışında hesap oluşturmanızı istemeyiz, kimlik bilgisi talep etmeyiz ve indirdiğiniz içerikleri sunucumuzda kalıcı olarak saklamayız.</p>
-      <ul>
-        <li><strong>İndirme geçmişi</strong> sunucuda tutulmaz — yalnızca kendi tarayıcınızın yerel deposunda (localStorage) saklanır ve yalnızca siz görebilirsiniz.</li>
-        <li><strong>İndirilen dosyalar</strong> işlem tamamlandıktan kısa bir süre sonra (genellikle 30 dakika içinde) sunucudan otomatik olarak silinir.</li>
-        <li>Kayıt/üyelik sistemi yoktur; e-posta, şifre veya kişisel kimlik bilgisi toplanmaz.</li>
-      </ul>
-      <h2>Teknik / işlevsel veriler</h2>
-      <p>Hizmetin çalışması ve kötüye kullanımın önlenmesi için sınırlı teknik veriler işlenir:</p>
-      <ul>
-        <li><strong>IP adresi</strong>, yalnızca hız sınırlama (rate limiting) amacıyla kısa süreli olarak bellekte tutulur; kalıcı bir veritabanında saklanmaz.</li>
-        <li>Sunucu günlükleri (loglar), hata teşhisi için kısa süreliğine tutulur ve düzenli olarak temizlenir.</li>
-        <li>Tercihleriniz (tema, dil, kalite ayarları vb.) yalnızca kendi cihazınızda, tarayıcı yerel deposunda saklanır.</li>
-      </ul>
-      <h2>Üçüncü taraf hizmetler</h2>
-      <p>Site, barındırma için Railway altyapısını kullanır. Bu sağlayıcılar kendi gizlilik politikaları çerçevesinde standart sunucu/istek günlükleri tutabilir. ZenithW bu verilerin içeriğini üçüncü taraflarla pazarlama amacıyla paylaşmaz ve reklam ağlarına veri satmaz.</p>
-      <h2>Çerezler</h2>
-      <p>Site, oturum takibi veya reklam amaçlı çerez kullanmaz. Kullanılan tek yerel depolama, tercihlerinizi ve indirme geçmişinizi cihazınızda tutmak içindir; bunu istediğiniz zaman tarayıcı ayarlarından silebilirsiniz.</p>
-      <h2>Haklarınız</h2>
-      <p>Sunucuda sizinle ilişkilendirilebilecek kalıcı bir kullanıcı verisi tutulmadığından, silinmesi gereken bir "hesap verisi" bulunmaz. Tarayıcınızdaki yerel geçmiş ve tercihleri istediğiniz an kendiniz temizleyebilirsiniz. Sorularınız için bizimle iletişime geçebilirsiniz.</p>
-      <h2>İletişim</h2>
-      <p>Gizlilikle ilgili sorularınız için: <a href="mailto:info@zenithw.space">info@zenithw.space</a></p>`,
-    footer:'<a href="/">ana sayfa</a>·<a href="/terms.html">kullanım koşulları</a>·<a href="/dmca.html">telif bildirimi</a>·<a href="/status.html">durum</a>'
-  },
-  en:{
-    title:'Privacy Policy — ZenithW',
-    desc:"ZenithW privacy policy: what data we collect, what we don't, and how we protect user data.",
-    h1:'Privacy Policy', updated:'Last updated: July 11, 2026', back:'← home',
-    body:`
-      <h2>What we collect, and what we don't</h2>
-      <p>To perform a video/audio download, ZenithW temporarily passes the link you enter to the server. Beyond that single request, we don't ask you to create an account, we don't request identifying information, and we don't permanently store the content you download.</p>
-      <ul>
-        <li><strong>Download history</strong> is never kept on the server — it's stored only in your own browser's local storage (localStorage) and is visible only to you.</li>
-        <li><strong>Downloaded files</strong> are automatically deleted from the server shortly after processing completes (typically within 30 minutes).</li>
-        <li>There's no account/membership system; we don't collect email addresses, passwords, or personal identification.</li>
-      </ul>
-      <h2>Technical / functional data</h2>
-      <p>A limited amount of technical data is processed to keep the service running and to prevent abuse:</p>
-      <ul>
-        <li><strong>IP address</strong> is held briefly in memory solely for rate limiting; it is not stored in a permanent database.</li>
-        <li>Server logs are kept briefly for troubleshooting and are cleared regularly.</li>
-        <li>Your preferences (theme, language, quality settings, etc.) are stored only on your own device, in your browser's local storage.</li>
-      </ul>
-      <h2>Third-party services</h2>
-      <p>The site uses Railway infrastructure for hosting. These providers may keep standard server/request logs under their own privacy policies. ZenithW does not share the contents of this data with third parties for marketing purposes and does not sell data to ad networks.</p>
-      <h2>Cookies</h2>
-      <p>The site does not use cookies for session tracking or advertising. The only local storage used is to keep your preferences and download history on your device; you can clear it at any time from your browser settings.</p>
-      <h2>Your rights</h2>
-      <p>Because no persistent user data tied to you is kept on the server, there's no "account data" that needs deleting. You can clear your local history and preferences yourself at any time. Feel free to reach out with any questions.</p>
-      <h2>Contact</h2>
-      <p>For privacy-related questions: <a href="mailto:info@zenithw.space">info@zenithw.space</a></p>`,
-    footer:'<a href="/">home</a>·<a href="/terms.html">terms of service</a>·<a href="/dmca.html">copyright notice</a>·<a href="/status.html">status</a>'
-  }
-};
-function setLegalLang(l){
-  const t=TX[l]||TX.en;
-  document.documentElement.lang=l;
-  document.getElementById('pgTitle').textContent=t.title;
-  document.getElementById('pgDesc').setAttribute('content',t.desc);
-  document.getElementById('pgH1').textContent=t.h1;
-  document.getElementById('pgUpdated').textContent=t.updated;
-  document.getElementById('pgBack').textContent=t.back;
-  document.getElementById('pgBody').innerHTML=t.body;
-  document.getElementById('pgFooter').innerHTML=t.footer;
-  document.querySelectorAll('#legalLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
-  try{localStorage.setItem('zw_lang',l);}catch(e){}
-}
-(function(){
-  let saved='tr';
-  try{saved=localStorage.getItem('zw_lang')||'tr';}catch(e){}
-  if(saved!=='tr')saved='en'; // bu sayfada yalnızca tr/en var; fr/de için en'e düş
-  setLegalLang(saved);
-})();
-</script>
+  <script>
+    const COPY = {
+      tr: {
+        title: 'Gizlilik — ZenithW',
+        desc: 'ZenithW gizlilik politikası: işlenen teknik veriler, geçici dosyalar, yerel geçmiş ve üçüncü taraf hizmetler.',
+        back: '← ana sayfa', kicker: 'şeffaflık',
+        h1: 'Gizlilik, sonradan eklenen bir ayar değil.',
+        lead: 'ZenithW yalnızca hizmeti çalıştırmak ve kötüye kullanımı önlemek için gerekli olan sınırlı verileri işler.',
+        updated: 'Son güncelleme: 17 Ağustos 2026',
+        body: `
+          <section class="info-section">
+            <h2>Kısa özet</h2>
+            <div class="feature-grid">
+              <div class="mini-card"><span class="mini-card-number">01</span><h3>Hesap yok</h3><p>E-posta, şifre veya profil bilgisi istenmez.</p></div>
+              <div class="mini-card"><span class="mini-card-number">02</span><h3>Yerel geçmiş</h3><p>İndirme geçmişi yalnızca kendi tarayıcında tutulur.</p></div>
+              <div class="mini-card"><span class="mini-card-number">03</span><h3>Geçici dosya</h3><p>İşlem dosyaları kalıcı içerik arşivi olarak saklanmaz.</p></div>
+            </div>
+          </section>
+          <section class="info-section">
+            <h2>Hizmet kullanıldığında</h2>
+            <p>Gönderdiğiniz kaynak bağlantısı, seçtiğiniz medya işlemini gerçekleştirmek için sunucuya iletilir. Oluşan geçici dosyalar işlem sonrasında otomatik temizlik sürecine girer; indirme geçmişiniz ise sunucu hesabına bağlanmaz ve tarayıcınızdaki <strong>localStorage</strong> alanında kalır.</p>
+            <p>IP adresi ve sınırlı istek bilgileri; hız sınırlama, güvenlik, hata teşhisi ve hizmetin kararlılığı için kısa süreli işlenebilir. Sunucu ve altyapı günlükleri operasyonel gereksinimlere göre sınırlı süre tutulabilir.</p>
+          </section>
+          <section class="info-section">
+            <h2>Yerel depolama ve analiz</h2>
+            <p>Dil, tema, kalite tercihleri ve yerel geçmiş cihazınızda saklanabilir. ZenithW'nin bazı sayfalarında trafik ve kullanım eğilimlerini toplu olarak anlamak için <strong>Google Analytics</strong> kullanılabilir; bu hizmet tarayıcı, cihaz ve yaklaşık konum gibi teknik bilgileri ve kendi tanımlayıcılarını işleyebilir.</p>
+            <p>ZenithW kişisel verileri reklam amacıyla satmaz. Tarayıcı ayarlarınızdan yerel verileri ve çerezleri silebilir veya analiz engelleyici tercihlerinizi kullanabilirsiniz.</p>
+          </section>
+          <section class="info-section">
+            <h2>Hizmet sağlayıcılar</h2>
+            <p>Barındırma ve ağ altyapısı sağlayıcıları, güvenlik ve işletim amacıyla standart bağlantı günlükleri işleyebilir. Bu işlemler ilgili sağlayıcının kendi politikalarına da tabidir.</p>
+          </section>
+          <section class="info-section">
+            <h2>Haklarınız ve iletişim</h2>
+            <p>Sunucuda bir kullanıcı hesabı bulunmadığı için silinecek bir profil kaydı yoktur. Cihazınızdaki geçmişi ve tercihleri tarayıcınızdan temizleyebilirsiniz. Gizlilik soruları veya veri talepleri için <a href="mailto:info@zenithw.space?subject=Gizlilik%20Talebi">info@zenithw.space</a> adresine yazabilirsiniz.</p>
+            <div class="notice"><span class="notice-mark">i</span><span>Bu politika, hizmet veya kullanılan sağlayıcılar değiştiğinde güncellenebilir. En güncel sürüm bu sayfada yayımlanır.</span></div>
+          </section>`,
+        footer: '<a href="/about.html">hakkında</a><a href="/terms.html">kullanım koşulları</a><a href="/dmca.html">telif</a><a href="/status.html">durum</a>'
+      },
+      en: {
+        title: 'Privacy — ZenithW',
+        desc: 'ZenithW privacy policy: technical data, temporary files, local history, and third-party services.',
+        back: '← home', kicker: 'transparency',
+        h1: 'Privacy is not an afterthought.',
+        lead: 'ZenithW processes only the limited data needed to operate the service and prevent abuse.',
+        updated: 'Last updated: August 17, 2026',
+        body: `
+          <section class="info-section">
+            <h2>At a glance</h2>
+            <div class="feature-grid">
+              <div class="mini-card"><span class="mini-card-number">01</span><h3>No account</h3><p>No email, password, or profile information is requested.</p></div>
+              <div class="mini-card"><span class="mini-card-number">02</span><h3>Local history</h3><p>Download history stays in your own browser.</p></div>
+              <div class="mini-card"><span class="mini-card-number">03</span><h3>Temporary files</h3><p>Processing files are not kept as a permanent content archive.</p></div>
+            </div>
+          </section>
+          <section class="info-section">
+            <h2>When you use the service</h2>
+            <p>The source link you submit is sent to the server to perform your selected media operation. Generated temporary files enter an automatic cleanup process after processing. Your download history is not tied to a server account and remains in your browser's <strong>localStorage</strong>.</p>
+            <p>Your IP address and limited request data may be processed briefly for rate limiting, security, troubleshooting, and service reliability. Server and infrastructure logs may be retained for a limited period as operationally necessary.</p>
+          </section>
+          <section class="info-section">
+            <h2>Local storage and analytics</h2>
+            <p>Language, theme, quality preferences, and local history may be stored on your device. Some ZenithW pages may use <strong>Google Analytics</strong> to understand aggregate traffic and usage trends; it may process technical details such as browser, device, approximate location, and its own identifiers.</p>
+            <p>ZenithW does not sell personal data for advertising. You can clear local data and cookies in your browser or use your preferred analytics-blocking controls.</p>
+          </section>
+          <section class="info-section">
+            <h2>Service providers</h2>
+            <p>Hosting and network providers may process standard connection logs for security and operational purposes. Their processing is also governed by their own policies.</p>
+          </section>
+          <section class="info-section">
+            <h2>Your choices and contact</h2>
+            <p>Because there is no server-side user account, there is no profile record to delete. You can clear browser history and preferences on your device. For privacy questions or data requests, email <a href="mailto:info@zenithw.space?subject=Privacy%20Request">info@zenithw.space</a>.</p>
+            <div class="notice"><span class="notice-mark">i</span><span>This policy may change when the service or its providers change. The latest version is published on this page.</span></div>
+          </section>`,
+        footer: '<a href="/about.html">about</a><a href="/terms.html">terms</a><a href="/dmca.html">copyright</a><a href="/status.html">status</a>'
+      }
+    };
+
+    function setPageLang(lang) {
+      const active = COPY[lang] ? lang : 'en';
+      const text = COPY[active];
+      document.documentElement.lang = active;
+      document.getElementById('pgTitle').textContent = text.title;
+      document.getElementById('pgDesc').setAttribute('content', text.desc);
+      document.getElementById('pgBack').textContent = text.back;
+      document.getElementById('pgKicker').textContent = text.kicker;
+      document.getElementById('pgH1').textContent = text.h1;
+      document.getElementById('pgLead').textContent = text.lead;
+      document.getElementById('pgUpdated').textContent = text.updated;
+      document.getElementById('pgBody').innerHTML = text.body;
+      document.getElementById('pgFooter').innerHTML = text.footer;
+      document.querySelectorAll('#langSwitch button').forEach(button => button.classList.toggle('active', button.dataset.lang === active));
+      try { localStorage.setItem('zw_lang', active); } catch (_) {}
+    }
+    let savedLanguage = 'tr';
+    try { savedLanguage = localStorage.getItem('zw_lang') || 'tr'; } catch (_) {}
+    setPageLang(savedLanguage === 'tr' ? 'tr' : 'en');
+  </script>
 </body>
 </html>

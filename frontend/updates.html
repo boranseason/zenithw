@@ -91,6 +91,180 @@
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'v11 güvenlik serisi tamamlandı: daha kapalı, daha ölçülü, daha doğrulanabilir',
+titleEn:'the v11 security series is complete: tighter, bounded, and verifiable',
+introTr:[
+'v11 serisinin son adımında bütün güvenlik katmanlarını belgeledik, otomatik testlerle kilitledik ve sürüm bilgisini tek noktadan v11.7\'ye taşıdık.',
+'Bu sürüm yeni bir özellikten çok bir güvence veriyor: ağ, dönüştürme ve tarayıcı tarafındaki korumalar artık hem kodda hem testlerde açıkça görülebiliyor.'
+],
+introEn:[
+'For the final step of the v11 series, we documented every security layer, locked the critical behavior down with automated tests, and moved the single version source to v11.7.',
+'This release is less about a new feature and more about assurance: the network, conversion, and browser protections are now visible in both code and tests.'
+],
+sections:[
+{hTr:'güvenlik regresyon testleri',hEn:'security regression tests',
+pTr:'Özel ağ adreslerinin engellenmesi, güvenli olmayan medya protokolleri, yt-dlp indirme yapılandırması ve birbirinden bağımsız hız limitleri için testler eklendi. Tam güvenlik paketi gerçek bağımlılıklarla çalıştırıldı ve sekiz kontrolün tamamı geçti.',
+pEn:'Added tests for private-network blocking, unsafe media protocols, yt-dlp downloader configuration, and independent rate-limit quotas. The complete security suite was run with the real dependencies and all eight checks passed.'},
+{hTr:'README ve işletim ayarları güncel',hEn:'README and operational settings are current',
+pTr:'Yeni FFmpeg zaman aşımı, dönüştürme kotası, kuyruk, çıktı boyutu ve proxy ayarları README\'ye eklendi. Güvenlik bölümü artık sistemin gerçekten uyguladığı katmanları birebir anlatıyor.',
+pEn:'The README now documents the FFmpeg timeout, conversion quota, queue, output-size, and proxy settings. Its security section now matches the protections the application actually enforces.'},
+{hTr:'geçici dosyalar repoya sızmıyor',hEn:'temporary files stay out of the repository',
+pTr:'Çalışma zamanında kullanılan downloads klasörü git ignore kapsamına alındı; test bağımlılıkları ve önbellekleri de doğrulama sonrasında temizleniyor.',
+pEn:'The runtime downloads directory is now ignored by git, while temporary test dependencies and caches are cleaned up after verification.'}
+],
+outroTr:'Kısacası: v11 güvenlik turu yalnızca tamamlanmadı, gelecekte bozulmaması için testlerle sabitlendi.',
+outroEn:'In short: the v11 security pass is complete and guarded against future regressions.'
+},
+{ver:'v11.6',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'tarayıcı tedarik zinciri ve güvenlik başlıkları sıkılaştırıldı',
+titleEn:'browser supply-chain controls and security headers tightened',
+introTr:[
+'Tarayıcıya ulaşan kodun nereden gelebileceğini sınırlandırdık ve dışarıdan yüklenen kritik betiği bütünlük doğrulamasına bağladık.'
+],
+introEn:[
+'We limited where browser code can come from and pinned the critical external script to an integrity check.'
+],
+sections:[
+{hTr:'Socket.IO için Subresource Integrity',hEn:'Subresource Integrity for Socket.IO',
+pTr:'Sabit Socket.IO dosyasına doğrulanmış SHA-512 bütünlük karması, anonim CORS ve no-referrer politikası eklendi. CDN beklenen dosyadan farklı bir içerik döndürürse tarayıcı betiği çalıştırmıyor.',
+pEn:'The pinned Socket.IO asset now carries a verified SHA-512 integrity hash, anonymous CORS, and a no-referrer policy. The browser refuses to execute it if the CDN returns different content.'},
+{hTr:'Content Security Policy devrede',hEn:'Content Security Policy enabled',
+pTr:'Netlify yanıtlarına CSP, Referrer-Policy ve Permissions-Policy başlıkları eklendi. Betik, bağlantı, font, görsel, form ve çerçeve kaynakları açık kurallarla sınırlandı.',
+pEn:'Netlify responses now include CSP, Referrer-Policy, and Permissions-Policy headers. Script, connection, font, image, form, and framing sources are constrained by explicit rules.'},
+{hTr:'Dependabot bütün Python paketlerini izliyor',hEn:'Dependabot watches every Python package',
+pTr:'Dependabot yanlış kök dizin yerine backend klasörüne yönlendirildi ve yalnızca yt-dlp ile sınırlı liste kaldırıldı. Güvenlik güncellemeleri artık tüm Python bağımlılıkları için takip edilebiliyor.',
+pEn:'Dependabot now points to the backend directory instead of the wrong repository root, and the yt-dlp-only allowlist is gone. Security updates can now be tracked for every Python dependency.'}
+],
+outroTr:'Kısacası: tarayıcıya gelen kod da bağımlılık güncellemeleri de artık daha sıkı denetleniyor.',
+outroEn:'In short: browser-delivered code and dependency updates are now under tighter control.'
+},
+{ver:'v11.5',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'özel bağlantılar artık QR bahanesiyle üçüncü tarafa gitmiyor',
+titleEn:'private links no longer leave the site for QR generation',
+introTr:[
+'Masaüstünde gösterilen QR kodunun arkasında kullanıcı bağlantısını harici bir servise gönderen görünmez bir gizlilik maliyeti vardı. Bu akışı kaldırdık.'
+],
+introEn:[
+'The desktop QR code carried a hidden privacy cost: it sent the user\'s media URL to an external service. That flow is now gone.'
+],
+sections:[
+{hTr:'üçüncü taraf QR isteği kaldırıldı',hEn:'third-party QR request removed',
+pTr:'Özel paylaşım token\'ı veya hassas sorgu parametresi içerebilen medya URL\'leri artık api.qrserver.com adresine otomatik gönderilmiyor.',
+pEn:'Media URLs that may contain private share tokens or sensitive query parameters are no longer sent automatically to api.qrserver.com.'},
+{hTr:'gizlilik için güvenli varsayılan',hEn:'privacy-safe default',
+pTr:'Yerel çalışan bir QR üretici eklenene kadar otomatik QR görünümü kapalı kalacak. İndirme, paylaşma ve bağlantı kopyalama akışları bundan etkilenmiyor.',
+pEn:'Automatic QR display stays disabled until a fully local generator is added. Download, sharing, and link-copying flows are unaffected.'}
+],
+outroTr:'Kısacası: yapıştırdığınız bağlantı yalnızca işi yapan yerlere gidiyor.',
+outroEn:'In short: pasted links now go only where the requested work requires.'
+},
+{ver:'v11.4',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'dosya adları artık tarayıcıda kod gibi çalışamıyor',
+titleEn:'filenames can no longer execute as browser code',
+introTr:[
+'Dönüştürücü ve remux ekranında seçilen yerel dosyanın adı doğrudan HTML içine yazılıyordu. Özel hazırlanmış bir dosya adı tarayıcı koduna dönüşebilirdi; bu yolu kapattık.'
+],
+introEn:[
+'The converter and remux screens used to place a selected local filename directly into HTML. A specially crafted filename could become browser code; that path is now closed.'
+],
+sections:[
+{hTr:'dosya adı HTML olarak yorumlanmıyor',hEn:'filenames are no longer interpreted as HTML',
+pTr:'Dosya seçme ve sürükleyip bırakma akışlarının tamamında kullanıcı kontrollü dosya adı güvenli biçimde escape ediliyor. Etiket, olay işleyici ve benzeri HTML parçaları yalnızca düz metin olarak görünüyor.',
+pEn:'User-controlled filenames are escaped in every picker and drag-and-drop path. Tags, event handlers, and other HTML fragments now appear only as plain text.'},
+{hTr:'mevcut metadata kaçışları korunuyor',hEn:'existing metadata escaping remains intact',
+pTr:'Uzak video başlığı, kapak adresi, playlist satırları ve yerel geçmiş için kullanılan mevcut escape katmanlarıyla aynı güvenli çıktı yaklaşımı uygulandı.',
+pEn:'The same safe-output approach already used for remote titles, thumbnail URLs, playlist rows, and local history is now applied to filenames too.'}
+],
+outroTr:'Kısacası: dosyanın adı ne olursa olsun arayüz onu yalnızca yazı olarak görüyor.',
+outroEn:'In short: whatever a file is named, the interface treats it only as text.'
+},
+{ver:'v11.3',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'dönüştürücü artık tek kullanıcı tarafından rehin alınamıyor',
+titleEn:'the converter can no longer be monopolized by one client',
+introTr:[
+'FFmpeg işlemlerinin süre, CPU ve tekrar sayısını daha sıkı sınırladık. Amaç yalnızca tek bir kötü dosyayı durdurmak değil, diğer kullanıcıların hizmete erişimini korumak.'
+],
+introEn:[
+'We placed tighter limits on FFmpeg runtime, CPU use, and repeated conversion requests. The goal is not only to stop one bad file, but to preserve service for everyone else.'
+],
+sections:[
+{hTr:'IP başına ayrı dönüştürme kotası',hEn:'dedicated conversion quota per IP',
+pTr:'Genel dakikalık hız limitine ek olarak varsayılan 10 dakikalık pencerede IP başına iki dönüştürme sınırı eklendi. Limit yanıtları Retry-After bilgisi taşıyor.',
+pEn:'In addition to the general per-minute rate limit, conversions now default to two requests per IP in a ten-minute window. Limit responses include Retry-After.'},
+{hTr:'FFmpeg daha kısa ve ölçülü çalışıyor',hEn:'FFmpeg runs for less time with tighter bounds',
+pTr:'Varsayılan FFmpeg zaman aşımı 120 saniyeye indirildi; işlem iki thread ile sınırlandı. Probe ve analiz bütçeleri, maksimum medya süresi ve mevcut çıktı boyutu sınırı aynı komutta uygulanıyor.',
+pEn:'The default FFmpeg timeout is now 120 seconds and processing is limited to two threads. Probe and analysis budgets, maximum media duration, and the existing output-size cap are enforced together.'},
+{hTr:'yüklenen dosya ağ kaynağı açamıyor',hEn:'uploaded files cannot open network resources',
+pTr:'Dönüştürücü ve sessiz video işlemleri FFmpeg\'i yalnızca yerel file, pipe, crypto ve data protokolleriyle çalıştırıyor; hazırlanmış playlist benzeri dosyalar iç ağ adreslerine ulaşamıyor.',
+pEn:'Converter and mute operations run FFmpeg with only local file, pipe, crypto, and data protocols, so crafted playlist-like uploads cannot reach internal network addresses.'}
+],
+outroTr:'Kısacası: dönüştürme gücü artık daha adil paylaşılıyor ve kesin sınırlar içinde kalıyor.',
+outroEn:'In short: conversion capacity is shared more fairly and stays within firm limits.'
+},
+{ver:'v11.2',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'güvenli olmayan medya protokolleri indirme başlamadan reddediliyor',
+titleEn:'unsafe media protocols are rejected before download',
+introTr:[
+'Bir bağlantı http veya https ile başlasa bile çıkarılan gerçek medya akışı farklı ve tehlikeli bir protokole dönüşebiliyordu. Protokol kararını artık ayrıca doğruluyoruz.'
+],
+introEn:[
+'Even when an input starts with http or https, the extracted media stream can resolve to a different and unsafe protocol. That protocol decision is now validated separately.'
+],
+sections:[
+{hTr:'açık medya protokol listesi',hEn:'explicit media protocol allowlist',
+pTr:'Yalnızca HTTP, HTTPS, yerel HLS ve DASH akışları kabul ediliyor. RTMP ve benzeri harici indirici gerektiren yollar güvenli bir hata ile durduruluyor.',
+pEn:'Only HTTP, HTTPS, native HLS, and DASH flows are accepted. RTMP and similar paths that require external network downloaders stop with a safe error.'},
+{hTr:'FFmpeg için ikinci savunma katmanı',hEn:'a second FFmpeg defense layer',
+pTr:'yt-dlp herhangi bir uyumluluk yolunda yine de FFmpeg indiricisine düşerse giriş argümanları uzak ağ protokollerini reddediyor. Post-processing işlemleri de yalnızca yerel girdilerle çalışıyor.',
+pEn:'If yt-dlp still reaches the FFmpeg downloader through a compatibility path, its input arguments reject remote network protocols. Post-processing is local-only as well.'}
+],
+outroTr:'Kısacası: güvenli URL kontrolü artık yalnızca ilk linkte değil, gerçek medya protokolünde de var.',
+outroEn:'In short: URL safety is enforced on the real media protocol, not only the first link.'
+},
+{ver:'v11.1',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'yt-dlp ağ trafiği korunan yerel indirme yoluna taşındı',
+titleEn:'yt-dlp traffic now stays on the guarded native path',
+introTr:[
+'Python içindeki SSRF korumasının etkili olabilmesi için indirme motorunun ağ bağlantılarını aynı güvenli katmandan geçirdik.'
+],
+introEn:[
+'For the Python SSRF guard to remain effective, the download engine\'s network connections now pass through the same protected layer.'
+],
+sections:[
+{hTr:'HLS ve DASH için native downloader',hEn:'native downloader for HLS and DASH',
+pTr:'HTTP, HTTPS, HLS ve DASH indirmeleri yt-dlp\'nin yerel indiricisine zorlandı. Böylece DNS ve socket kontrolleri atlanmadan her uzak bağlantıya uygulanıyor.',
+pEn:'HTTP, HTTPS, HLS, and DASH downloads are forced through yt-dlp\'s native downloader, keeping DNS and socket checks active for every remote connection.'},
+{hTr:'ağ kullanan harici indiriciler kapalı',hEn:'network-capable external downloaders disabled',
+pTr:'Daha önce devre dışı bırakılan aria2c yaklaşımı genişletildi; FFmpeg artık indirme motoru olarak uzak URL açamıyor ve yalnızca birleştirme/dönüştürme gibi yerel işler için kullanılıyor.',
+pEn:'The earlier aria2c restriction has been extended: FFmpeg can no longer open remote URLs as a downloader and remains available only for local merge and conversion work.'}
+],
+outroTr:'Kısacası: indirme motorundaki farklı yollar aynı ağ güvenliği kuralına bağlandı.',
+outroEn:'In short: every download-engine path now follows the same network-safety rule.'
+},
+{ver:'v11.0',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'SSRF koruması en alt socket katmanına kadar indirildi',
+titleEn:'SSRF protection now reaches the lowest socket layer',
+introTr:[
+'v11 serisine dış bağlantı güvenliğini temelinden güçlendirerek başladık. Yalnızca üst seviye bağlantı yardımcılarını kontrol etmenin bazı Python istemcilerinde yeterli olmadığını gördük.'
+],
+introEn:[
+'We opened the v11 series by strengthening outbound-network security at its foundation. Guarding only high-level connection helpers was not enough for every Python client.'
+],
+sections:[
+{hTr:'socket.connect ve connect_ex korunuyor',hEn:'socket.connect and connect_ex are guarded',
+pTr:'requests, urllib3 veya başka bir kütüphane üst seviye yardımcıyı atlayıp doğrudan socket açsa bile hedef adres bağlantı anında yeniden kontrol ediliyor.',
+pEn:'Even if requests, urllib3, or another library bypasses the high-level helper and opens a socket directly, the destination is checked again at connection time.'},
+{hTr:'hostname güvenli public IP\'ye sabitleniyor',hEn:'hostnames are pinned to a safe public IP',
+pTr:'Alan adları kısa ömürlü ve sınırlı cache üzerinden yalnızca public IP adreslerine çözülüyor. Private, loopback, link-local, multicast, reserved ve unspecified adresler bağlantı kurulmadan reddediliyor.',
+pEn:'Hostnames resolve only to public addresses through a short-lived bounded cache. Private, loopback, link-local, multicast, reserved, and unspecified destinations are rejected before connection.'},
+{hTr:'düşük seviye bypass yolları kapandı',hEn:'low-level bypass paths closed',
+pTr:'DNS kontrolü ile gerçek bağlantı arasındaki yeniden çözümleme boşluğu kapatıldı; doğrudan IP ve alan adı kullanan istemciler aynı kurala tabi tutuldu.',
+pEn:'The re-resolution gap between DNS validation and the real connection is closed, and clients using direct IPs or hostnames now follow the same rule.'}
+],
+outroTr:'Kısacası: özel ağlara giden bağlantılar artık hangi Python yolunun kullanıldığına bakmadan engelleniyor.',
+outroEn:'In short: private-network connections are blocked regardless of which Python path tries to open them.'
+},
+{ver:'v10.9',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'büyük dosyalar artık tarayıcıyı yormadan indiriliyor',
 titleEn:'large files now download without exhausting the browser',
 introTr:[
