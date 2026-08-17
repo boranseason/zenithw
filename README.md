@@ -4,7 +4,7 @@
 
 🔗 **Live:** [zenithw.space](https://zenithw.space)
 
-🏷️ **Current release:** `v11.7` — security hardening, private downloads, and safer media processing
+🏷️ **Current release:** `v12.9` — streamlined tool modals, lighter rendering, and a more consistent interface
 
 ---
 
@@ -205,7 +205,7 @@ pytest -q
 
 ## Release History
 
-The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers the security hardening work from socket-level SSRF protection in v11.0 through the documented and regression-tested v11.7 release.
+The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers the security hardening work from socket-level SSRF protection in v11.0 through the documented and regression-tested v11.7 release. The v12 series follows with comparison and legal-page redesigns, complete theme profiles, settings and performance improvements, and streamlined convert, remux, and support tools through v12.9.
 
 ---
 

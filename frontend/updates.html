@@ -16,81 +16,277 @@
 <meta name="description" id="pgDesc" content="ZenithW sürüm geçmişi ve güncelleme notları — yeni özellikler, hata düzeltmeleri ve iyileştirmeler.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://zenithw.space/updates.html">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#0a0b0d">
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script>document.write('<script src="version.js?v=' + Date.now() + '"><\/script>');</script>
 <style>
-.legal-lang-toggle{display:flex;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;}
-.legal-lang-toggle button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
-.legal-lang-toggle button.active{background:var(--text);color:var(--bg);}
-.legal-nav{gap:10px;flex-wrap:wrap;}
+body.updates-page{
+  --upd-bg:#0a0b0d;--upd-surface:#101216;--upd-surface-2:#15181d;--upd-border:#242830;
+  --upd-border-soft:#1b1f25;--upd-text:#eef0f3;--upd-text-2:#b4bac3;--upd-text-3:#747c88;
+  --upd-accent:#91b8ff;--upd-accent-soft:rgba(145,184,255,.10);--upd-success:#76c893;
+  min-height:100vh;margin:0;background:var(--upd-bg);color:var(--upd-text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color-scheme:dark;-webkit-font-smoothing:antialiased;
+}
+body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% -18%,rgba(105,137,195,.11),transparent 38%);}
+.updates-page *{box-sizing:border-box;}
+.upd-shell{position:relative;z-index:1;width:min(1120px,calc(100% - 40px));margin:0 auto;}
+.upd-site-header{height:70px;border-bottom:1px solid var(--upd-border-soft);}
+.upd-site-header .upd-shell{height:100%;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.upd-brand{color:var(--upd-text);font-family:"Geist Mono",monospace;font-size:15px;font-weight:700;letter-spacing:-.5px;text-decoration:none;}
+.upd-brand span{color:var(--upd-accent);}
+.upd-header-actions{display:flex;align-items:center;gap:10px;}
+.legal-lang-toggle{display:flex;gap:2px;background:var(--upd-surface);border:1px solid var(--upd-border);border-radius:9px;padding:3px;}
+.legal-lang-toggle button{border:0;background:transparent;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:9.5px;font-weight:700;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;}
+.legal-lang-toggle button:hover{color:var(--upd-text-2);}
+.legal-lang-toggle button.active{background:var(--upd-surface-2);color:var(--upd-text);}
+.upd-home-link{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 11px;color:var(--upd-text-2);border:1px solid var(--upd-border);border-radius:9px;font-size:11px;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s;}
+.upd-home-link:hover{color:var(--upd-text);border-color:#363c47;}
+.upd-home-link svg{width:13px;height:13px;}
 
-.upd-top-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.upd-ver-badge{background:var(--text);color:var(--bg);font-size:11px;font-weight:800;padding:5px 10px;border-radius:8px;letter-spacing:.3px;}
-.upd-ver-badge.is-latest{background:var(--accent,#3bba64);color:#fff;}
-.upd-top-date{color:var(--text3);font-size:12px;}
-.upd-pick{margin-left:auto;position:relative;}
-.upd-pick select{background:var(--chip-bg);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:11.5px;padding:7px 10px;border-radius:8px;cursor:pointer;outline:none;}
+.upd-hero{padding:54px 0 46px;border-bottom:1px solid var(--upd-border-soft);}
+.upd-hero-kicker{display:flex;align-items:center;gap:9px;margin:0 0 17px;color:var(--upd-accent);font-family:"Geist Mono",monospace;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;}
+.upd-hero-kicker::before{content:"";width:22px;height:1px;background:currentColor;}
+.upd-hero h1{max-width:720px;margin:0;color:var(--upd-text);font-size:clamp(31px,4.2vw,46px);font-weight:650;letter-spacing:-2px;line-height:1.08;}
+.upd-hero-desc{max-width:630px;margin:16px 0 0;color:var(--upd-text-2);font-size:13.5px;line-height:1.7;}
+.upd-hero-meta{display:flex;align-items:center;gap:9px;margin-top:22px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:9.5px;}
+.upd-hero-meta span{display:inline-flex;align-items:center;min-height:27px;padding:0 9px;border:1px solid var(--upd-border);border-radius:7px;background:var(--upd-surface);}
 
-.upd-anma{font-size:13px;line-height:1.85;color:var(--text2);background:var(--chip-bg);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin:0 0 22px;}
-.upd-anma p{margin:0 0 10px;}
-.upd-anma p:last-child{margin-bottom:0;}
-.upd-anma strong{color:var(--text);}
+.upd-layout{display:block;padding:38px 0 78px;}
+.upd-article{max-width:720px;min-width:0;margin:0 auto;scroll-margin-top:22px;}
+.upd-top-row{display:flex;align-items:center;gap:9px;margin-bottom:18px;flex-wrap:wrap;}
+.upd-ver-badge{background:var(--upd-surface-2);border:1px solid var(--upd-border);color:var(--upd-text);font-family:"Geist Mono",monospace;font-size:10px;font-weight:800;padding:5px 9px;border-radius:7px;letter-spacing:.2px;}
+.upd-ver-badge.is-latest{background:rgba(118,200,147,.1);border-color:rgba(118,200,147,.24);color:var(--upd-success);}
+.upd-top-date{color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:10px;}
+.upd-top-date::before{content:"/";margin-right:9px;color:#3a4049;}
+.upd-pick{position:relative;margin-left:auto;}
+.upd-pick::after{content:"⌄";position:absolute;right:11px;top:50%;transform:translateY(-57%);color:var(--upd-text-3);pointer-events:none;}
+.upd-pick select{appearance:none;min-width:116px;background:var(--upd-surface);border:1px solid var(--upd-border);color:var(--upd-text-2);font-family:"Geist Mono",monospace;font-size:9.5px;font-weight:650;padding:7px 29px 7px 10px;border-radius:8px;cursor:pointer;outline:none;}
+.upd-pick select:hover,.upd-pick select:focus{border-color:#3b424d;color:var(--upd-text);}
+.upd-post-title{max-width:680px;margin:0 0 20px;color:var(--upd-text);font-size:clamp(25px,3.3vw,34px);font-weight:650;letter-spacing:-1.05px;line-height:1.2;}
+.upd-anma:empty{display:none;}
+.upd-anma{font-size:13px;line-height:1.8;color:var(--upd-text-2);border-left:2px solid var(--upd-accent);padding:1px 0 1px 16px;margin:0 0 24px;}
+.upd-anma p{margin:0 0 9px;}.upd-anma p:last-child{margin-bottom:0;}.upd-anma strong{color:var(--upd-text);}
+.upd-intro{position:relative;margin:0 0 27px;padding:17px 19px 16px;border-left:2px solid var(--upd-accent);border-radius:0 11px 11px 0;background:linear-gradient(90deg,var(--upd-accent-soft),rgba(145,184,255,.025));}
+.upd-intro::before{content:attr(data-label);display:block;margin-bottom:9px;color:var(--upd-accent);font-family:"Geist Mono",monospace;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.upd-intro p{font-size:14px;line-height:1.72;color:var(--upd-text-2);margin:0 0 11px;}
+.upd-intro p:last-child{margin-bottom:0;}
+#updSections{counter-reset:release-section;margin-top:27px;border-top:1px solid var(--upd-border);}
+.upd-section{counter-increment:release-section;position:relative;padding:22px 0 23px 39px;border-bottom:1px solid var(--upd-border-soft);}
+.upd-section h3{font-size:14px;font-weight:650;color:var(--upd-text);margin:0 0 7px;line-height:1.4;}
+.upd-section h3::before{content:counter(release-section,decimal-leading-zero);position:absolute;left:0;top:25px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:8.5px;font-weight:700;letter-spacing:.5px;}
+.upd-section p{font-size:13px;line-height:1.76;color:var(--upd-text-2);margin:0;}
+.upd-outro{margin-top:27px;padding:15px 17px;border:1px solid var(--upd-border);border-radius:10px;background:var(--upd-surface);font-size:13px;line-height:1.72;color:var(--upd-text-2);}
+.upd-signoff{margin-top:17px;font-family:"Geist Mono",monospace;font-size:10px;color:var(--upd-text-3);}
+.upd-nav-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:35px;padding-top:18px;border-top:1px solid var(--upd-border);}
+.upd-nav-link{min-width:0;background:transparent;border:1px solid var(--upd-border);border-radius:10px;padding:12px 13px;color:var(--upd-text-2);font:inherit;font-size:11px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,color .15s;text-align:left;}
+.upd-nav-link.next{text-align:right;}.upd-nav-link:hover{background:var(--upd-surface);color:var(--upd-text);border-color:#343a44;}
+.upd-nav-label{display:block;margin-bottom:4px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;}
+.upd-footer{border-top:1px solid var(--upd-border-soft);padding:24px 0 35px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:9px;}
+.upd-footer .upd-shell{display:flex;justify-content:space-between;gap:20px;}
+.upd-footer a{color:var(--upd-text-3);text-decoration:none;}.upd-footer a:hover{color:var(--upd-text-2);}
 
-.upd-post-title{font-size:20px;font-weight:800;letter-spacing:-.3px;line-height:1.3;margin:0 0 22px;color:var(--text);}
-
-.upd-intro p{font-size:13.5px;line-height:1.8;color:var(--text2);margin:0 0 14px;}
-.upd-intro{margin-bottom:8px;}
-
-.upd-section{margin-top:26px;}
-.upd-section h2{font-size:14.5px;font-weight:700;color:var(--text);margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid var(--border);}
-.upd-section p{font-size:13px;line-height:1.8;color:var(--text2);margin:0;}
-
-.upd-outro{margin-top:32px;font-size:13px;line-height:1.8;color:var(--text2);}
-.upd-signoff{margin-top:18px;font-size:13px;color:var(--text3);}
-
-.upd-nav-row{display:flex;align-items:stretch;gap:10px;margin-top:40px;padding-top:20px;border-top:1px solid var(--border);}
-.upd-nav-link{flex:1;font-size:12px;font-weight:600;color:var(--text2);background:var(--chip-bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s;text-align:left;}
-.upd-nav-link.next{text-align:right;}
-.upd-nav-link:hover{color:var(--text);border-color:var(--border2);}
-.upd-nav-label{display:block;font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+@media(max-width:820px){
+  .upd-shell{width:min(100% - 28px,720px);}
+  .upd-hero{padding:46px 0 40px;}.upd-hero h1{letter-spacing:-1.6px;}
+  .upd-layout{padding:30px 0 65px;}
+}
+@media(max-width:520px){
+  .upd-site-header{height:62px;}.upd-home-link span{display:none;}.upd-home-link{width:34px;padding:0;justify-content:center;}
+  .upd-hero{padding:39px 0 34px;}.upd-hero h1{font-size:32px;letter-spacing:-1.25px;}.upd-hero-desc{font-size:12.5px;}
+  .upd-hero-meta{flex-wrap:wrap;}.upd-post-title{font-size:26px;letter-spacing:-.75px;}
+  .upd-intro{padding:15px 15px 14px;}.upd-intro p{font-size:13.5px;}.upd-section{padding-left:32px;}
+  .upd-pick{width:100%;margin:3px 0 0;}.upd-pick select{width:100%;}
+  .upd-nav-row{grid-template-columns:1fr;}.upd-nav-link.next{text-align:left;}.upd-footer .upd-shell{flex-direction:column;gap:7px;}
+}
+@media(prefers-reduced-motion:reduce){.updates-page *{scroll-behavior:auto!important;transition:none!important;}}
 </style>
 </head>
-<body>
-<div class="legal-page">
-  <div class="legal-nav">
-    <a href="/" class="legal-logo">ZenithW<span>.</span></a>
-    <div style="display:flex;align-items:center;gap:8px;">
+<body class="updates-page">
+<header class="upd-site-header">
+  <div class="upd-shell">
+    <a href="/" class="upd-brand">ZenithW<span>.</span></a>
+    <div class="upd-header-actions">
       <div class="legal-lang-toggle" id="legalLangToggle">
-        <button data-lang="tr" onclick="setLegalLang('tr')">TR</button>
-        <button data-lang="en" onclick="setLegalLang('en')">EN</button>
+        <button type="button" data-lang="tr" onclick="setLegalLang('tr')">TR</button>
+        <button type="button" data-lang="en" onclick="setLegalLang('en')">EN</button>
       </div>
-      <a href="/" class="legal-back" id="pgBack">← ana sayfa</a>
+      <a href="/" class="upd-home-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span id="pgBack">ana sayfa</span></a>
     </div>
   </div>
+</header>
 
-  <div class="legal-body" style="max-width:640px;margin:0 auto;padding:24px 20px 80px;">
-    <div class="upd-top-row">
-      <span class="upd-ver-badge" id="updBadge">v8.0</span>
-      <span class="upd-top-date" id="updDate">temmuz 2026</span>
-      <div class="upd-pick">
-        <select id="verPicker" onchange="jumpTo(this.value)"></select>
-      </div>
+<main>
+  <section class="upd-hero">
+    <div class="upd-shell">
+      <div class="upd-hero-kicker" id="updHeroKicker">ürün günlüğü</div>
+      <h1 id="updHeroTitle">ZenithW nasıl gelişiyor?</h1>
+      <p class="upd-hero-desc" id="updHeroDesc">Yeni özellikler, tasarım kararları, performans çalışmaları ve güvenlik iyileştirmeleri.</p>
+      <div class="upd-hero-meta"><span id="updReleaseCount">0 sürüm</span><span id="updReleaseRange">v4.0 → v12.9</span></div>
     </div>
-    <div class="upd-anma" id="updAnma"></div>
-    <h1 class="upd-post-title" id="updPostTitle"></h1>
-    <div class="upd-intro" id="updIntro"></div>
-    <div id="updSections"></div>
-    <div class="upd-outro" id="updOutro"></div>
-    <div class="upd-signoff" id="updSignoff">~ ZenithW ekibi 🤍</div>
-    <div class="upd-nav-row" id="updNavRow"></div>
+  </section>
+
+  <div class="upd-shell upd-layout">
+    <article class="upd-article" id="releaseArticle" tabindex="-1">
+      <div class="upd-top-row">
+        <span class="upd-ver-badge" id="updBadge">v12.9</span>
+        <span class="upd-top-date" id="updDate">ağustos 2026</span>
+        <div class="upd-pick"><select id="verPicker" aria-label="Sürüm seç" onchange="jumpTo(this.value)"></select></div>
+      </div>
+      <div class="upd-anma" id="updAnma"></div>
+      <h2 class="upd-post-title" id="updPostTitle"></h2>
+      <div class="upd-intro" id="updIntro" data-label="bizden küçük bir not"></div>
+      <div id="updSections"></div>
+      <div class="upd-outro" id="updOutro"></div>
+      <div class="upd-signoff" id="updSignoff">~ ZenithW ekibi 🤍</div>
+      <nav class="upd-nav-row" id="updNavRow" aria-label="Sürüm gezinmesi"></nav>
+    </article>
   </div>
-</div>
+</main>
+
+<footer class="upd-footer">
+  <div class="upd-shell"><span>ZenithW · 2026</span><a href="/" id="updFooterLink">zenithw.space</a></div>
+</footer>
 
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'dönüştürme, remux ve destek araçları daha sade bir deneyimde buluştu',
+titleEn:'convert, remux, and support tools now share a calmer experience',
+introTr:[
+'Güneşli bir günün ardından gelen harika bir yaz akşamı... Masanda kahven, fonda sevdiğin bir şarkı ve tam o sırada ZenithW’den yepyeni bir sürüm haberi. Daha iyisi var mı, pek emin değiliz. Kahvenden bir yudum daha al; v12.9’un neler getirdiğine birlikte bakalım.',
+'Bu sürümde dönüştürme, remux ve destek araçlarını aynı sade tasarım dili altında topladık. Başlıklar, dosya alanları ve bilgi kartları artık daha düzenli, daha küçük ve ilk bakışta anlaşılır. Kısacası daha az kalabalık, yapmak istediğin işe ayırabileceğin daha fazla alan var.',
+'Bir de küçük ama can sıkıcı bir pürüzü aradan çıkardık: dosya seçtikten sonra giriş alanının kaybolmasına yol açan eski yapı düzeltildi. Artık aynı araç içinde yeniden dosya seçmek sorun değil. Güzel bir yaz akşamına yakışacak kadar sakin, kahven soğumadan işini bitirecek kadar pratik.'
+],
+introEn:[
+'A wonderful summer evening after a sunny day... Coffee on the table, a favorite song in the background, and right on cue, a brand-new ZenithW release. Does it get much better than that? Take another sip and let us see what v12.9 brings.',
+'This release brings convert, remux, and support together under one calm design language. Headers, file areas, and information cards are smaller, tidier, and easier to understand at a glance. In short: less clutter and more room for the thing you actually came to do.',
+'We also cleared away one small but annoying rough edge: selecting a file no longer removes the real input behind the drop area. Choosing another file in the same tool now works reliably. Calm enough for a summer evening, quick enough to finish before the coffee gets cold.'
+],
+sections:[
+{hTr:'ortak ve sade modal sistemi',hEn:'one streamlined modal system',
+pTr:'Dönüştür, remux ve destek ol pencereleri ortak başlık, ikon, kapatma düğmesi, boşluk sistemi ve yüzey stili kullanıyor. Emoji ağırlıklı öğeler temiz SVG simgelerle değiştirildi.',
+pEn:'Convert, remux, and support now use the same header, icon, close control, spacing, and surface treatment. Emoji-heavy elements were replaced with clean SVG icons.'},
+{hTr:'daha sağlam dosya seçimi',hEn:'more reliable file selection',
+pTr:'Seçilen dosya bilgisi artık alanın tamamını yeniden oluşturmadan güncelleniyor. Böylece gizli dosya girişi korunuyor ve art arda seçim yapılabiliyor.',
+pEn:'Selected-file details now update without rebuilding the entire drop area. The hidden file input stays intact, allowing repeated selections.'},
+{hTr:'destek seçenekleri tek bakışta',hEn:'support options at a glance',
+pTr:'Papara, Instagram ve e-posta seçenekleri daha kompakt bir kart düzeninde toplandı; satır içi stiller kaldırıldı ve bütün görünüm ortak tema renklerine bağlandı.',
+pEn:'Papara, Instagram, and email options now live in a compact card layout; inline styling is gone and the complete view follows the active theme.'}
+],
+outroTr:'v12 serisi, daha güvenli altyapıdan daha hafif ve tutarlı bir arayüze uzanan kapsamlı yenilemesini bu sürümle tamamlıyor.',
+outroEn:'This release completes the v12 journey from safer foundations to a lighter and more consistent interface.'
+},
+{ver:'v12.8',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'mobil ve masaüstünde gereksiz görsel maliyetler temizlendi',
+titleEn:'unnecessary visual costs removed across mobile and desktop',
+introTr:['İkinci performans turunda ortak stil dosyasındaki tekrarlar ve özellikle mobil cihazlarda pahalı olan katman efektleri temizlendi.'],
+introEn:['The second performance pass removed repeated CSS and effects that were particularly expensive on mobile devices.'],
+sections:[
+{hTr:'tekrarlanan CSS kaldırıldı',hEn:'duplicate CSS removed',pTr:'Karşılaştırma sayfalarına ait yüzlerce satırlık yinelenen stil bloğu silindi; aynı görünüm tek bir kaynak üzerinden korunuyor.',pEn:'A duplicated block of hundreds of comparison-page CSS lines was removed while preserving the same design from a single source.'},
+{hTr:'mobil GPU yükü azaltıldı',hEn:'lower mobile GPU load',pTr:'Küçük ekranlarda ağır bulanıklık ve gereksiz animasyonlar devre dışı bırakıldı. Varsayılan görünüm saf siyah arka planla daha az katman çiziyor.',pEn:'Heavy blur and unnecessary animation are disabled on smaller screens. The default view now paints fewer layers over a true black background.'}
+],
+outroTr:'Sonuç: daha az stil ayrıştırma, daha az katman birleştirme ve düşük güçlü cihazlarda daha sakin bir arayüz.',
+outroEn:'The result is less style parsing, less compositing, and a calmer interface on lower-powered devices.'
+},
+{ver:'v12.7',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'sürekli çalışan arka plan efektleri kaldırıldı',
+titleEn:'always-running background effects removed',
+introTr:['Performans incelemesi, kullanıcı hiçbir işlem yapmasa bile çalışan görsel döngülere odaklandı.'],
+introEn:['The performance review focused on visual loops that kept running even while the user was idle.'],
+sections:[
+{hTr:'yıldız canvası ve animasyon döngüsü yok',hEn:'no star canvas or animation loop',pTr:'Arka plandaki yıldız canvası ve sürekli requestAnimationFrame döngüsü kaldırıldı. Tema renkleri artık statik ve hafif arka planlarla sunuluyor.',pEn:'The star canvas and its continuous requestAnimationFrame loop were removed. Theme colors now use lightweight static backgrounds.'},
+{hTr:'fare takip efektleri temizlendi',hEn:'pointer-following effects removed',pTr:'Masaüstünde her fare hareketinde hesap yapan manyetik etkileşimler ve nötr modallardaki dekoratif kalp katmanları kaldırıldı.',pEn:'Magnetic interactions that recalculated on every pointer move and decorative heart layers on neutral modals were removed.'}
+],
+outroTr:'Sayfa boşta dururken artık gereksiz işlemci ve grafik gücü tüketmiyor.',
+outroEn:'The page no longer spends unnecessary CPU and GPU time while sitting idle.'
+},
+{ver:'v12.6',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'ayarlar daha açık, erişilebilir ve düzenli hale geldi',
+titleEn:'settings became clearer, more accessible, and better organized',
+introTr:['Ayarlar penceresi, seçenek yoğunluğunu azaltan yeni bir başlık ve bölüm yapısıyla baştan düzenlendi.'],
+introEn:['The settings dialog was reorganized with a new header and section structure that reduces visual density.'],
+sections:[
+{hTr:'masaüstü ve mobil için uyarlanmış gezinme',hEn:'navigation adapted for desktop and mobile',pTr:'Masaüstünde sade bir yan menü, mobilde yatay ve kaydırılabilir sekmeler kullanılıyor. Her bölüm kendi kartı içinde daha rahat okunuyor.',pEn:'Desktop uses a restrained sidebar, while mobile uses horizontally scrollable tabs. Each section is easier to read inside its own card.'},
+{hTr:'gerçek erişilebilir kontroller',hEn:'real accessible controls',pTr:'Sekmelerin ARIA ilişkileri düzenlendi; açma kapama seçenekleri gerçek düğme ve switch rolleriyle klavye kullanımına uygun hale getirildi.',pEn:'Tab ARIA relationships were aligned, and toggle options now use real buttons and switch roles suitable for keyboard use.'}
+],
+outroTr:'Daha az görsel gürültüyle aynı ayarlara daha hızlı ulaşılabiliyor.',
+outroEn:'The same controls are now faster to reach with less visual noise.'
+},
+{ver:'v12.5',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'dil ve tema seçimi daha kompakt hale getirildi',
+titleEn:'language and theme selection made more compact',
+introTr:['Görünüm ayarları, küçük alanlarda daha rahat kullanılacak şekilde inceltildi.'],
+introEn:['Appearance controls were refined to work more comfortably in limited space.'],
+sections:[
+{hTr:'sade dil seçici',hEn:'simpler language selector',pTr:'Dil seçenekleri daha temiz bir kontrol içinde toplandı; aktif dil belirgin kalırken gereksiz açıklamalar ve büyük yüzeyler azaltıldı.',pEn:'Language options were consolidated into a cleaner control that keeps the active language obvious without oversized surfaces.'},
+{hTr:'küçük tema kartları',hEn:'smaller theme cards',pTr:'Tema kartları daha kısa, daha dengeli ve mobilde daha verimli bir ızgara kullanacak biçimde yeniden boyutlandırıldı.',pEn:'Theme cards were resized into a shorter, more balanced grid that uses mobile space more efficiently.'}
+],
+outroTr:'Görünüm bölümü daha az yer kaplıyor fakat seçimler aynı derecede anlaşılır kalıyor.',
+outroEn:'The appearance section takes less room while keeping every choice clear.'
+},
+{ver:'v12.4',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'renk seçenekleri gerçek tema profillerine dönüştü',
+titleEn:'accent choices evolved into complete theme profiles',
+introTr:['Eski renk seçimi yalnızca düğmeleri boyuyordu; yeni sistem arayüzün tamamını birlikte değiştiriyor.'],
+introEn:['The old accent picker only recolored buttons; the new system changes the full interface as one profile.'],
+sections:[
+{hTr:'beş bütüncül tema',hEn:'five cohesive themes',pTr:'Klasik, neon mor, grafit, neon pembe ve cobalt mavisi; arka plan, panel, kenarlık, parlama ve etkileşim renklerini birlikte yönetiyor.',pEn:'Classic, neon purple, graphite, neon pink, and cobalt blue now control backgrounds, panels, borders, glow, and interaction colors together.'},
+{hTr:'açık ve koyu görünümle uyum',hEn:'light and dark compatibility',pTr:'Her profil açık ve koyu görünüm değişkenleriyle çalışıyor; varsayılan koyu tema dikkat dağıtmayan siyah tabanı koruyor.',pEn:'Every profile works with light and dark appearance variables, while the default dark theme keeps a distraction-free black foundation.'}
+],
+outroTr:'Tema seçimi artık tek bir vurgu rengi değil, tutarlı bir arayüz karakteri belirliyor.',
+outroEn:'Theme selection now defines a coherent interface character instead of one accent color.'
+},
+{ver:'v12.3',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'PWA katmanı kaldırıldı ve tarayıcı uyarıları temizlendi',
+titleEn:'the PWA layer was removed and browser warnings were cleared',
+introTr:['Kullanılmayan uygulama kurulum katmanı kaldırılarak dağıtım ve tarayıcı davranışı sadeleştirildi.'],
+introEn:['The unused installable-app layer was removed to simplify deployment and browser behavior.'],
+sections:[
+{hTr:'manifest ve servis çalışanı kaldırıldı',hEn:'manifest and service worker removed',pTr:'PWA manifest bağlantısı, servis çalışanı kaydı ve ilgili meta etiketleri ana sayfadan çıkarıldı. Geçersiz start_url uyarısının kaynağı ortadan kalktı.',pEn:'The PWA manifest link, service-worker registration, and related metadata were removed from the home page, eliminating the invalid start_url warning at its source.'},
+{hTr:'güvenlik politikası güncellendi',hEn:'security policy aligned',pTr:'Artık kullanılmayan manifest kaynağı güvenlik başlıklarından temizlendi; kalan dış betikler mevcut CSP kurallarıyla uyumlu hale getirildi.',pEn:'The unused manifest source was removed from security headers, and the remaining external scripts were aligned with the active CSP rules.'}
+],
+outroTr:'ZenithW artık web deneyimine odaklanan daha küçük ve daha anlaşılır bir dağıtıma sahip.',
+outroEn:'ZenithW now ships as a smaller, clearer deployment focused on the web experience.'
+},
+{ver:'v12.2',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'yasal ve bilgi sayfaları ortak profesyonel tasarıma geçti',
+titleEn:'legal and information pages moved to one professional design',
+introTr:['Eski görünümde kalan metin sayfaları, ana ürünün tasarım diliyle yeniden kuruldu.'],
+introEn:['Text-heavy pages left behind in the old layout were rebuilt in the main product design language.'],
+sections:[
+{hTr:'kullanım koşulları yenilendi',hEn:'terms page renewed',pTr:'Terms sayfası DMCA ile uyumlu üst gezinme, okunabilir içerik genişliği, bölüm kartları ve dil kontrolü kazandı.',pEn:'The Terms page gained navigation aligned with DMCA, readable content width, section cards, and a language control.'},
+{hTr:'tutarlı bilgi mimarisi',hEn:'consistent information architecture',pTr:'Gizlilik, DMCA, hakkımızda ve ilgili bilgi sayfalarında tipografi, boşluklar, başlıklar ve geri dönüş bağlantıları ortaklaştırıldı.',pEn:'Typography, spacing, headings, and return links were unified across privacy, DMCA, about, and related information pages.'}
+],
+outroTr:'Bilgi sayfaları artık ayrı bir eski site gibi değil, ZenithW ürününün parçası gibi görünüyor.',
+outroEn:'Information pages now feel like part of ZenithW instead of a separate legacy site.'
+},
+{ver:'v12.1',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'site haritası daha doğru ve arama motoru dostu hale geldi',
+titleEn:'the sitemap became cleaner and more search-engine friendly',
+introTr:['Site haritası gerçek sayfa yapısını yansıtacak ve bakım yükünü azaltacak biçimde elden geçirildi.'],
+introEn:['The sitemap was revised to reflect the real page structure and reduce maintenance overhead.'],
+sections:[
+{hTr:'eksik sayfalar eklendi',hEn:'missing pages added',pTr:'Güncellemeler ve karşılaştırma içerikleri dahil olmak üzere yayınlanan önemli sayfalar doğru adresleriyle site haritasına alındı.',pEn:'Published pages, including updates and comparison content, were added with their correct canonical addresses.'},
+{hTr:'anlamlı güncelleme tarihleri',hEn:'meaningful modification dates',pTr:'lastmod değerleri gerçek içerik değişiklikleriyle eşleştirildi; arama motorlarının yok saydığı yapay öncelik ve sıklık alanları kaldırıldı.',pEn:'lastmod values were aligned with real content changes, while artificial priority and frequency fields ignored by search engines were removed.'}
+],
+outroTr:'Daha kısa sitemap, tarayıcılara daha doğru sinyal veriyor ve gelecekte daha kolay güncelleniyor.',
+outroEn:'The shorter sitemap sends clearer signals to crawlers and is easier to maintain.'
+},
+{ver:'v12.0',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'karşılaştırma sayfaları ürün seviyesinde yeniden tasarlandı',
+titleEn:'comparison pages redesigned to product quality',
+introTr:['ZenithW karşılaştırmaları düz metin sayfalarından, ortak stilleri kullanan profesyonel ürün anlatımlarına dönüştü.'],
+introEn:['ZenithW comparisons moved from plain text pages to professional product narratives powered by shared styles.'],
+sections:[
+{hTr:'ortak tasarım sistemi',hEn:'shared design system',pTr:'Cobalt.tools, SaveFrom ve Y2Mate karşılaştırmaları ana siteyle aynı üst barı, kartları, özellik tablolarını ve mobil davranışı kullanıyor.',pEn:'Cobalt.tools, SaveFrom, and Y2Mate comparisons now share the main site navigation, cards, feature tables, and responsive behavior.'},
+{hTr:'daha net karşılaştırma içeriği',hEn:'clearer comparison content',pTr:'Platform kapsamı, toplu işlemler, dönüştürme, reklam deneyimi ve hesap gereksinimleri kısa bölümler ile yan yana tablolarda anlatılıyor.',pEn:'Platform coverage, batch jobs, conversion, advertising experience, and account requirements are explained through concise sections and side-by-side tables.'}
+],
+outroTr:'v12, ZenithW çevresindeki tüm sayfaları aynı kalite çizgisine taşıma hedefiyle başladı.',
+outroEn:'v12 began with the goal of bringing every page around ZenithW to the same quality bar.'
+},
+{ver:'v11.7',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'v11 güvenlik serisi tamamlandı: daha kapalı, daha ölçülü, daha doğrulanabilir',
 titleEn:'the v11 security series is complete: tighter, bounded, and verifiable',
 introTr:[
@@ -972,9 +1168,11 @@ outroEn:'In short: the queue doesn\'t forget anymore, and neither do we forget t
 
 const TX={
   tr:{title:'Güncellemeler — ZenithW',desc:'ZenithW sürüm geçmişi ve güncelleme notları — yeni özellikler, hata düzeltmeleri ve iyileştirmeler.',
-    back:'← ana sayfa',latestLabel:'GÜNCEL',signoff:'~ ZenithW ekibi 🤍'},
+    back:'ana sayfa',latestLabel:'güncel',signoff:'~ ZenithW ekibi 🤍',heroKicker:'ürün günlüğü',heroTitle:'ZenithW nasıl gelişiyor?',
+    heroDesc:'Yeni özellikler, tasarım kararları, performans çalışmaları ve güvenlik iyileştirmeleri.',selectLabel:'sürüm seç',introLabel:'bizden küçük bir not',releaseLabel:'sürüm',newer:'yeni sürüm',older:'eski sürüm',navLabel:'Sürüm gezinmesi'},
   en:{title:'Updates — ZenithW',desc:'ZenithW release history and changelog — new features, bug fixes, and improvements.',
-    back:'← home',latestLabel:'LATEST',signoff:'~ the ZenithW team 🤍'}
+    back:'home',latestLabel:'latest',signoff:'~ the ZenithW team 🤍',heroKicker:'product journal',heroTitle:'How is ZenithW evolving?',
+    heroDesc:'New features, design decisions, performance work, and security improvements.',selectLabel:'choose a release',introLabel:'a quick note from us',releaseLabel:'releases',newer:'newer',older:'older',navLabel:'Release navigation'}
 }
 
 let CUR_LANG='tr';
@@ -982,7 +1180,8 @@ let CUR_LANG='tr';
 function jumpTo(ver){
   history.pushState(null,'','#'+ver);
   render();
-  window.scrollTo({top:0,behavior:'smooth'});
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('releaseArticle').scrollIntoView({block:'start',behavior:reduce?'auto':'smooth'});
 }
 
 function findIndex(ver){return UPDATES.findIndex(u=>u.ver===ver);}
@@ -1006,7 +1205,7 @@ function render(){
 
   document.getElementById('updSections').innerHTML=u.sections.map(s=>`
     <div class="upd-section">
-      <h2>${CUR_LANG==='tr'?s.hTr:s.hEn}</h2>
+      <h3>${CUR_LANG==='tr'?s.hTr:s.hEn}</h3>
       <p>${CUR_LANG==='tr'?s.pTr:s.pEn}</p>
     </div>`).join('');
 
@@ -1016,12 +1215,15 @@ function render(){
   const picker=document.getElementById('verPicker');
   picker.innerHTML=UPDATES.map(x=>`<option value="${x.ver}"${x.ver===u.ver?' selected':''}>${x.ver}${x.latest?' · '+t.latestLabel:''}</option>`).join('');
 
+  document.getElementById('updReleaseCount').textContent=UPDATES.length+' '+t.releaseLabel;
+  document.getElementById('updReleaseRange').textContent=UPDATES[UPDATES.length-1].ver+' → '+UPDATES[0].ver;
+
   const newer=UPDATES[idx-1], older=UPDATES[idx+1];
   let nav='';
-  if(newer)nav+=`<div class="upd-nav-link" onclick="jumpTo('${newer.ver}')"><span class="upd-nav-label">${CUR_LANG==='tr'?'yeni sürüm':'newer'}</span>← ${newer.ver}</div>`;
-  else nav+=`<div></div>`;
-  if(older)nav+=`<div class="upd-nav-link next" onclick="jumpTo('${older.ver}')"><span class="upd-nav-label">${CUR_LANG==='tr'?'eski sürüm':'older'}</span>${older.ver} →</div>`;
-  else nav+=`<div></div>`;
+  if(newer)nav+=`<button type="button" class="upd-nav-link" onclick="jumpTo('${newer.ver}')"><span class="upd-nav-label">${t.newer}</span>← ${newer.ver}</button>`;
+  else nav+=`<span aria-hidden="true"></span>`;
+  if(older)nav+=`<button type="button" class="upd-nav-link next" onclick="jumpTo('${older.ver}')"><span class="upd-nav-label">${t.older}</span>${older.ver} →</button>`;
+  else nav+=`<span aria-hidden="true"></span>`;
   document.getElementById('updNavRow').innerHTML=nav;
 
   document.title=`${u.ver} — ${CUR_LANG==='tr'?u.titleTr:u.titleEn} — ZenithW`;
@@ -1034,6 +1236,12 @@ function setLegalLang(l){
   document.getElementById('pgTitle').textContent=t.title;
   document.getElementById('pgDesc').setAttribute('content',t.desc);
   document.getElementById('pgBack').textContent=t.back;
+  document.getElementById('updHeroKicker').textContent=t.heroKicker;
+  document.getElementById('updHeroTitle').textContent=t.heroTitle;
+  document.getElementById('updHeroDesc').textContent=t.heroDesc;
+  document.getElementById('verPicker').setAttribute('aria-label',t.selectLabel);
+  document.getElementById('updIntro').setAttribute('data-label',t.introLabel);
+  document.getElementById('updNavRow').setAttribute('aria-label',t.navLabel);
   document.querySelectorAll('#legalLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===CUR_LANG));
   try{localStorage.setItem('zw_lang',CUR_LANG);}catch(e){}
   render();

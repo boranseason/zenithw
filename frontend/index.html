@@ -21,11 +21,6 @@
 <link rel="icon" type="image/png" href="zenithw.png">
 <link rel="apple-touch-icon" href="zenithw.png">
 <link rel="shortcut icon" href="zenithw.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zenith the goat">
-<link rel="manifest" id="pwa-manifest">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -54,8 +49,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="version.js"></script>
 </head>
-<body>
-<canvas id="bg-canvas"></canvas>
+<body class="theme-default">
 <div class="page">
   <div class="services-chip-wrap">
     <div class="services-chip" id="servicesChip" onclick="toggleServices()">
@@ -268,13 +262,6 @@
   </button>
 </div>
 
-<div class="pwa-banner" id="pwaBanner">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
-  <span id="pwaTxt">Ana ekrana ekle</span>
-  <button class="pwa-btn" onclick="installPWA()" id="pwaInstall">Ekle</button>
-  <button class="pwa-dismiss" onclick="dismissPWA()">✕</button>
-</div>
-
 <div class="yt-popup" id="ytPopup">
   <span class="yt-popup-icon">📡</span>
   <div class="yt-popup-title" id="ytErrTitle">youtube videosu bulunamadı</div>
@@ -283,7 +270,6 @@
 
 <!-- DL MODAL -->
 <div class="overlay tone-neutral" id="dlOverlay" onclick="handleOverlay(event,'dlOverlay')">
-  <div class="heart-bg"></div>
   <div class="modal-sheet">
     <div class="handle"></div>
     <div class="dl-header">
@@ -316,7 +302,6 @@
 
 <!-- HISTORY MODAL -->
 <div class="overlay tone-neutral" id="historyOverlay" onclick="handleOverlay(event,'historyOverlay')">
-  <div class="heart-bg"></div>
   <div class="upd-modal" style="max-width:420px;">
     <div class="handle" style="margin:-6px auto 12px;"></div>
     <button class="modal-close-btn" onclick="closeOverlay('historyOverlay')">✕</button>
@@ -330,7 +315,6 @@
 
 <!-- PLAYLIST QUEUE MODAL -->
 <div class="overlay tone-neutral" id="plQueueOverlay" onclick="handleOverlay(event,'plQueueOverlay')">
-  <div class="heart-bg"></div>
   <div class="upd-modal" style="max-width:420px;">
     <div class="handle" style="margin:-6px auto 12px;"></div>
     <button class="modal-close-btn" onclick="closePlaylistQueue()">✕</button>
@@ -346,7 +330,6 @@
 
 <!-- SAVE MODAL -->
 <div class="overlay tone-neutral" id="saveOverlay" onclick="handleOverlay(event,'saveOverlay')">
-  <div class="heart-bg"></div>
   <div class="save-modal">
     <div class="handle"></div>
     <div class="save-title"><span>📥</span><span id="saveTitleTxt">nasıl kaydetmek istersin?</span></div>
@@ -362,14 +345,19 @@
 
 <!-- REMUX MODAL -->
 <div class="overlay tone-neutral" id="remuxOverlay" onclick="handleOverlay(event,'remuxOverlay')">
-  <div class="heart-bg"></div>
-  <div class="remux-modal">
-    <div class="handle" style="margin:10px auto 0;"></div>
-    <div class="modal-header"><div class="modal-title" id="remuxTitleTxt">remux</div><button class="dl-close" onclick="closeOverlay('remuxOverlay')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
+  <div class="remux-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="remuxTitleTxt">
+    <header class="tool-modal-header">
+      <div class="tool-modal-heading">
+        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3l4 4-4 4M3 7h18M7 21l-4-4 4-4M21 17H3"/></svg></span>
+        <div><strong id="remuxTitleTxt">remux</strong><small id="remuxModalSub">konteyneri kayıpsız onar</small></div>
+      </div>
+      <button type="button" class="tool-modal-close" onclick="closeOverlay('remuxOverlay')" aria-label="Remux penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="tool-modal-body">
       <div class="dropzone" id="remuxDrop" onclick="document.getElementById('remuxFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleRemuxDrop(event)">
-        <div class="drop-icon">📄</div><div class="drop-title" id="remuxDropTitle">dosya sürükle veya seç</div><div class="drop-sub" id="remuxDropSub">mp4, webm, mp3, ogg, opus, wav, m4a</div>
-        <input type="file" id="remuxFileInput" accept=".mp4,.webm,.mp3,.ogg,.opus,.wav,.m4a,video/*,audio/*" style="display:none" onchange="handleRemuxFile(this)"/>
+        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg></div>
+        <div class="drop-title" id="remuxDropTitle">dosya sürükle veya seç</div><div class="drop-sub" id="remuxDropSub">mp4, webm, mp3, ogg, opus, wav, m4a</div>
+        <input class="visually-hidden-input" type="file" id="remuxFileInput" accept=".mp4,.webm,.mp3,.ogg,.opus,.wav,.m4a,video/*,audio/*" onchange="handleRemuxFile(this)"/>
       </div>
       <div class="remux-info">
         <div class="remux-info-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><div id="remuxInfo1"><strong>remux ne yapar?</strong> dosya konteynerindeki sorunları düzeltir.</div></div>
@@ -381,14 +369,19 @@
 
 <!-- CONVERT MODAL -->
 <div class="overlay tone-neutral" id="convOverlay" onclick="handleOverlay(event,'convOverlay')">
-  <div class="heart-bg"></div>
-  <div class="conv-modal">
-    <div class="handle" style="margin:10px auto 0;"></div>
-    <div class="modal-header"><div class="modal-title" id="convTitleTxt">dönüştür</div><button class="dl-close" onclick="closeOverlay('convOverlay')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
+  <div class="conv-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="convTitleTxt">
+    <header class="tool-modal-header">
+      <div class="tool-modal-heading">
+        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7h11M16 4l3 3-3 3M16 17H5M8 14l-3 3 3 3"/></svg></span>
+        <div><strong id="convTitleTxt">dönüştür</strong><small id="convModalSub">dosyanı istediğin formata çevir</small></div>
+      </div>
+      <button type="button" class="tool-modal-close" onclick="closeOverlay('convOverlay')" aria-label="Dönüştürme penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="tool-modal-body">
       <div class="dropzone" id="convDrop" onclick="document.getElementById('convFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleConvDrop(event)">
-        <div class="drop-icon">🎬</div><div class="drop-title" id="convDropTitle">dosya seç veya sürükle</div><div class="drop-sub" id="convDropSub">mp4, webm, mkv, mp3, flac, wav...</div>
-        <input type="file" id="convFileInput" accept="video/*,audio/*,.mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.wav,.ogg,.opus,.m4a" style="display:none" onchange="handleConvFile(this)"/>
+        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3V9z"/></svg></div>
+        <div class="drop-title" id="convDropTitle">dosya seç veya sürükle</div><div class="drop-sub" id="convDropSub">mp4, webm, mkv, mp3, flac, wav...</div>
+        <input class="visually-hidden-input" type="file" id="convFileInput" accept="video/*,audio/*,.mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.wav,.ogg,.opus,.m4a" onchange="handleConvFile(this)"/>
       </div>
       <div class="conv-progress" id="convProgress">
         <div class="dl-prog-top">
@@ -411,37 +404,37 @@
 
 <!-- SETTINGS MODAL -->
 <div class="overlay tone-neutral" id="stOverlay" onclick="handleOverlay(event,'stOverlay')">
-  <div class="heart-bg"></div>
-  <div class="st-modal">
-    <div class="st-sidebar">
-      <div class="st-title">settings</div>
-      <button class="st-nav-btn active" data-page="video" onclick="stTab(this)">
+  <div class="st-modal" role="dialog" aria-modal="true" aria-labelledby="stModalTitle">
+    <header class="st-modal-header">
+      <div class="st-modal-heading">
+        <span class="st-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg></span>
+        <div><strong id="stModalTitle">ayarlar</strong><small id="stModalSubtitle">indirme deneyimini özelleştir</small></div>
+      </div>
+      <button type="button" class="st-modal-close" onclick="closeOverlay('stOverlay')" aria-label="Ayarları kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="st-modal-layout">
+    <nav class="st-sidebar" aria-labelledby="stModalTitle" role="tablist">
+      <button class="st-nav-btn active" data-page="video" role="tab" aria-selected="true" aria-controls="stPageVideo" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
         <span id="stNavVideo">video</span>
       </button>
-      <button class="st-nav-btn" data-page="audio" onclick="stTab(this)">
+      <button class="st-nav-btn" data-page="audio" role="tab" aria-selected="false" aria-controls="stPageAudio" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="stNavAudio">ses</span>
       </button>
-      <button class="st-nav-btn" data-page="appearance" onclick="stTab(this)">
+      <button class="st-nav-btn" data-page="appearance" role="tab" aria-selected="false" aria-controls="stPageAppearance" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
         <span id="stNavAppearance">görünüm</span>
       </button>
-      <button class="st-nav-btn" data-page="meta" onclick="stTab(this)">
+      <button class="st-nav-btn" data-page="meta" role="tab" aria-selected="false" aria-controls="stPageMeta" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span id="stNavMeta">metadata</span>
       </button>
-      <button class="st-nav-btn" data-page="filename" onclick="stTab(this)">
+      <button class="st-nav-btn" data-page="filename" role="tab" aria-selected="false" aria-controls="stPageFilename" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span id="stNavFilename">dosya adı</span>
       </button>
-      <div class="st-close-wrap">
-        <button class="st-nav-btn" onclick="closeOverlay('stOverlay')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
-          <span id="stNavClose">kapat</span>
-        </button>
-      </div>
-    </div>
+    </nav>
     <div class="st-content">
       <!-- VIDEO -->
       <div class="st-page active" id="stPageVideo">
@@ -519,24 +512,48 @@
         </div>
         <div class="st-section">
           <div class="st-section-label" id="stLblLang">dil</div>
-          <select class="lang-select" id="langSelect" onchange="setLang(this.value)">
-            <option value="tr">türkçe</option>
-            <option value="en">english</option>
-            <option value="fr">français</option>
-            <option value="de">deutsch</option>
-          </select>
+          <div class="lang-select-wrap">
+            <svg class="lang-select-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>
+            <select class="lang-select" id="langSelect" onchange="setLang(this.value)" aria-labelledby="stLblLang">
+              <option value="tr">Türkçe</option>
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+            </select>
+            <svg class="lang-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
+          </div>
           <div class="st-note" id="stNoteLang">arayüz dili. tarayıcıdan otomatik algılanır.</div>
         </div>
         <div class="st-section">
           <div class="st-section-label" id="stLblAccent">renk teması</div>
-          <div class="st-chips" id="stAccentChips">
-            <div class="chip active" data-v="default" onclick="setAccent('default')" id="accDefault">klasik</div>
-            <div class="chip" data-v="purple" onclick="setAccent('purple')" id="accPurple" style="border-color: rgba(188,52,250,0.4);">neon mor</div>
-            <div class="chip" data-v="gray" onclick="setAccent('gray')" id="accGray" style="border-color: rgba(160,160,160,0.4);">gri</div>
-            <div class="chip" data-v="pink" onclick="setAccent('pink')" id="accPink" style="border-color: rgba(255,74,151,0.4);">pembe</div>
-            <div class="chip" data-v="cobalt" onclick="setAccent('cobalt')" id="accCobalt" style="border-color: rgba(0,86,255,0.4);">cobalt</div>
+          <div class="accent-grid" id="stAccentChips" role="group" aria-labelledby="stLblAccent">
+            <button type="button" class="accent-option active" data-v="default" onclick="setAccent('default')" aria-pressed="true">
+              <span class="accent-swatch swatch-default" aria-hidden="true"><i></i></span>
+              <span class="accent-option-copy"><strong id="accDefault">klasik</strong><small id="accDefaultDesc">buz mavisi · dengeli</small></span>
+              <span class="accent-check" aria-hidden="true">✓</span>
+            </button>
+            <button type="button" class="accent-option" data-v="purple" onclick="setAccent('purple')" aria-pressed="false">
+              <span class="accent-swatch swatch-purple" aria-hidden="true"><i></i></span>
+              <span class="accent-option-copy"><strong id="accPurple">neon mor</strong><small id="accPurpleDesc">elektrik moru · derin uzay</small></span>
+              <span class="accent-check" aria-hidden="true">✓</span>
+            </button>
+            <button type="button" class="accent-option" data-v="gray" onclick="setAccent('gray')" aria-pressed="false">
+              <span class="accent-swatch swatch-gray" aria-hidden="true"><i></i></span>
+              <span class="accent-option-copy"><strong id="accGray">grafit</strong><small id="accGrayDesc">nötr gri · sade</small></span>
+              <span class="accent-check" aria-hidden="true">✓</span>
+            </button>
+            <button type="button" class="accent-option" data-v="pink" onclick="setAccent('pink')" aria-pressed="false">
+              <span class="accent-swatch swatch-pink" aria-hidden="true"><i></i></span>
+              <span class="accent-option-copy"><strong id="accPink">neon pembe</strong><small id="accPinkDesc">canlı pembe · sıcak</small></span>
+              <span class="accent-check" aria-hidden="true">✓</span>
+            </button>
+            <button type="button" class="accent-option" data-v="cobalt" onclick="setAccent('cobalt')" aria-pressed="false">
+              <span class="accent-swatch swatch-cobalt" aria-hidden="true"><i></i></span>
+              <span class="accent-option-copy"><strong id="accCobalt">cobalt mavisi</strong><small id="accCobaltDesc">derin mavi · odaklı</small></span>
+              <span class="accent-check" aria-hidden="true">✓</span>
+            </button>
           </div>
-          <div class="st-note" id="stNoteAccent">arayüzün vurgu renklerini değiştirebilirsiniz.</div>
+          <div class="st-note" id="stNoteAccent">tema; arka planı, panelleri, parlamaları ve etkileşim renklerini birlikte değiştirir.</div>
         </div>
       </div>
       <!-- META -->
@@ -545,15 +562,15 @@
           <div class="st-section-label" id="stLblMeta">dosya metadatası</div>
           <div class="st-toggle-row">
             <div class="st-tl"><div class="st-tl-name" id="stMetaName">metadata göm</div><div class="st-tl-desc" id="stMetaDesc">dosyaya başlık, sanatçı ve platform bilgisi gömülür.</div></div>
-            <div class="toggle on" id="togMetadata" onclick="stToggle('metadata')"></div>
+            <button type="button" class="toggle on" id="togMetadata" role="switch" aria-checked="true" onclick="stToggle('metadata')" aria-label="Metadata göm"></button>
           </div>
           <div class="st-toggle-row">
             <div class="st-tl"><div class="st-tl-name" id="stSbName">SponsorBlock</div><div class="st-tl-desc" id="stSbDesc">sponsor/reklam bölümlerini videodan otomatik keser (YouTube).</div></div>
-            <div class="toggle" id="togSponsorblock" onclick="stToggle('sponsorblock')"></div>
+            <button type="button" class="toggle" id="togSponsorblock" role="switch" aria-checked="false" onclick="stToggle('sponsorblock')" aria-label="SponsorBlock"></button>
           </div>
           <div class="st-toggle-row">
             <div class="st-tl"><div class="st-tl-name" id="stSubName">altyazı göm</div><div class="st-tl-desc" id="stSubDesc">mevcutsa altyazıyı videoya gömer (varsayılan dil: tr, yoksa en).</div></div>
-            <div class="toggle" id="togSubtitles" onclick="stToggle('subtitles')"></div>
+            <button type="button" class="toggle" id="togSubtitles" role="switch" aria-checked="false" onclick="stToggle('subtitles')" aria-label="Altyazı göm"></button>
           </div>
         </div>
       </div>
@@ -574,14 +591,15 @@
         </div>
         <div class="st-section">
           <div class="st-section-label" id="stLblFnfEx">örnek formatlar</div>
-          <div class="fnf-tags" style="flex-direction:column;gap:6px;">
-            <span class="fnf-tag" style="cursor:pointer" onclick="setFnfTemplate('{title}.{ext}')">{title}.{ext}</span>
-            <span class="fnf-tag" style="cursor:pointer" onclick="setFnfTemplate('{artist} - {title}.{ext}')">{artist} - {title}.{ext}</span>
-            <span class="fnf-tag" style="cursor:pointer" onclick="setFnfTemplate('{date} - {title}.{ext}')">{date} - {title}.{ext}</span>
-            <span class="fnf-tag" style="cursor:pointer" onclick="setFnfTemplate('[{platform}] {title}.{ext}')">[{platform}] {title}.{ext}</span>
+          <div class="fnf-tags fnf-presets">
+            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{title}.{ext}')">{title}.{ext}</button>
+            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{artist} - {title}.{ext}')">{artist} - {title}.{ext}</button>
+            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{date} - {title}.{ext}')">{date} - {title}.{ext}</button>
+            <button type="button" class="fnf-tag" onclick="setFnfTemplate('[{platform}] {title}.{ext}')">[{platform}] {title}.{ext}</button>
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -589,32 +607,36 @@
 
 <!-- DONATE -->
 <div class="overlay tone-warm" id="donOverlay" onclick="handleOverlay(event,'donOverlay')">
-  <div class="heart-bg"></div>
-  <div class="don-modal">
-    <div class="handle" style="margin:-6px auto 12px;"></div>
-    <button class="modal-close-btn" onclick="closeOverlay('donOverlay')">✕</button>
-    <div class="don-title" id="donTitle">destek ol</div>
-    <div class="don-sub" id="donSub">zenithw'yi seviyorsan küçük bir destek sunucuların devam etmesine yardımcı olur.</div>
-    <div class="don-card">
+  <div class="don-modal tool-modal support-modal" role="dialog" aria-modal="true" aria-labelledby="donTitle">
+    <header class="tool-modal-header">
+      <div class="tool-modal-heading">
+        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 00-.1-7.8z"/></svg></span>
+        <div><strong id="donTitle">destek ol</strong><small id="donSub">küçük bir katkı ZenithW'nin devamına yardımcı olur</small></div>
+      </div>
+      <button type="button" class="tool-modal-close" onclick="closeOverlay('donOverlay')" aria-label="Destek penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="tool-modal-body">
+    <section class="don-card" aria-label="Papara">
       <div class="don-card-row">
-        <div class="don-card-icon" style="background:linear-gradient(135deg,#6c3ce1,#a855f7);"><span style="color:white;font-weight:800;font-size:13px;">P</span></div>
+        <div class="don-card-icon don-papara-icon" aria-hidden="true">P</div>
         <div><div class="don-card-name">papara</div><div class="don-card-sub" id="donPaparaSub">türkiye — anlık transfer</div></div>
       </div>
       <div class="don-copy-row"><span class="don-num">1479763319</span><button class="don-copy-btn" onclick="copyText('1479763319',this)" id="donCopyBtn">kopyala</button></div>
-    </div>
-    <div class="don-ig">
-      <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#e6683c,#cc2366);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div>
-      <div style="flex:1;"><div class="don-ig-name">instagram</div><div class="don-ig-handle">@boranseason</div></div>
-      <a href="https://www.instagram.com/boranseason" target="_blank" class="don-ig-link" id="donFollowBtn">takip et</a>
-    </div>
-    <div class="don-contact">
-      <div class="don-contact-icon">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+    </section>
+    <div class="support-link-list">
+      <div class="don-ig support-link-row">
+        <div class="don-card-icon don-instagram-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></div>
+        <div class="support-link-copy"><div class="don-ig-name">instagram</div><div class="don-ig-handle">@boranseason</div></div>
+        <a href="https://www.instagram.com/boranseason" target="_blank" rel="noopener noreferrer" class="don-ig-link" id="donFollowBtn">takip et</a>
       </div>
-      <div style="flex:1;"><div class="don-contact-name" id="donContactName">iletişim</div><div class="don-contact-email">info@zenithw.space</div></div>
-      <a href="mailto:info@zenithw.space" class="don-contact-link" id="donContactBtn">e-posta gönder</a>
+      <div class="don-contact support-link-row">
+        <div class="don-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="3"/></svg></div>
+        <div class="support-link-copy"><div class="don-contact-name" id="donContactName">iletişim</div><div class="don-contact-email">info@zenithw.space</div></div>
+        <a href="mailto:info@zenithw.space" class="don-contact-link" id="donContactBtn">e-posta gönder</a>
+      </div>
     </div>
     <div class="don-thanks" id="donThanks">her destek için teşekkür ederiz 🙏</div>
+    </div>
   </div>
 </div>
 
@@ -693,10 +715,10 @@ const TX={
     placeholder:'bir video linki yapıştır…',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'sessiz',paste:'yapıştır',
     vcDl:'indir',dlBtn:'indir',dlCancel:'iptal',
     bbSave:'kaydet',bbHistory:'geçmiş',bbRemux:'remux',bbConvert:'dönüştür',bbSettings:'ayarlar',bbUpdates:'güncel',bbAbout:'hakkında',bbMore:'diğer',bbDonate:'destek ol',
-    accDefault:'klasik',accPurple:'neon mor',accGray:'gri',accPink:'pembe',
+    accDefault:'klasik',accDefaultDesc:'buz mavisi · dengeli',accPurple:'neon mor',accPurpleDesc:'elektrik moru · derin uzay',accGray:'grafit',accGrayDesc:'nötr gri · sade',accPink:'neon pembe',accPinkDesc:'canlı pembe · sıcak',accCobalt:'cobalt mavisi',accCobaltDesc:'derin mavi · odaklı',
     saveTitleTxt:'nasıl kaydetmek istersin?',saveDlTxt:'indir',saveShareTxt:'paylaş',saveCopyTxt:'kopyala',
     saveNoteTxt:'tarayıcı pop-up\'ları engelliyorsa "indir" butonunu kullanın.',saveDoneTxt:'tamam',
-    stNavVideo:'video',stNavAudio:'ses',stNavAppearance:'görünüm',stNavMeta:'metadata',stNavFilename:'dosya adı',stNavClose:'kapat',
+    stModalTitle:'ayarlar',stModalSubtitle:'indirme deneyimini özelleştir',stNavVideo:'video',stNavAudio:'ses',stNavAppearance:'görünüm',stNavMeta:'metadata',stNavFilename:'dosya adı',stNavClose:'kapat',
     stLblQuality:'video kalitesi',stNoteQuality:'tercih edilen kalite seçilir; bulunamazsa en yakın kullanılır.',
     stLblCodec:'youtube codec',stNoteCodec:'h264: max uyumluluk · av1: en iyi kalite, 8k & hdr · vp9: av1 kalitesi',
     stLblVFmt:'video formatı',stLblAFmt:'ses formatı',stNoteAFmt:'flac, wav: kayıpsız · mp3, ogg, opus, m4a: kayıplı',
@@ -704,7 +726,7 @@ const TX={
     stLblTheme:'tema',themeAuto:'otomatik',themeLight:'açık',themeDark:'koyu',
     stNoteTheme:'otomatik tema cihaz ekran modunu takip eder.',
     stLblLang:'dil',stNoteLang:'arayüz dili. tarayıcıdan otomatik algılanır.',
-    stLblAccent:'renk teması',stNoteAccent:'arayüzün vurgu renklerini değiştirebilirsiniz.',
+    stLblAccent:'renk teması',stNoteAccent:'tema; arka planı, panelleri, parlamaları ve etkileşim renklerini birlikte değiştirir.',
     stLblMeta:'dosya metadatası',stMetaName:'metadata göm',stMetaDesc:'dosyaya başlık, sanatçı ve platform bilgisi gömülür.',
     stSbName:'SponsorBlock',stSbDesc:'sponsor/reklam bölümlerini videodan otomatik keser (YouTube).',
     stSubName:'altyazı göm',stSubDesc:'mevcutsa altyazıyı videoya gömer (varsayılan dil: tr, yoksa en).',
@@ -712,9 +734,9 @@ const TX={
     stLblFnfEx:'örnek formatlar',
     connecting:'bağlanıyor...',downloading:'indiriliyor...',merging:'birleştiriliyor...',queued:'sırada bekleniyor...',done:'tamamlandı!',
     found:'video bulundu ✓',downloaded:'indirildi ✓',cancelled:'iptal edildi',error:'hata',
-    convTitleTxt:'dönüştür',convDropTitle:'dosya seç veya sürükle',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
-    convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',
-    remuxTitleTxt:'remux',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a',
+    convTitleTxt:'dönüştür',convModalSub:'dosyanı istediğin formata çevir',convDropTitle:'dosya seç veya sürükle',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',convBtnReady:'{fmt} olarak dönüştür',
+    remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'güncellemeler',
     servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',
     servicesNoteTxt:'bir platformu desteklemek, teknik uyumluluk dışında ilişki anlamına gelmez. tüm sorumluluk kullanıcıdadır.',
@@ -725,7 +747,7 @@ const TX={
     remuxDone:'remux tamamlandı',convDone:'dönüştürüldü ✓',
     uploading:'gönderiliyor...',converting:'dönüştürülüyor...',convDoneLabel:'tamamlandı!',
     historyTitle:'indirme geçmişi',clearHistoryTxt:'geçmişi temizle',historyEmpty:'geçmiş boş',historyLoading:'yükleniyor...',
-    donTitle:'destek ol',donSub:'zenithw\'yi seviyorsan küçük bir destek sunucuların devam etmesine yardımcı olur.',
+    donTitle:'destek ol',donSub:'küçük bir katkı ZenithW\'nin devamına yardımcı olur.',
     donPaparaSub:'türkiye — anlık transfer',donCopyBtn:'kopyala',donFollowBtn:'takip et',donThanks:'her destek için teşekkür ederiz 🙏',
     donContactName:'iletişim',donContactBtn:'e-posta gönder',
     aboutWhatTitle: 'ZenithW nedir?',
@@ -737,7 +759,6 @@ const TX={
     queueResumeTpl:'yarım kalan bir indirme kuyruğun var ({done}/{total} tamamlandı) — devam etmek ister misin?',
     aboutDevLabel:'geliştirici',aboutContactLabel:'iletişim',aboutStackLabel:'teknoloji',aboutHostLabel:'hosting',aboutLicLabel:'lisans',
     aboutPrivacyLink:'gizlilik',aboutTermsLink:'kullanım koşulları',aboutDmcaLink:'telif bildirimi',aboutStatusLink:'durum',
-    pwaTxt:'Ana ekrana ekle',pwaInstall:'Ekle',
     qrTitle:'TELEFONA AKTAR',qrHint:'QR kodu telefonunuzla tarayın',
     remuxInfo1:'<strong>remux ne yapar?</strong> dosya konteynerindeki sorunları düzeltir.',
     remuxInfo2:'<strong>kayıpsız:</strong> codec verisini yeni konteynere kopyalar.',
@@ -754,10 +775,10 @@ const TX={
     placeholder:'paste link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'mute',paste:'paste',
     vcDl:'download',dlBtn:'download',dlCancel:'cancel',
     bbSave:'save',bbHistory:'history',bbRemux:'remux',bbConvert:'convert',bbSettings:'settings',bbUpdates:'updates',bbAbout:'about',bbMore:'more',bbDonate:'support us',
-    accDefault:'classic',accPurple:'neon purple',accGray:'gray',accPink:'pink',
+    accDefault:'classic',accDefaultDesc:'ice blue · balanced',accPurple:'neon purple',accPurpleDesc:'electric violet · deep space',accGray:'graphite',accGrayDesc:'neutral gray · minimal',accPink:'neon pink',accPinkDesc:'vivid pink · warm',accCobalt:'cobalt blue',accCobaltDesc:'deep blue · focused',
     saveTitleTxt:'choose how to save',saveDlTxt:'download',saveShareTxt:'share',saveCopyTxt:'copy',
     saveNoteTxt:'if your browser blocked the popup, use the download button.',saveDoneTxt:'done',
-    stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'appearance',stNavMeta:'metadata',stNavFilename:'filename',stNavClose:'close',
+    stModalTitle:'settings',stModalSubtitle:'customize your download experience',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'appearance',stNavMeta:'metadata',stNavFilename:'filename',stNavClose:'close',
     stLblQuality:'video quality',stNoteQuality:'preferred quality is selected; closest available used if not found.',
     stLblCodec:'youtube codec',stNoteCodec:'h264: max compatibility · av1: best quality, 8k & hdr · vp9: av1 quality',
     stLblVFmt:'video format',stLblAFmt:'audio format',stNoteAFmt:'flac, wav: lossless · mp3, ogg, opus, m4a: lossy',
@@ -765,7 +786,7 @@ const TX={
     stLblTheme:'theme',themeAuto:'auto',themeLight:'light',themeDark:'dark',
     stNoteTheme:'auto theme follows your device display mode.',
     stLblLang:'language',stNoteLang:'interface language. auto-detected from browser.',
-    stLblAccent:'color accent',stNoteAccent:'change the interface accent colors.',
+    stLblAccent:'color theme',stNoteAccent:'the theme changes the background, panels, glow, and interaction colors together.',
     stLblMeta:'file metadata',stMetaName:'embed metadata',stMetaDesc:'title, artist, and platform info is embedded into the file.',
     stSbName:'SponsorBlock',stSbDesc:'automatically cuts sponsor/ad segments from the video (YouTube).',
     stSubName:'embed subtitles',stSubDesc:'embeds subtitles into the video if available (tries Turkish first, falls back to English).',
@@ -773,9 +794,9 @@ const TX={
     stLblFnfEx:'example formats',
     connecting:'connecting...',downloading:'downloading...',merging:'merging...',queued:'waiting in queue...',done:'done!',
     found:'video found ✓',downloaded:'downloaded ✓',cancelled:'cancelled',error:'error',
-    convTitleTxt:'convert',convDropTitle:'select or drag file',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
-    convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',
-    remuxTitleTxt:'remux',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a',
+    convTitleTxt:'convert',convModalSub:'convert a file to another format',convDropTitle:'select or drag file',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',convBtnReady:'convert to {fmt}',
+    remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'updates',
     servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',
     servicesNoteTxt:'supporting a service does not imply affiliation beyond technical compatibility.',
@@ -786,7 +807,7 @@ const TX={
     remuxDone:'remux done',convDone:'converted ✓',
     uploading:'uploading...',converting:'converting...',convDoneLabel:'done!',
     historyTitle:'download history',clearHistoryTxt:'clear history',historyEmpty:'history empty',historyLoading:'loading...',
-    donTitle:'support us',donSub:'if you enjoy zenithw, a small contribution helps keep servers running.',
+    donTitle:'support us',donSub:'a small contribution helps keep ZenithW running.',
     donPaparaSub:'turkey — instant transfer',donCopyBtn:'copy',donFollowBtn:'follow',donThanks:'thank you for every bit of support 🙏',
     donContactName:'contact',donContactBtn:'send email',
     aboutWhatTitle: 'What is ZenithW & yt-dlp?',
@@ -800,7 +821,6 @@ const TX={
     aboutHowText: 'Paste the link → ZenithW analyzes the video and shows you the available quality and format options → pick one and download it. Video, audio (mp3/m4a), mute mode, and bulk/playlist downloads are all supported, plus the built-in convert and remux tools for files you already have. The whole process finishes in seconds, without ever leaving the tab.',
     aboutDevLabel:'developer',aboutContactLabel:'contact',aboutStackLabel:'stack',aboutHostLabel:'hosting',aboutLicLabel:'license',
     aboutPrivacyLink:'privacy',aboutTermsLink:'terms of service',aboutDmcaLink:'copyright notice',aboutStatusLink:'status',
-    pwaTxt:'Add to Home Screen',pwaInstall:'Add',
     qrTitle:'SEND TO PHONE',qrHint:'Scan QR code with your phone',
     remuxInfo1:'<strong>what does remux do?</strong> fixes issues in the file container.',
     remuxInfo2:'<strong>lossless:</strong> copies the codec data into a new container without re-encoding.',
@@ -817,10 +837,10 @@ const TX={
     placeholder:'collez un lien vidéo…',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'muet',paste:'coller',
     vcDl:'télécharger',dlBtn:'télécharger',dlCancel:'annuler',
     bbSave:'enregistrer',bbHistory:'historique',bbRemux:'remux',bbConvert:'convertir',bbSettings:'paramètres',bbUpdates:'nouveautés',bbAbout:'à propos',bbMore:'plus',bbDonate:'soutenir',
-    accDefault:'classique',accPurple:'violet néon',accGray:'gris',accPink:'rose',
+    accDefault:'classique',accDefaultDesc:'bleu glacier · équilibré',accPurple:'violet néon',accPurpleDesc:'violet électrique · espace',accGray:'graphite',accGrayDesc:'gris neutre · minimal',accPink:'rose néon',accPinkDesc:'rose vif · chaleureux',accCobalt:'bleu cobalt',accCobaltDesc:'bleu profond · précis',
     saveTitleTxt:'comment voulez-vous enregistrer ?',saveDlTxt:'télécharger',saveShareTxt:'partager',saveCopyTxt:'copier',
     saveNoteTxt:'si votre navigateur bloque la fenêtre pop-up, utilisez le bouton "télécharger".',saveDoneTxt:'terminé',
-    stNavVideo:'vidéo',stNavAudio:'audio',stNavAppearance:'apparence',stNavMeta:'métadonnées',stNavFilename:'nom de fichier',stNavClose:'fermer',
+    stModalTitle:'paramètres',stModalSubtitle:'personnalisez votre expérience',stNavVideo:'vidéo',stNavAudio:'audio',stNavAppearance:'apparence',stNavMeta:'métadonnées',stNavFilename:'nom de fichier',stNavClose:'fermer',
     stLblQuality:'qualité vidéo',stNoteQuality:'la qualité préférée est sélectionnée ; la plus proche disponible est utilisée si introuvable.',
     stLblCodec:'codec youtube',stNoteCodec:'h264 : compatibilité maximale · av1 : meilleure qualité, 8k & hdr · vp9 : qualité proche de av1',
     stLblVFmt:'format vidéo',stLblAFmt:'format audio',stNoteAFmt:'flac, wav : sans perte · mp3, ogg, opus, m4a : avec perte',
@@ -828,7 +848,7 @@ const TX={
     stLblTheme:'thème',themeAuto:'auto',themeLight:'clair',themeDark:'sombre',
     stNoteTheme:'le thème auto suit le mode d\'affichage de votre appareil.',
     stLblLang:'langue',stNoteLang:'langue de l\'interface. détectée automatiquement depuis le navigateur.',
-    stLblAccent:'couleur d\'accent',stNoteAccent:'changez les couleurs d\'accent de l\'interface.',
+    stLblAccent:'thème de couleur',stNoteAccent:'le thème modifie ensemble le fond, les panneaux, les lueurs et les interactions.',
     stLblMeta:'métadonnées du fichier',stMetaName:'intégrer les métadonnées',stMetaDesc:'le titre, l\'artiste et la plateforme sont intégrés au fichier.',
     stSbName:'SponsorBlock',stSbDesc:'coupe automatiquement les segments sponsorisés/publicitaires de la vidéo (YouTube).',
     stSubName:'intégrer les sous-titres',stSubDesc:'intègre les sous-titres à la vidéo si disponibles (essaie le turc en premier, puis l\'anglais).',
@@ -836,9 +856,9 @@ const TX={
     stLblFnfEx:'exemples de formats',
     connecting:'connexion...',downloading:'téléchargement...',merging:'fusion...',done:'terminé !',
     found:'vidéo trouvée ✓',downloaded:'téléchargé ✓',cancelled:'annulé',error:'erreur',
-    convTitleTxt:'convertir',convDropTitle:'choisir ou glisser un fichier',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
-    convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',
-    remuxTitleTxt:'remux',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a',
+    convTitleTxt:'convertir',convModalSub:'convertissez un fichier au format souhaité',convDropTitle:'choisir ou glisser un fichier',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',convBtnReady:'convertir en {fmt}',
+    remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'nouveautés',
     servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',
     servicesNoteTxt:'la prise en charge d\'une plateforme n\'implique aucune affiliation au-delà de la compatibilité technique.',
@@ -849,7 +869,7 @@ const TX={
     remuxDone:'remux terminé',convDone:'converti ✓',
     uploading:'envoi...',converting:'conversion...',convDoneLabel:'terminé !',
     historyTitle:'historique des téléchargements',clearHistoryTxt:'effacer l\'historique',historyEmpty:'historique vide',historyLoading:'chargement...',
-    donTitle:'soutenir zenithw',donSub:'si vous aimez zenithw, une petite contribution aide à maintenir les serveurs en ligne.',
+    donTitle:'soutenir zenithw',donSub:'une petite contribution aide ZenithW à continuer.',
     donPaparaSub:'turquie — virement instantané',donCopyBtn:'copier',donFollowBtn:'suivre',donThanks:'merci pour chaque soutien 🙏',
     donContactName:'contact',donContactBtn:'envoyer un e-mail',
     aboutWhatTitle: 'qu\'est-ce que zenithw ?',
@@ -863,7 +883,6 @@ const TX={
     aboutHowText: 'Vous collez le lien → ZenithW analyse la vidéo et affiche les options de qualité et de format disponibles → vous choisissez et téléchargez. Vidéo, audio (mp3/m4a), mode muet et téléchargement groupé (playlist) sont pris en charge ; vous pouvez aussi convertir ou remuxer vos propres fichiers avec les outils intégrés. Tout le processus se termine en quelques secondes, sans jamais quitter l\'onglet.',
     aboutDevLabel:'développeur',aboutContactLabel:'contact',aboutStackLabel:'technologies',aboutHostLabel:'hébergement',aboutLicLabel:'licence',
     aboutPrivacyLink:'confidentialité',aboutTermsLink:'conditions d\'utilisation',aboutDmcaLink:'avis de droit d\'auteur',aboutStatusLink:'statut',
-    pwaTxt:'ajouter à l\'écran d\'accueil',pwaInstall:'ajouter',
     qrTitle:'ENVOYER SUR TÉLÉPHONE',qrHint:'scannez le code qr avec votre téléphone',
     remuxInfo1:'<strong>que fait le remux ?</strong> corrige les problèmes du conteneur du fichier.',
     remuxInfo2:'<strong>sans perte :</strong> copie les données du codec dans un nouveau conteneur sans réencodage.',
@@ -880,10 +899,10 @@ const TX={
     placeholder:'video-link hier einfügen…',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'stumm',paste:'einfügen',
     vcDl:'herunterladen',dlBtn:'herunterladen',dlCancel:'abbrechen',
     bbSave:'speichern',bbHistory:'verlauf',bbRemux:'remux',bbConvert:'konvertieren',bbSettings:'einstellungen',bbUpdates:'neuigkeiten',bbAbout:'über',bbMore:'mehr',bbDonate:'unterstützen',
-    accDefault:'klassisch',accPurple:'neon-lila',accGray:'grau',accPink:'pink',
+    accDefault:'klassisch',accDefaultDesc:'eisblau · ausgewogen',accPurple:'neon-lila',accPurpleDesc:'elektrisches lila · weltraum',accGray:'graphit',accGrayDesc:'neutrales grau · minimal',accPink:'neon-pink',accPinkDesc:'lebendiges pink · warm',accCobalt:'kobaltblau',accCobaltDesc:'tiefblau · fokussiert',
     saveTitleTxt:'wie möchtest du speichern?',saveDlTxt:'herunterladen',saveShareTxt:'teilen',saveCopyTxt:'kopieren',
     saveNoteTxt:'wenn dein browser das pop-up blockiert, nutze den "herunterladen"-button.',saveDoneTxt:'fertig',
-    stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'erscheinungsbild',stNavMeta:'metadaten',stNavFilename:'dateiname',stNavClose:'schließen',
+    stModalTitle:'einstellungen',stModalSubtitle:'download-erlebnis anpassen',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'erscheinungsbild',stNavMeta:'metadaten',stNavFilename:'dateiname',stNavClose:'schließen',
     stLblQuality:'videoqualität',stNoteQuality:'die bevorzugte qualität wird gewählt; falls nicht verfügbar, wird die nächstliegende genutzt.',
     stLblCodec:'youtube-codec',stNoteCodec:'h264: maximale kompatibilität · av1: beste qualität, 8k & hdr · vp9: qualität nahe an av1',
     stLblVFmt:'videoformat',stLblAFmt:'audioformat',stNoteAFmt:'flac, wav: verlustfrei · mp3, ogg, opus, m4a: verlustbehaftet',
@@ -891,7 +910,7 @@ const TX={
     stLblTheme:'design',themeAuto:'auto',themeLight:'hell',themeDark:'dunkel',
     stNoteTheme:'das auto-design folgt dem anzeigemodus deines geräts.',
     stLblLang:'sprache',stNoteLang:'sprache der oberfläche. wird automatisch vom browser erkannt.',
-    stLblAccent:'akzentfarbe',stNoteAccent:'ändere die akzentfarben der oberfläche.',
+    stLblAccent:'farbthema',stNoteAccent:'das thema ändert hintergrund, flächen, leuchten und interaktionsfarben gemeinsam.',
     stLblMeta:'datei-metadaten',stMetaName:'metadaten einbetten',stMetaDesc:'titel, künstler und plattform werden in die datei eingebettet.',
     stSbName:'SponsorBlock',stSbDesc:'schneidet sponsor-/werbeabschnitte automatisch aus dem video (YouTube).',
     stSubName:'untertitel einbetten',stSubDesc:'bettet Untertitel ins Video ein, falls verfügbar (zuerst Türkisch, sonst Englisch).',
@@ -899,9 +918,9 @@ const TX={
     stLblFnfEx:'beispielformate',
     connecting:'verbinde...',downloading:'lädt herunter...',merging:'wird zusammengeführt...',done:'fertig!',
     found:'video gefunden ✓',downloaded:'heruntergeladen ✓',cancelled:'abgebrochen',error:'fehler',
-    convTitleTxt:'konvertieren',convDropTitle:'datei auswählen oder ablegen',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
-    convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',
-    remuxTitleTxt:'remux',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a',
+    convTitleTxt:'konvertieren',convModalSub:'datei in das gewünschte format umwandeln',convDropTitle:'datei auswählen oder ablegen',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',convBtnReady:'in {fmt} konvertieren',
+    remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'neuigkeiten',
     servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',
     servicesNoteTxt:'die unterstützung einer plattform bedeutet keine zusammenarbeit über die technische kompatibilität hinaus.',
@@ -912,7 +931,7 @@ const TX={
     remuxDone:'remux abgeschlossen',convDone:'konvertiert ✓',
     uploading:'wird hochgeladen...',converting:'wird konvertiert...',convDoneLabel:'fertig!',
     historyTitle:'downloadverlauf',clearHistoryTxt:'verlauf löschen',historyEmpty:'verlauf leer',historyLoading:'wird geladen...',
-    donTitle:'zenithw unterstützen',donSub:'wenn dir zenithw gefällt, hilft ein kleiner beitrag, die server am laufen zu halten.',
+    donTitle:'zenithw unterstützen',donSub:'ein kleiner beitrag hilft ZenithW weiterzulaufen.',
     donPaparaSub:'türkei — sofortüberweisung',donCopyBtn:'kopieren',donFollowBtn:'folgen',donThanks:'danke für jede unterstützung 🙏',
     donContactName:'kontakt',donContactBtn:'e-mail senden',
     aboutWhatTitle: 'was ist zenithw?',
@@ -926,7 +945,6 @@ const TX={
     aboutHowText: 'Du fügst den Link ein → ZenithW analysiert das Video und zeigt dir die verfügbaren Qualitäts- und Formatoptionen → du wählst aus und lädst herunter. Video, Audio (mp3/m4a), Stumm-Modus und Massen-/Playlist-Downloads werden unterstützt; außerdem kannst du mit den integrierten Convert- und Remux-Tools bereits vorhandene Dateien bearbeiten. Der gesamte Vorgang dauert nur wenige Sekunden, ohne den Tab je zu verlassen.',
     aboutDevLabel:'entwickler',aboutContactLabel:'kontakt',aboutStackLabel:'technologie',aboutHostLabel:'hosting',aboutLicLabel:'lizenz',
     aboutPrivacyLink:'datenschutz',aboutTermsLink:'nutzungsbedingungen',aboutDmcaLink:'urheberrechtshinweis',aboutStatusLink:'status',
-    pwaTxt:'zum Startbildschirm hinzufügen',pwaInstall:'hinzufügen',
     qrTitle:'AUFS TELEFON SENDEN',qrHint:'qr-code mit deinem telefon scannen',
     remuxInfo1:'<strong>was macht remux?</strong> behebt probleme im dateicontainer.',
     remuxInfo2:'<strong>verlustfrei:</strong> kopiert die codec-daten in einen neuen container, ohne neu zu kodieren.',
@@ -990,16 +1008,21 @@ function applyStUI(){
   document.querySelectorAll('#stVFmtChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===S.vfmt));
   document.querySelectorAll('#stAFmtChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===S.afmt));
   document.querySelectorAll('#stAQChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===S.audioQ));
-  document.querySelectorAll('#stAccentChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===(S.accent||'default')));
-  const tm=document.getElementById('togMetadata');if(tm)tm.classList.toggle('on',!!S.metadata);
-  const tsb=document.getElementById('togSponsorblock');if(tsb)tsb.classList.toggle('on',!!S.sponsorblock);
-  const tsu=document.getElementById('togSubtitles');if(tsu)tsu.classList.toggle('on',!!S.subtitles);
+  document.querySelectorAll('#stAccentChips .accent-option').forEach(option=>{
+    const selected=option.dataset.v===(S.accent||'default');
+    option.classList.toggle('active',selected);
+    option.setAttribute('aria-pressed',String(selected));
+  });
+  const tm=document.getElementById('togMetadata');if(tm){tm.classList.toggle('on',!!S.metadata);tm.setAttribute('aria-checked',String(!!S.metadata));}
+  const tsb=document.getElementById('togSponsorblock');if(tsb){tsb.classList.toggle('on',!!S.sponsorblock);tsb.setAttribute('aria-checked',String(!!S.sponsorblock));}
+  const tsu=document.getElementById('togSubtitles');if(tsu){tsu.classList.toggle('on',!!S.subtitles);tsu.setAttribute('aria-checked',String(!!S.subtitles));}
   ['Auto','Light','Dark'].forEach(n=>{const b=document.getElementById('theme'+n);if(b)b.classList.toggle('active',S.theme===n.toLowerCase());});
   const fi=document.getElementById('fnfInput');if(fi){fi.value=S.fnfTemplate||'{title}.{ext}';updateFnfPreview();}
 }
 
 // ── THEME ─────────────────────────────────────────────
 function setTheme(th){
+  if(!['auto','light','dark'].includes(th))th='dark';
   S.theme=th;saveSt();
   ['Auto','Light','Dark'].forEach(n=>{const b=document.getElementById('theme'+n);if(b)b.classList.toggle('active',th===n.toLowerCase());});
   let isLight;
@@ -1010,12 +1033,28 @@ function setTheme(th){
   // html'in arkaplani gorunur oluyor, body.light'taki --bg'yi
   // miras alamadigi icin ayrica isaretliyoruz.
   document.documentElement.classList.toggle('light',isLight);
+  syncBrowserThemeColor(isLight);
 }
 function setAccent(acc){
+  const themes=['default','purple','gray','pink','cobalt'];
+  if(!themes.includes(acc))acc='default';
   S.accent=acc;saveSt();
-  document.querySelectorAll('#stAccentChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===acc));
+  document.querySelectorAll('#stAccentChips .accent-option').forEach(option=>{
+    const selected=option.dataset.v===acc;
+    option.classList.toggle('active',selected);
+    option.setAttribute('aria-pressed',String(selected));
+  });
   document.body.classList.remove('theme-default','theme-purple','theme-gray','theme-pink','theme-cobalt');
   document.body.classList.add('theme-'+acc);
+  syncBrowserThemeColor(document.body.classList.contains('light'));
+}
+function syncBrowserThemeColor(isLight){
+  const dark={default:'#07090d',purple:'#0b0410',gray:'#080808',pink:'#0f0509',cobalt:'#040a16'};
+  const light={default:'#eef6fb',purple:'#f7f1fb',gray:'#f3f3f3',pink:'#fff2f7',cobalt:'#eef4ff'};
+  const palette=isLight?light:dark;
+  const color=palette[S.accent]||palette.default;
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute('content',color);
 }
 
 // ── MOBILE KEYBOARD FIX (Chrome/Android) ──
@@ -1043,77 +1082,6 @@ function setAccent(acc){
   vv.addEventListener('resize',onVVChange);
   vv.addEventListener('scroll',onVVChange);
 })();
-
-// ── BG — lightweight CSS-canvas particle layer (no Three.js) ────
-(function(){
-  const canvas=document.getElementById('bg-canvas');
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-  const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
-  const COUNT=isTouch?36:130;
-  // Mobilde DPR'i sinirliyoruz: 3x ekranda canvas'i tam cozunurlukte
-  // cizmek gereksiz GPU/CPU yuku (Android orta/dusuk seviye cihazlarda
-  // belirgin jank). 1.5 civari zaten yeterince keskin gorunuyor.
-  const DPR=isTouch?Math.min(devicePixelRatio||1,1.5):(devicePixelRatio||1);
-
-  function resize(){
-    canvas.width=innerWidth*DPR;
-    canvas.height=innerHeight*DPR;
-    canvas.style.width=innerWidth+'px';
-    canvas.style.height=innerHeight+'px';
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-  }
-  resize();
-  // Chrome'da adres cubugu scroll sirasinda gizlenip/gorunurken 'resize'
-  // art arda tetikleniyor; her seferinde canvas'i yeniden boyutlandirmak
-  // (a) gereksiz reflow/repaint yaratiyor (b) alt bar/modal'lardaki
-  // titremeye katkida bulunuyor. Debounce ile tek seferde toparliyoruz.
-  let resizeT=null;
-  addEventListener('resize',()=>{
-    if(resizeT)clearTimeout(resizeT);
-    resizeT=setTimeout(resize,150);
-  },{passive:true});
-
-  const stars=Array.from({length:COUNT},()=>({
-    x:Math.random()*innerWidth,
-    y:Math.random()*innerHeight,
-    r:Math.random()*1.1+0.2,
-    a:0.25+Math.random()*0.5,
-    spd:0.0004+Math.random()*0.0006,
-    ph:Math.random()*Math.PI*2,
-    hue:Math.random()<0.18?220+Math.random()*80:0,
-    sat:Math.random()<0.18?55:0
-  }));
-
-  let frame=0;
-  // Dokunmatik/mobil cihazlarda 60fps yerine ~30fps yeterli — pil ve
-  // GPU yukunu yariya indiriyor, gozle fark edilmiyor (yavas pulse animasyonu).
-  let skip=0;
-  function draw(){
-    frame++;
-    if(isTouch){
-      skip++;
-      if(skip%2!==0){requestAnimationFrame(draw);return;}
-    }
-    const t=frame;
-    ctx.clearRect(0,0,innerWidth,innerHeight);
-    stars.forEach(s=>{
-      const pulse=0.4+0.6*Math.abs(Math.sin(t*s.spd*60+s.ph));
-      const alpha=s.a*pulse;
-      ctx.fillStyle=s.sat>0
-        ?`hsla(${s.hue},${s.sat}%,82%,${alpha})`
-        :`rgba(218,226,255,${alpha})`;
-      ctx.beginPath();
-      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      ctx.fill();
-    });
-    if(!reduceMotion)requestAnimationFrame(draw);
-  }
-  if(!reduceMotion)requestAnimationFrame(draw);
-  else draw();
-})();
-
 
 socket.on('connect',()=>{socketId=socket.id;});
 socket.on('disconnect',()=>{socketId=null;});
@@ -1737,31 +1705,26 @@ function updateFnfPreview(){const tpl=document.getElementById('fnfInput').value|
 function insertFnfTag(tag){const inp=document.getElementById('fnfInput');const pos=inp.selectionStart||inp.value.length;inp.value=inp.value.slice(0,pos)+tag+inp.value.slice(inp.selectionEnd||pos);inp.focus();updateFnfPreview();}
 function setFnfTemplate(tpl){document.getElementById('fnfInput').value=tpl;updateFnfPreview();}
 
-// ── PWA ───────────────────────────────────────────────
-let pwaPrompt=null;
-(function(){try{const blob=new Blob([JSON.stringify({name:'ZenithW',short_name:'ZenithW',display:'standalone',background_color:'#0a0a0a',theme_color:'#0a0a0a',start_url:'/',icons:[{src:'https://ui-avatars.com/api/?name=ZW&background=111&color=e8e8e8&size=192',sizes:'192x192',type:'image/png'}]})],{type:'application/json'});document.getElementById('pwa-manifest').href=URL.createObjectURL(blob);}catch(e){}
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();pwaPrompt=e;setTimeout(()=>{try{const s=localStorage.getItem('zw_pwa');if(!s)document.getElementById('pwaBanner').classList.add('show');}catch(e){}},3000);});})();
-function installPWA(){if(pwaPrompt){pwaPrompt.prompt();pwaPrompt.userChoice.then(()=>{pwaPrompt=null;dismissPWA();});}}
-function dismissPWA(){document.getElementById('pwaBanner').classList.remove('show');try{localStorage.setItem('zw_pwa','1');}catch(e){}}
-
 // ── SETTINGS UI ───────────────────────────────────────
 function openSettings(){document.getElementById('stOverlay').classList.add('open');document.body.style.overflow='hidden';}
-function stTab(el){document.querySelectorAll('.st-nav-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');}
+function stTab(el){document.querySelectorAll('.st-nav-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');el.setAttribute('aria-selected','true');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');const content=document.querySelector('.st-content');if(content)content.scrollTop=0;}
 function stChip(el,key){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S[key]=el.dataset.v;saveSt();}
-function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+key.charAt(0).toUpperCase()+key.slice(1));if(tog)tog.classList.toggle('on',S[key]);saveSt();}
+function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+key.charAt(0).toUpperCase()+key.slice(1));if(tog){tog.classList.toggle('on',S[key]);tog.setAttribute('aria-checked',String(!!S[key]));}saveSt();}
 
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){document.getElementById('remuxOverlay').classList.add('open');document.body.style.overflow='hidden';}
-function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;const a=document.createElement('a'),objectUrl=URL.createObjectURL(f);a.href=objectUrl;a.download='remuxed_'+f.name;a.click();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);toast(t('remuxDone'),'#3bba64');setTimeout(()=>{document.getElementById('remuxDrop').innerHTML=`<div class="drop-icon">🤖</div><div class="drop-title">${t('remuxDropTitle')}</div><div class="drop-sub">${t('remuxDropSub')}</div>`;},2000);}
+function showSelectedToolFile(dropId,f){const drop=document.getElementById(dropId);if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.add('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6"/></svg>';}if(title)title.textContent=f.name;if(sub)sub.textContent=(f.size/1024/1024).toFixed(1)+' MB';}
+function resetRemuxDrop(){const drop=document.getElementById('remuxDrop');if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.remove('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>';}if(title)title.textContent=t('remuxDropTitle');if(sub)sub.textContent=t('remuxDropSub');const input=document.getElementById('remuxFileInput');if(input)input.value='';}
+function handleRemuxFile(inp){const f=inp.files[0];if(!f)return;showSelectedToolFile('remuxDrop',f);const a=document.createElement('a'),objectUrl=URL.createObjectURL(f);a.href=objectUrl;a.download='remuxed_'+f.name;a.click();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);toast(t('remuxDone'),'#3bba64');setTimeout(resetRemuxDrop,2000);}
 function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;handleRemuxFile({files:[f]});}
 
 // ── CONVERT ───────────────────────────────────────────
 let convFile=null,convTargetFmt='mp3';
 function openConvert(){document.getElementById('convOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
-function handleConvFile(inp){const f=inp.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
-function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;convFile=f;document.getElementById('convDrop').innerHTML=`<div class="drop-icon">✅</div><div class="drop-title">${escapeHtml(f.name)}</div><div class="drop-sub">${(f.size/1024/1024).toFixed(1)} MB</div>`;_updateConvBtn();}
-function _updateConvBtn(){const btn=document.getElementById('convBtn'),txt=document.getElementById('convBtnTxt');if(!btn||!txt)return;if(convFile){btn.disabled=false;txt.textContent=LANG==='en'?`Convert to ${convTargetFmt.toUpperCase()}`:`${convTargetFmt.toUpperCase()} olarak dönüştür`;}else{btn.disabled=true;txt.textContent=t('convBtnSel');}}
+function handleConvFile(inp){const f=inp.files[0];if(!f)return;convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
+function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
+function _updateConvBtn(){const btn=document.getElementById('convBtn'),txt=document.getElementById('convBtnTxt');if(!btn||!txt)return;if(convFile){btn.disabled=false;txt.textContent=t('convBtnReady').replace('{fmt}',convTargetFmt.toUpperCase());}else{btn.disabled=true;txt.textContent=t('convBtnSel');}}
 function updateConvBtn(){_updateConvBtn();}// alias for legacy calls
 async function startConvert(){
   if(!convFile)return;
@@ -1841,9 +1804,8 @@ async function reDownload(url){
   fetchVideo();
 }
 
-// ── MICRO-INTERACTIONS: ripple + magnetic hover (visual only, no logic changes) ──
+// ── MICRO-INTERACTION: click ripple (runs only on interaction) ──
 (function(){
-  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const RIPPLE_SEL='.action-btn,.vc-dl,.pl-dl-btn,.url-go-btn,.dl-btn,.save-btn,.bar-btn,.mode-btn,.btn-paste,.chip,.theme-btn';
   document.addEventListener('click',e=>{
     const el=e.target.closest(RIPPLE_SEL);
@@ -1860,25 +1822,6 @@ async function reDownload(url){
     el.appendChild(r);
     setTimeout(()=>r.remove(),650);
   });
-  if(!reduceMotion&&window.matchMedia('(hover:hover) and (pointer:fine)').matches){
-    const MAG_SEL='.action-btn,.vc-dl,.pl-dl-btn,.url-go-btn,.services-chip';
-    document.querySelectorAll(MAG_SEL).forEach(el=>el.setAttribute('data-magnetic',''));
-    document.addEventListener('mousemove',e=>{
-      document.querySelectorAll('[data-magnetic]').forEach(el=>{
-        const r=el.getBoundingClientRect();
-        const cx=r.left+r.width/2,cy=r.top+r.height/2;
-        const dx=e.clientX-cx,dy=e.clientY-cy;
-        const dist=Math.hypot(dx,dy);
-        const range=90;
-        if(dist<range){
-          const strength=(1-dist/range)*8;
-          el.style.transform=`translate(${(dx/dist||0)*strength}px,${(dy/dist||0)*strength}px)`;
-        }else{
-          el.style.transform='';
-        }
-      });
-    });
-  }
 })();
 
 // ── INIT ──────────────────────────────────────────────
