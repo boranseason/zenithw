@@ -29,10 +29,9 @@ body.updates-page{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   color-scheme:dark;-webkit-font-smoothing:antialiased;
 }
-body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% -18%,rgba(105,137,195,.11),transparent 38%);}
 .updates-page *{box-sizing:border-box;}
-.upd-shell{position:relative;z-index:1;width:min(1120px,calc(100% - 40px));margin:0 auto;}
-.upd-site-header{height:70px;border-bottom:1px solid var(--upd-border-soft);}
+.upd-shell{position:relative;z-index:1;width:min(860px,calc(100% - 40px));margin:0 auto;}
+.upd-site-header{height:64px;border-bottom:1px solid var(--upd-border-soft);}
 .upd-site-header .upd-shell{height:100%;display:flex;align-items:center;justify-content:space-between;gap:20px;}
 .upd-brand{color:var(--upd-text);font-family:"Geist Mono",monospace;font-size:15px;font-weight:700;letter-spacing:-.5px;text-decoration:none;}
 .upd-brand span{color:var(--upd-accent);}
@@ -45,16 +44,8 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
 .upd-home-link:hover{color:var(--upd-text);border-color:#363c47;}
 .upd-home-link svg{width:13px;height:13px;}
 
-.upd-hero{padding:54px 0 46px;border-bottom:1px solid var(--upd-border-soft);}
-.upd-hero-kicker{display:flex;align-items:center;gap:9px;margin:0 0 17px;color:var(--upd-accent);font-family:"Geist Mono",monospace;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;}
-.upd-hero-kicker::before{content:"";width:22px;height:1px;background:currentColor;}
-.upd-hero h1{max-width:720px;margin:0;color:var(--upd-text);font-size:clamp(31px,4.2vw,46px);font-weight:650;letter-spacing:-2px;line-height:1.08;}
-.upd-hero-desc{max-width:630px;margin:16px 0 0;color:var(--upd-text-2);font-size:13.5px;line-height:1.7;}
-.upd-hero-meta{display:flex;align-items:center;gap:9px;margin-top:22px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:9.5px;}
-.upd-hero-meta span{display:inline-flex;align-items:center;min-height:27px;padding:0 9px;border:1px solid var(--upd-border);border-radius:7px;background:var(--upd-surface);}
-
-.upd-layout{display:block;padding:38px 0 78px;}
-.upd-article{max-width:720px;min-width:0;margin:0 auto;scroll-margin-top:22px;}
+.upd-layout{display:block;padding:42px 0 80px;}
+.upd-article{max-width:660px;min-width:0;margin:0 auto;scroll-margin-top:18px;}
 .upd-top-row{display:flex;align-items:center;gap:9px;margin-bottom:18px;flex-wrap:wrap;}
 .upd-ver-badge{background:var(--upd-surface-2);border:1px solid var(--upd-border);color:var(--upd-text);font-family:"Geist Mono",monospace;font-size:10px;font-weight:800;padding:5px 9px;border-radius:7px;letter-spacing:.2px;}
 .upd-ver-badge.is-latest{background:rgba(118,200,147,.1);border-color:rgba(118,200,147,.24);color:var(--upd-success);}
@@ -64,13 +55,12 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
 .upd-pick::after{content:"⌄";position:absolute;right:11px;top:50%;transform:translateY(-57%);color:var(--upd-text-3);pointer-events:none;}
 .upd-pick select{appearance:none;min-width:116px;background:var(--upd-surface);border:1px solid var(--upd-border);color:var(--upd-text-2);font-family:"Geist Mono",monospace;font-size:9.5px;font-weight:650;padding:7px 29px 7px 10px;border-radius:8px;cursor:pointer;outline:none;}
 .upd-pick select:hover,.upd-pick select:focus{border-color:#3b424d;color:var(--upd-text);}
-.upd-post-title{max-width:680px;margin:0 0 20px;color:var(--upd-text);font-size:clamp(25px,3.3vw,34px);font-weight:650;letter-spacing:-1.05px;line-height:1.2;}
+.upd-post-title{max-width:640px;margin:0 0 20px;color:var(--upd-text);font-size:clamp(24px,3.1vw,31px);font-weight:650;letter-spacing:-.9px;line-height:1.22;}
 .upd-anma:empty{display:none;}
 .upd-anma{font-size:13px;line-height:1.8;color:var(--upd-text-2);border-left:2px solid var(--upd-accent);padding:1px 0 1px 16px;margin:0 0 24px;}
 .upd-anma p{margin:0 0 9px;}.upd-anma p:last-child{margin-bottom:0;}.upd-anma strong{color:var(--upd-text);}
-.upd-intro{position:relative;margin:0 0 27px;padding:17px 19px 16px;border-left:2px solid var(--upd-accent);border-radius:0 11px 11px 0;background:linear-gradient(90deg,var(--upd-accent-soft),rgba(145,184,255,.025));}
-.upd-intro::before{content:attr(data-label);display:block;margin-bottom:9px;color:var(--upd-accent);font-family:"Geist Mono",monospace;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
-.upd-intro p{font-size:14px;line-height:1.72;color:var(--upd-text-2);margin:0 0 11px;}
+.upd-intro{margin:0 0 24px;padding:0 0 22px;border-bottom:1px solid var(--upd-border);}
+.upd-intro p{font-size:14px;line-height:1.76;color:var(--upd-text-2);margin:0 0 12px;}
 .upd-intro p:last-child{margin-bottom:0;}
 #updSections{counter-reset:release-section;margin-top:27px;border-top:1px solid var(--upd-border);}
 .upd-section{counter-increment:release-section;position:relative;padding:22px 0 23px 39px;border-bottom:1px solid var(--upd-border-soft);}
@@ -83,22 +73,16 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
 .upd-nav-link{min-width:0;background:transparent;border:1px solid var(--upd-border);border-radius:10px;padding:12px 13px;color:var(--upd-text-2);font:inherit;font-size:11px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,color .15s;text-align:left;}
 .upd-nav-link.next{text-align:right;}.upd-nav-link:hover{background:var(--upd-surface);color:var(--upd-text);border-color:#343a44;}
 .upd-nav-label{display:block;margin-bottom:4px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;}
-.upd-footer{border-top:1px solid var(--upd-border-soft);padding:24px 0 35px;color:var(--upd-text-3);font-family:"Geist Mono",monospace;font-size:9px;}
-.upd-footer .upd-shell{display:flex;justify-content:space-between;gap:20px;}
-.upd-footer a{color:var(--upd-text-3);text-decoration:none;}.upd-footer a:hover{color:var(--upd-text-2);}
-
 @media(max-width:820px){
-  .upd-shell{width:min(100% - 28px,720px);}
-  .upd-hero{padding:46px 0 40px;}.upd-hero h1{letter-spacing:-1.6px;}
+  .upd-shell{width:min(100% - 28px,660px);}
   .upd-layout{padding:30px 0 65px;}
 }
 @media(max-width:520px){
   .upd-site-header{height:62px;}.upd-home-link span{display:none;}.upd-home-link{width:34px;padding:0;justify-content:center;}
-  .upd-hero{padding:39px 0 34px;}.upd-hero h1{font-size:32px;letter-spacing:-1.25px;}.upd-hero-desc{font-size:12.5px;}
-  .upd-hero-meta{flex-wrap:wrap;}.upd-post-title{font-size:26px;letter-spacing:-.75px;}
-  .upd-intro{padding:15px 15px 14px;}.upd-intro p{font-size:13.5px;}.upd-section{padding-left:32px;}
+  .upd-post-title{font-size:25px;letter-spacing:-.7px;}
+  .upd-intro p{font-size:13.5px;}.upd-section{padding-left:32px;}
   .upd-pick{width:100%;margin:3px 0 0;}.upd-pick select{width:100%;}
-  .upd-nav-row{grid-template-columns:1fr;}.upd-nav-link.next{text-align:left;}.upd-footer .upd-shell{flex-direction:column;gap:7px;}
+  .upd-nav-row{grid-template-columns:1fr;}.upd-nav-link.next{text-align:left;}
 }
 @media(prefers-reduced-motion:reduce){.updates-page *{scroll-behavior:auto!important;transition:none!important;}}
 </style>
@@ -118,15 +102,6 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
 </header>
 
 <main>
-  <section class="upd-hero">
-    <div class="upd-shell">
-      <div class="upd-hero-kicker" id="updHeroKicker">ürün günlüğü</div>
-      <h1 id="updHeroTitle">ZenithW nasıl gelişiyor?</h1>
-      <p class="upd-hero-desc" id="updHeroDesc">Yeni özellikler, tasarım kararları, performans çalışmaları ve güvenlik iyileştirmeleri.</p>
-      <div class="upd-hero-meta"><span id="updReleaseCount">0 sürüm</span><span id="updReleaseRange">v4.0 → v12.9</span></div>
-    </div>
-  </section>
-
   <div class="upd-shell upd-layout">
     <article class="upd-article" id="releaseArticle" tabindex="-1">
       <div class="upd-top-row">
@@ -136,7 +111,7 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
       </div>
       <div class="upd-anma" id="updAnma"></div>
       <h2 class="upd-post-title" id="updPostTitle"></h2>
-      <div class="upd-intro" id="updIntro" data-label="bizden küçük bir not"></div>
+      <div class="upd-intro" id="updIntro"></div>
       <div id="updSections"></div>
       <div class="upd-outro" id="updOutro"></div>
       <div class="upd-signoff" id="updSignoff">~ ZenithW ekibi 🤍</div>
@@ -144,10 +119,6 @@ body.updates-page::before{content:"";position:fixed;inset:0;pointer-events:none;
     </article>
   </div>
 </main>
-
-<footer class="upd-footer">
-  <div class="upd-shell"><span>ZenithW · 2026</span><a href="/" id="updFooterLink">zenithw.space</a></div>
-</footer>
 
 <script>
 const UPDATES=[
@@ -1168,11 +1139,9 @@ outroEn:'In short: the queue doesn\'t forget anymore, and neither do we forget t
 
 const TX={
   tr:{title:'Güncellemeler — ZenithW',desc:'ZenithW sürüm geçmişi ve güncelleme notları — yeni özellikler, hata düzeltmeleri ve iyileştirmeler.',
-    back:'ana sayfa',latestLabel:'güncel',signoff:'~ ZenithW ekibi 🤍',heroKicker:'ürün günlüğü',heroTitle:'ZenithW nasıl gelişiyor?',
-    heroDesc:'Yeni özellikler, tasarım kararları, performans çalışmaları ve güvenlik iyileştirmeleri.',selectLabel:'sürüm seç',introLabel:'bizden küçük bir not',releaseLabel:'sürüm',newer:'yeni sürüm',older:'eski sürüm',navLabel:'Sürüm gezinmesi'},
+    back:'ana sayfa',latestLabel:'güncel',signoff:'~ ZenithW ekibi 🤍',selectLabel:'sürüm seç',newer:'yeni sürüm',older:'eski sürüm',navLabel:'Sürüm gezinmesi'},
   en:{title:'Updates — ZenithW',desc:'ZenithW release history and changelog — new features, bug fixes, and improvements.',
-    back:'home',latestLabel:'latest',signoff:'~ the ZenithW team 🤍',heroKicker:'product journal',heroTitle:'How is ZenithW evolving?',
-    heroDesc:'New features, design decisions, performance work, and security improvements.',selectLabel:'choose a release',introLabel:'a quick note from us',releaseLabel:'releases',newer:'newer',older:'older',navLabel:'Release navigation'}
+    back:'home',latestLabel:'latest',signoff:'~ the ZenithW team 🤍',selectLabel:'choose a release',newer:'newer',older:'older',navLabel:'Release navigation'}
 }
 
 let CUR_LANG='tr';
@@ -1215,9 +1184,6 @@ function render(){
   const picker=document.getElementById('verPicker');
   picker.innerHTML=UPDATES.map(x=>`<option value="${x.ver}"${x.ver===u.ver?' selected':''}>${x.ver}${x.latest?' · '+t.latestLabel:''}</option>`).join('');
 
-  document.getElementById('updReleaseCount').textContent=UPDATES.length+' '+t.releaseLabel;
-  document.getElementById('updReleaseRange').textContent=UPDATES[UPDATES.length-1].ver+' → '+UPDATES[0].ver;
-
   const newer=UPDATES[idx-1], older=UPDATES[idx+1];
   let nav='';
   if(newer)nav+=`<button type="button" class="upd-nav-link" onclick="jumpTo('${newer.ver}')"><span class="upd-nav-label">${t.newer}</span>← ${newer.ver}</button>`;
@@ -1236,11 +1202,7 @@ function setLegalLang(l){
   document.getElementById('pgTitle').textContent=t.title;
   document.getElementById('pgDesc').setAttribute('content',t.desc);
   document.getElementById('pgBack').textContent=t.back;
-  document.getElementById('updHeroKicker').textContent=t.heroKicker;
-  document.getElementById('updHeroTitle').textContent=t.heroTitle;
-  document.getElementById('updHeroDesc').textContent=t.heroDesc;
   document.getElementById('verPicker').setAttribute('aria-label',t.selectLabel);
-  document.getElementById('updIntro').setAttribute('data-label',t.introLabel);
   document.getElementById('updNavRow').setAttribute('aria-label',t.navLabel);
   document.querySelectorAll('#legalLangToggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===CUR_LANG));
   try{localStorage.setItem('zw_lang',CUR_LANG);}catch(e){}

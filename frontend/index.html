@@ -59,13 +59,15 @@
     </div>
   </div>
   <div class="overlay tone-cool" id="servicesOverlay" onclick="handleOverlay(event,'servicesOverlay')">
-    <div class="modal-sheet services-modal">
-      <span class="handle"></span>
-      <div class="modal-header">
-        <div class="modal-title" id="servicesTitleTxt">desteklenen platformlar</div>
-        <button class="dl-close" onclick="closeOverlay('servicesOverlay')">✕</button>
-      </div>
-      <div class="modal-body">
+    <div class="modal-sheet services-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="servicesTitleTxt">
+      <header class="tool-modal-header">
+        <div class="tool-modal-heading">
+          <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg></span>
+          <div><strong id="servicesTitleTxt">desteklenen platformlar</strong><small id="servicesModalSub">22 platform · tek bağlantı</small></div>
+        </div>
+        <button type="button" class="tool-modal-close" onclick="closeOverlay('servicesOverlay')" aria-label="Platformlar penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </header>
+      <div class="tool-modal-body">
         <div class="services-tags">
           <span class="services-tag">youtube</span><span class="services-tag">tiktok</span><span class="services-tag">instagram</span><span class="services-tag">twitter / x</span><span class="services-tag">twitch clips</span><span class="services-tag">reddit</span><span class="services-tag">pinterest</span><span class="services-tag">soundcloud</span><span class="services-tag">facebook</span><span class="services-tag">snapchat</span><span class="services-tag">vimeo</span><span class="services-tag">dailymotion</span><span class="services-tag">bilibili</span><span class="services-tag">bluesky</span><span class="services-tag">tumblr</span><span class="services-tag">streamable</span><span class="services-tag">rutube</span><span class="services-tag">ok.ru</span><span class="services-tag">vk</span><span class="services-tag">loom</span><span class="services-tag">pornhub</span><span class="services-tag">xvideos</span>
         </div>
@@ -738,7 +740,7 @@ const TX={
     convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',convBtnReady:'{fmt} olarak dönüştür',
     remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'güncellemeler',
-    servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',
+    servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',servicesModalSub:'22 platform · tek bağlantı',
     servicesNoteTxt:'bir platformu desteklemek, teknik uyumluluk dışında ilişki anlamına gelmez. tüm sorumluluk kullanıcıdadır.',
     clipHintTxt:'panonda bir link var, yapıştırmak ister misin?',
     ytWarn:'youtube desteği beta — IP kısıtlamaları nedeniyle hata verebilir.',
@@ -798,7 +800,7 @@ const TX={
     convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',convBtnReady:'convert to {fmt}',
     remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'updates',
-    servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',
+    servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',servicesModalSub:'22 platforms · one link',
     servicesNoteTxt:'supporting a service does not imply affiliation beyond technical compatibility.',
     clipHintTxt:'found a link in your clipboard — want to paste it?',
     ytWarn:'youtube support is beta — may fail due to ip restrictions.',
@@ -860,7 +862,7 @@ const TX={
     convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',convBtnReady:'convertir en {fmt}',
     remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'nouveautés',
-    servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',
+    servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',servicesModalSub:'22 plateformes · un seul lien',
     servicesNoteTxt:'la prise en charge d\'une plateforme n\'implique aucune affiliation au-delà de la compatibilité technique.',
     clipHintTxt:'un lien a été trouvé dans votre presse-papiers — voulez-vous le coller ?',
     ytWarn:'le support youtube est en bêta — peut échouer en raison de restrictions ip.',
@@ -922,7 +924,7 @@ const TX={
     convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',convBtnReady:'in {fmt} konvertieren',
     remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a',
     updTitle:'neuigkeiten',
-    servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',
+    servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',servicesModalSub:'22 plattformen · ein link',
     servicesNoteTxt:'die unterstützung einer plattform bedeutet keine zusammenarbeit über die technische kompatibilität hinaus.',
     clipHintTxt:'ein link wurde in deiner zwischenablage gefunden — möchtest du ihn einfügen?',
     ytWarn:'youtube-unterstützung ist beta — kann aufgrund von ip-beschränkungen fehlschlagen.',
@@ -1748,7 +1750,7 @@ async function startConvert(){
 
 // ── OVERLAYS ─────────────────────────────────────────
 function handleOverlay(e,id){if(e.target===document.getElementById(id)){if(id==='plQueueOverlay'){closePlaylistQueue();}else{closeOverlay(id);}}}
-function closeOverlay(id,preservePending){document.getElementById(id).classList.remove('open');document.body.style.overflow='';if(id==='saveOverlay'&&!preservePending)releasePendingBlob();}
+function closeOverlay(id,preservePending){document.getElementById(id).classList.remove('open');document.body.style.overflow='';if(id==='servicesOverlay'){const chip=document.getElementById('servicesChip');if(chip)chip.classList.remove('open');}if(id==='saveOverlay'&&!preservePending)releasePendingBlob();}
 function openDonate(){document.getElementById('donOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function openHistory(){document.getElementById('historyOverlay').classList.add('open');document.body.style.overflow='hidden';loadHistory();}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){['dlOverlay','stOverlay','remuxOverlay','convOverlay','donOverlay','saveOverlay','historyOverlay','servicesOverlay'].forEach(id=>closeOverlay(id));closePlaylistQueue();document.getElementById('servicesChip').classList.remove('open');}});
