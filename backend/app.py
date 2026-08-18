@@ -1447,6 +1447,13 @@ def get_info_with_slot(url):
         "extract_flat": "in_playlist",
         "playlistend": PLAYLIST_LIMIT,
     }
+    if is_youtube(url):
+        # /info only needs metadata (title, duration, thumbnail). yt-dlp may
+        # otherwise reject the whole lookup while choosing a default format,
+        # even though the metadata was extracted successfully. Actual format
+        # availability and the PO-token-backed media request are still
+        # validated by /download.
+        extra_opts["ignore_no_formats_error"] = True
     opts_list = get_opts_list(url, extra=extra_opts)
     last_err = None
     primary_err = None
