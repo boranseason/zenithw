@@ -17,6 +17,7 @@ import ipaddress
 import tempfile
 import contextvars
 from collections import defaultdict, OrderedDict, deque
+from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version as package_version
 from urllib.parse import urlparse
 
@@ -855,7 +856,7 @@ SSRF_HOST_CACHE_MAX_SIZE = 2000
 _ssrf_safe_host_cache = OrderedDict()  # (host, port) -> (expiry, approved_ips)
 _ssrf_safe_host_cache_lock = threading.Lock()
 _ssrf_trusted_private_target = contextvars.ContextVar(
-    "ssrf_trusted_private_target", default=None
+    "ssrf_trusted_private_target", default=frozenset()
 )
 
 
@@ -878,7 +879,7 @@ def _trusted_private_ip(ip_str, port):
         normalized_port = int(port)
     except (TypeError, ValueError):
         return False
-    return _ssrf_trusted_private_target.get() == (normalized_ip, normalized_port)
+    return (normalized_ip, normalized_port) in _ssrf_trusted_private_target.get()
 
 
 def _resolve_safe_host_cached(host, port):
@@ -920,6 +921,33 @@ def _resolve_safe_host_cached(host, port):
     return result
 
 
+@contextmanager
+def _pot_provider_network_scope(url):
+    """Allow only the configured POT host's resolved IPs during YouTube work.
+
+    yt-dlp can resolve the provider hostname before calling the low-level
+    socket method, so that method may receive a raw Railway-private IP and no
+    longer know its original hostname. Keep the exact resolved IP+port pairs
+    in a context-local allowlist for the lifetime of this extraction only.
+    """
+    if not (POT_PROVIDER_URL and is_youtube(url)):
+        yield
+        return
+    safe_ips = _resolve_safe_host_cached(POT_PROVIDER_HOST, POT_PROVIDER_PORT)
+    trusted_targets = {
+        (str(ipaddress.ip_address(ip.split("%", 1)[0])), POT_PROVIDER_PORT)
+        for ip in safe_ips
+    }
+    previous_targets = _ssrf_trusted_private_target.get()
+    context_token = _ssrf_trusted_private_target.set(
+        frozenset(previous_targets | trusted_targets)
+    )
+    try:
+        yield
+    finally:
+        _ssrf_trusted_private_target.reset(context_token)
+
+
 def _guarded_create_connection(address, *args, **kwargs):
     host, port = address
     try:
@@ -940,8 +968,12 @@ def _guarded_create_connection(address, *args, **kwargs):
             context_token = None
             try:
                 if _is_private_ip(safe_ip):
-                    context_token = _ssrf_trusted_private_target.set(
+                    trusted_targets = set(_ssrf_trusted_private_target.get())
+                    trusted_targets.add(
                         (str(ipaddress.ip_address(safe_ip.split("%", 1)[0])), int(port))
+                    )
+                    context_token = _ssrf_trusted_private_target.set(
+                        frozenset(trusted_targets)
                     )
                 return _orig_create_connection((safe_ip, port), *args, **kwargs)
             except OSError as exc:
@@ -954,7 +986,7 @@ def _guarded_create_connection(address, *args, **kwargs):
         raise OSError(f"Could not connect to {host}")
 
 
-def _safe_socket_address(address):
+def _safe_socket_address(address, socket_family=None):
     """Low-level socket kullanıcılarını da private/link-local ağlardan uzak tutar.
 
     requests/urllib3 gibi bazı istemciler socket.create_connection yerine
@@ -973,6 +1005,12 @@ def _safe_socket_address(address):
         safe_ips = _resolve_safe_host_cached(host, port)
         if not safe_ips:
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
+        if socket_family == socket.AF_INET:
+            safe_ips = tuple(ip for ip in safe_ips if ipaddress.ip_address(ip.split("%", 1)[0]).version == 4)
+        elif socket_family == socket.AF_INET6:
+            safe_ips = tuple(ip for ip in safe_ips if ipaddress.ip_address(ip.split("%", 1)[0]).version == 6)
+        if not safe_ips:
+            raise OSError(f"No address compatible with socket family for {host}")
         host = safe_ips[0]
     else:
         if _is_private_ip(str(ip)) and not _trusted_private_ip(str(ip), port):
@@ -981,11 +1019,11 @@ def _safe_socket_address(address):
 
 
 def _guarded_socket_connect(sock, address):
-    return _orig_socket_connect(sock, _safe_socket_address(address))
+    return _orig_socket_connect(sock, _safe_socket_address(address, sock.family))
 
 
 def _guarded_socket_connect_ex(sock, address):
-    return _orig_socket_connect_ex(sock, _safe_socket_address(address))
+    return _orig_socket_connect_ex(sock, _safe_socket_address(address, sock.family))
 
 
 socket.create_connection = _guarded_create_connection
@@ -1471,8 +1509,9 @@ def get_info_with_slot(url):
             if remaining <= 0:
                 raise TimeoutError("Metadata extraction timed out")
             with gevent.Timeout(remaining, TimeoutError("Metadata extraction timed out")):
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
+                with _pot_provider_network_scope(url):
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
                 if info.get("_type") == "playlist" or "entries" in info:
                     entries = info.get("entries") or []
                     items = []
@@ -1787,25 +1826,26 @@ def download():
                 if remaining <= 0:
                     raise TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")
                 with gevent.Timeout(remaining, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")):
-                    with yt_dlp.YoutubeDL(opts) as ydl:
-                        download_info = ydl.extract_info(url, download=True)
-                        if not isinstance(download_info, dict):
-                            raise ValueError(
-                                "Playlist downloads are not supported. Select a single video."
-                            )
-                        if download_info.get("_type") in ("playlist", "multi_video") or "entries" in download_info:
-                            raise ValueError(
-                                "Playlist downloads are not supported. Select a single video."
-                            )
-                        limit_error = enforce_download_limits(download_info, incomplete=False)
-                        if limit_error:
-                            raise ValueError(limit_error)
-                        full_path = resolve_downloaded_media_path(download_info, filename)
-                        if not full_path:
-                            raise FileNotFoundError("Downloaded media file path not found")
-                        video_title = download_info.get("title") or video_title
-                        success = True
-                        break
+                    with _pot_provider_network_scope(url):
+                        with yt_dlp.YoutubeDL(opts) as ydl:
+                            download_info = ydl.extract_info(url, download=True)
+                            if not isinstance(download_info, dict):
+                                raise ValueError(
+                                    "Playlist downloads are not supported. Select a single video."
+                                )
+                            if download_info.get("_type") in ("playlist", "multi_video") or "entries" in download_info:
+                                raise ValueError(
+                                    "Playlist downloads are not supported. Select a single video."
+                                )
+                            limit_error = enforce_download_limits(download_info, incomplete=False)
+                            if limit_error:
+                                raise ValueError(limit_error)
+                            full_path = resolve_downloaded_media_path(download_info, filename)
+                            if not full_path:
+                                raise FileNotFoundError("Downloaded media file path not found")
+                            video_title = download_info.get("title") or video_title
+                            success = True
+                            break
             except yt_dlp.utils.DownloadCancelled:
                 _reap_new_children(before_pids, download_id, filename)
                 raise
@@ -2033,8 +2073,9 @@ def download_thumbnail_with_slot(url):
             if remaining <= 0:
                 raise TimeoutError("Thumbnail request timed out")
             with gevent.Timeout(remaining, TimeoutError("Thumbnail request timed out")):
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
+                with _pot_provider_network_scope(url):
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        info = ydl.extract_info(url, download=True)
                 full_path = resolve_downloaded_thumbnail_path(info, filename)
                 if not full_path:
                     continue
