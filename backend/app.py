@@ -606,7 +606,8 @@ else:
 if POT_PROVIDER_URL:
     logger.info(
         f"[INIT] YouTube PO Token provider configured "
-        f"(host={POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}, plugin={_POT_PLUGIN_VERSION}, client=mweb)"
+        f"(host={POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}, plugin={_POT_PLUGIN_VERSION}, "
+        "client=mweb, video_fallback=default)"
     )
 else:
     logger.info("[INIT] YouTube PO Token provider disabled (YOUTUBE_POT_PROVIDER_URL not set)")
@@ -818,7 +819,7 @@ def is_youtube_live_url(u): return is_youtube(u) and "/live/" in u
 
 UNSUPPORTED_DOMAINS = (
     "spotify.com", "music.apple.com", "deezer.com", "tidal.com",
-    "music.amazon.com", "music.youtube.com",
+    "music.amazon.com",
 )
 
 
@@ -1148,7 +1149,7 @@ def remember_primary_error(primary_error, candidate):
 FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
 
 
-def get_base_opts(url, use_cookies=True):
+def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -1179,7 +1180,7 @@ def get_base_opts(url, use_cookies=True):
         opts["no_warnings"] = False
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["mweb"],
+                "player_client": youtube_player_clients or ["mweb"],
                 # yt-dlp's auto policy can decide not to fetch a token before
                 # it filters the mweb formats that require one. Since a
                 # provider is explicitly configured, always request the token.
@@ -1207,7 +1208,7 @@ def get_base_opts(url, use_cookies=True):
     return opts
 
 
-def get_opts_list(url, extra=None):
+def get_opts_list(url, extra=None, youtube_video_fallback=False):
     opts_list = []
     o = get_base_opts(url, use_cookies=True)
     if extra:
@@ -1218,6 +1219,19 @@ def get_opts_list(url, extra=None):
     # çalıştırmak yalnızca hata/latency yükünü ikiye katlıyordu.
     if "cookiefile" in o:
         o = get_base_opts(url, use_cookies=False)
+        if extra:
+            o.update(extra)
+        opts_list.append(o)
+    # mweb + PO Token ana YouTube yoludur. Bazı videolarda yalnızca ses
+    # formatları dönerken video formatları mweb yanıtında eksik kalabiliyor.
+    # Bu durumda yalnızca video indirmelerinde yt-dlp'nin güncel varsayılan
+    # istemci grubunu bir kez dene; çalışan MP3 yolunu ek istekle yavaşlatma.
+    if youtube_video_fallback and POT_PROVIDER_URL and is_youtube(url):
+        o = get_base_opts(
+            url,
+            use_cookies=False,
+            youtube_player_clients=["default"],
+        )
         if extra:
             o.update(extra)
         opts_list.append(o)
@@ -1838,7 +1852,11 @@ def download():
         # match_filter ise saf playlist container'ını ve uzun videoyu reddeder.
         extra["noplaylist"] = True
         extra["match_filter"] = enforce_download_limits
-        opts_list = get_opts_list(url, extra=extra)
+        opts_list = get_opts_list(
+            url,
+            extra=extra,
+            youtube_video_fallback=is_youtube(url) and not is_audio,
+        )
         success = False
         last_err = None
         primary_err = None
@@ -1848,6 +1866,13 @@ def download():
         for attempt_index, opts in enumerate(opts_list):
             if cancel_event.is_set():
                 break
+            if is_youtube(url):
+                youtube_args = opts.get("extractor_args", {}).get("youtube", {})
+                player_clients = ",".join(youtube_args.get("player_client") or ()) or "auto"
+                logger.info(
+                    f"[DL] YouTube attempt {attempt_index + 1}/{len(opts_list)} "
+                    f"client={player_clients}"
+                )
             before_pids = _snapshot_child_pids()
             try:
                 # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz,
@@ -1910,6 +1935,20 @@ def download():
                         or "playlist downloads are not supported" in es
                         or "downloaded media file path not found" in es):
                     break
+                if attempt_index + 1 < len(opts_list):
+                    next_youtube_args = (
+                        opts_list[attempt_index + 1]
+                        .get("extractor_args", {})
+                        .get("youtube", {})
+                    )
+                    next_clients = next_youtube_args.get("player_client") or ()
+                    next_is_video_fallback = list(next_clients) == ["default"]
+                    format_missing = any(token in es for token in (
+                        "requested format", "no video formats", "only images",
+                        "format is not available", "format unavailable",
+                    ))
+                    if next_is_video_fallback and not format_missing:
+                        break
                 continue
 
         if cancel_event.is_set():
