@@ -1281,13 +1281,28 @@ def enforce_download_limits(info, *, incomplete=False):
     if duration and duration > MAX_VIDEO_DURATION_SECONDS:
         max_min = MAX_VIDEO_DURATION_SECONDS // 60
         return f"Video too long (maximum {max_min} minutes)."
-    protocol = (info.get("protocol") or "").lower()
     safe_protocols = {
         "", "http", "https", "m3u8", "m3u8_native",
         "dash", "http_dash_segments", "https_fragments",
     }
-    if protocol not in safe_protocols:
+
+    def has_unsafe_protocol(raw_protocol):
+        # yt-dlp, ayrı video+ses akışlarını seçtiğinde üst protokolü
+        # "https+https" veya "m3u8_native+https" biçiminde birleştirir.
+        # Her parçayı tek tek doğrula; böylece güvenli birleşimler çalışırken
+        # "https+file" gibi yerel/tehlikeli bir protokol yine reddedilir.
+        parts = {
+            part.strip().lower()
+            for part in str(raw_protocol or "").split("+")
+            if part.strip()
+        }
+        return any(part not in safe_protocols for part in parts)
+
+    if has_unsafe_protocol(info.get("protocol")):
         return "Remote media protocol is not allowed."
+    for selected_format in info.get("requested_formats") or ():
+        if isinstance(selected_format, dict) and has_unsafe_protocol(selected_format.get("protocol")):
+            return "Remote media protocol is not allowed."
     return None
 
 
