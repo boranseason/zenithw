@@ -105,7 +105,7 @@ body.updates-page{
   <div class="upd-shell upd-layout">
     <article class="upd-article" id="releaseArticle" tabindex="-1">
       <div class="upd-top-row">
-        <span class="upd-ver-badge" id="updBadge">v12.9</span>
+        <span class="upd-ver-badge" id="updBadge">v13.0</span>
         <span class="upd-top-date" id="updDate">ağustos 2026</span>
         <div class="upd-pick"><select id="verPicker" aria-label="Sürüm seç" onchange="jumpTo(this.value)"></select></div>
       </div>
@@ -123,6 +123,50 @@ body.updates-page{
 <script>
 const UPDATES=[
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+titleTr:'YouTube indirme altyapısı yeniden kuruldu: PO Token, güncel Deno ve daha güvenli hata akışı',
+titleEn:'YouTube downloading rebuilt with PO Tokens, modern Deno, and a safer error flow',
+introTr:[
+'ZenithW v13.0, yalnızca yeni bir düğme veya farklı bir görünüm getiren sıradan bir güncelleme değil. YouTube’un son dönemde sıkılaştırdığı bot doğrulaması, oynatıcı imzaları ve gerçek medya adreslerine erişim kuralları nedeniyle indirme zincirini baştan sona yeniden ele aldık.',
+'Eskiden video başlığı bulunabilse bile indirilebilir akışlar YouTube tarafından reddedilebiliyor; kullanıcı ise 403, imza çözümü veya format seçimi gibi teknik ayrıntılarla karşılaşıyordu. Yeni yapıda video bilgisi, token üretimi, JavaScript challenge çözümü, format seçimi ve dosya teslimi birbirinden ayrılmış, gözlemlenebilir aşamalar olarak çalışıyor.',
+'Bu sürümle birlikte Railway üzerinde yalnızca ZenithW backend’inin erişebildiği ayrı bir PO Token servisi devreye alındı. yt-dlp, YouTube’un mweb istemcisi için videoya bağlı kısa ömürlü tokenı otomatik alıyor; güncel Deno ve EJS katmanı da imza ile n-challenge işlemlerini çözüyor.',
+'v13.0 aynı zamanda kullanıcı deneyimini koruyan bir sürüm. Teknik ayrıntılar Railway loglarında kalırken ekranda kısa ve anlaşılır mesajlar gösteriliyor; mobilde bir pencere açıldığında arka sayfanın kayması engelleniyor. Kısacası içeride daha güçlü bir motor, dışarıda daha sakin bir ZenithW var.'
+],
+introEn:[
+'ZenithW v13.0 is not an ordinary update built around one new button or a different coat of paint. YouTube has tightened bot verification, player signatures, and access to real media URLs, so we rebuilt the complete download chain from end to end.',
+'Previously, ZenithW could discover a video title while YouTube still rejected every playable stream, leaving users exposed to technical details such as 403 responses, signature failures, or format-selection errors. Metadata, token generation, JavaScript challenge solving, format selection, and file delivery now operate as separate, observable stages.',
+'This release introduces a dedicated PO Token service on Railway that is reachable only by the ZenithW backend. yt-dlp automatically requests a short-lived, video-bound token for the YouTube mweb client, while an up-to-date Deno and EJS layer handles signature and n-challenge work.',
+'v13.0 also protects the calm user experience around that machinery. Technical detail stays in Railway logs while the interface presents short, understandable messages, and opening a modal on mobile no longer lets the page move underneath it. A stronger engine inside, a quieter ZenithW outside.'
+],
+sections:[
+{hTr:'otomatik PO Token sağlayıcısı',hEn:'automatic PO Token provider',
+pTr:'YouTube’un gerçek video ve ses akışlarında istediği Proof of Origin tokenları artık elle kopyalanmıyor. ZenithW, bgutil tabanlı özel sağlayıcıdan her video için gerekli tokenı otomatik istiyor ve yt-dlp mweb istemcisine iletiyor. Tokenlar videoya bağlı ve kısa ömürlü olduğu için kaynak kodda kalıcı bir sır tutulmuyor.',
+pEn:'Proof of Origin tokens required by YouTube for real video and audio streams are no longer copied manually. ZenithW requests the required token for each video from a private bgutil-based provider and supplies it to the yt-dlp mweb client. Tokens are short-lived and video-bound, so no permanent secret is stored in the source code.'},
+{hTr:'Railway özel ağında dar kapsamlı bağlantı',hEn:'narrowly scoped Railway private networking',
+pTr:'Token servisi için herkese açık bir alan adı oluşturulmadı. Backend yalnızca pot-provider.railway.internal adresinin 4416 portuna, yalnızca bir YouTube işlemi sürerken erişebiliyor. IPv4 ve IPv6 adresleri soket ailesine göre seçiliyor; diğer private IP ve portlar mevcut SSRF koruması tarafından engellenmeye devam ediyor.',
+pEn:'The token service has no public domain. The backend can reach only port 4416 of pot-provider.railway.internal and only for the lifetime of a YouTube operation. IPv4 and IPv6 addresses are selected to match the socket family, while every other private IP and port remains blocked by the existing SSRF protection.'},
+{hTr:'Deno 2.8.3 ve güncel EJS challenge çözümü',hEn:'Deno 2.8.3 and current EJS challenge solving',
+pTr:'Railway’in eski Deno 2.0.6 paketi kaldırıldı ve yt-dlp ile uyumlu resmî Deno 2.8.3 sürümü sabitlendi. Çalıştırılabilir dosyanın tam yolu yt-dlp’ye doğrudan veriliyor; yerel yt-dlp-ejs paketi kullanılamazsa resmî ejs:npm kaynağı kontrollü bir yedek olarak devreye giriyor.',
+pEn:'Railway’s outdated Deno 2.0.6 package was removed and replaced with the officially distributed Deno 2.8.3 release supported by yt-dlp. The exact executable path is passed directly to yt-dlp, with the official ejs:npm source available as a controlled fallback if the local yt-dlp-ejs bundle cannot be used.'},
+{hTr:'video bilgisi ile gerçek indirme birbirinden ayrıldı',hEn:'metadata and the real download are now separate',
+pTr:'/info isteği yalnızca başlık, süre, kanal ve kapak gibi bilgileri topluyor. yt-dlp bu aşamada varsayılan bir format seçemese bile video kartı gösterilebiliyor. Oynatılabilir format, PO Token ve medya erişimi kontrolleri gerçek indirme başladığında yapılıyor; böylece “video bulunamadı” ile “akış kullanılamıyor” aynı hata gibi davranmıyor.',
+pEn:'The /info request now focuses on title, duration, channel, and thumbnail metadata. The video card can still be shown when yt-dlp cannot choose a default format at that stage. Playable formats, PO Tokens, and media access are validated when the real download begins, so “video not found” and “stream unavailable” no longer collapse into the same failure.'},
+{hTr:'teknik hatalar loglarda, anlaşılır mesajlar ekranda',hEn:'technical detail in logs, clear messages on screen',
+pTr:'403 Forbidden, imza çözümü, upstream cevapları ve Python hata metinleri artık doğrudan kullanıcıya gösterilmiyor. Backend kararlı hata kodları üretiyor; arayüz bunları Türkçe, İngilizce, Fransızca ve Almanca kısa mesajlara çeviriyor. Ayrıntılı teşhis bilgisi geliştirici için Railway loglarında korunuyor.',
+pEn:'403 Forbidden responses, signature-solving details, upstream messages, and Python exception text are no longer exposed directly to users. The backend emits stable error codes that the interface translates into concise Turkish, English, French, and German messages, while full diagnostics remain available to developers in Railway logs.'},
+{hTr:'429 sınırında daha ölçülü yeniden deneme',hEn:'more disciplined retry behavior under 429 limits',
+pTr:'YouTube Too Many Requests cevabı verdiğinde aynı Railway çıkış IP’sinden bir saniye içinde ikinci cookie’siz istek gönderilmiyor. Bu davranış geçici sınırı büyüten gereksiz trafiği azaltıyor. PO Token doğrulamayı güçlendiriyor ancak YouTube’un IP tabanlı hız sınırını sihirli biçimde kaldırmadığı için kullanıcıya bekleyip yeniden denemesi açıkça anlatılıyor.',
+pEn:'When YouTube responds with Too Many Requests, ZenithW no longer sends an immediate second cookieless request from the same Railway egress IP. This reduces unnecessary traffic that can extend an upstream cooldown. PO Tokens strengthen request verification but do not magically remove YouTube’s IP-based rate limits, so users receive honest guidance to wait and retry.'},
+{hTr:'mobil modallarda arka plan kayması durduruldu',hEn:'background scrolling stopped behind mobile modals',
+pTr:'Ayarlar, indirme, geçmiş, dönüştürme, remux, destek, servisler ve kayıt pencereleri açıldığında sayfanın konumu sabitleniyor. iOS ve Android tarayıcılarındaki lastik bant kayması engellenirken modalın kendi kaydırılabilir içeriği çalışmaya devam ediyor; pencere kapanınca kullanıcı kaldığı konuma dönüyor.',
+pEn:'Opening settings, download, history, convert, remux, support, services, or save dialogs now locks the page in place. Rubber-band scrolling is stopped on iOS and Android while the modal’s own scrollable content remains usable, and closing the dialog restores the user’s previous position.'},
+{hTr:'daha görünür çalışma durumu ve sürüm uyumu',hEn:'clearer runtime status and version alignment',
+pTr:'Sağlık endpoint’i PO Token sağlayıcısının yapılandırma durumunu bildiriyor; başlangıç logları sağlayıcı eklentisini, mweb istemcisini, Deno yolunu ve gerçek Deno sürümünü gösteriyor. yt-dlp, yt-dlp-ejs, Deno ve bgutil sağlayıcı sürümleri birlikte sabitlendiği için deploylar daha tekrarlanabilir hale geldi.',
+pEn:'The health endpoint reports PO Token provider configuration, while startup logs identify the provider plugin, mweb client, Deno path, and actual Deno version. yt-dlp, yt-dlp-ejs, Deno, and the bgutil provider are pinned as a compatible set, making deployments easier to reproduce and diagnose.'}
+],
+outroTr:'v13.0, YouTube’un sürekli değişen korumalarına karşı “her durumda kesin indirme” sözü vermiyor. Bunun yerine doğru tokenı üreten, güncel challenge araçlarını kullanan, güvenlik sınırlarını koruyan ve başarısız olduğunda ne olduğunu anlaşılır biçimde anlatan daha sağlam bir temel sunuyor.',
+outroEn:'v13.0 does not promise a guaranteed download against every protection YouTube may introduce. It provides something more durable: a foundation that obtains the right token, uses current challenge tooling, preserves strict security boundaries, and explains failures clearly when an upstream restriction still wins.'
+},
+{ver:'v12.9',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'dönüştürme, remux ve destek araçları daha sade bir deneyimde buluştu',
 titleEn:'convert, remux, and support tools now share a calmer experience',
 introTr:[
