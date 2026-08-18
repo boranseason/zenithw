@@ -1115,9 +1115,16 @@ def get_base_opts(url, use_cookies=True):
         },
     }
     if POT_PROVIDER_URL and is_youtube(url):
+        # Keep provider failures visible in Railway logs while public clients
+        # continue receiving the sanitized error_code/message payload.
+        opts["no_warnings"] = False
         opts["extractor_args"] = {
             "youtube": {
                 "player_client": ["mweb"],
+                # yt-dlp's auto policy can decide not to fetch a token before
+                # it filters the mweb formats that require one. Since a
+                # provider is explicitly configured, always request the token.
+                "fetch_pot": ["always"],
             },
             "youtubepot-bgutilhttp": {
                 "base_url": [POT_PROVIDER_URL],
