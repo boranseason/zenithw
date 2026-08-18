@@ -15,7 +15,9 @@ import hmac
 import socket
 import ipaddress
 import tempfile
+import contextvars
 from collections import defaultdict, OrderedDict, deque
+from importlib.metadata import PackageNotFoundError, version as package_version
 from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify, send_file, g
@@ -88,6 +90,36 @@ RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
 FILE_CLEANUP_INTERVAL = 900  # 15 dakika
 FILE_MAX_AGE = 1800  # 30 dakika
 PLAYLIST_LIMIT = 50
+
+
+def _load_pot_provider_config():
+    """Validate the optional private PO Token provider endpoint at startup."""
+    raw_url = os.environ.get("YOUTUBE_POT_PROVIDER_URL", "").strip()
+    if not raw_url:
+        return None, None, None
+    try:
+        parsed = urlparse(raw_url)
+        port = parsed.port or 4416
+    except ValueError as exc:
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL has an invalid port") from exc
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme != "http":
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must use http on Railway's private network")
+    if not host or not (1 <= port <= 65535):
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must contain a valid hostname and port")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must not contain credentials, query, or fragment")
+    if parsed.path not in ("", "/"):
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must be a base URL without a path")
+    if not (host.endswith(".railway.internal") or host in {"localhost", "127.0.0.1", "::1"}):
+        raise RuntimeError(
+            "YOUTUBE_POT_PROVIDER_URL must target a Railway private hostname or local loopback"
+        )
+    normalized_host = f"[{host}]" if ":" in host else host
+    return f"http://{normalized_host}:{port}", host, port
+
+
+POT_PROVIDER_URL, POT_PROVIDER_HOST, POT_PROVIDER_PORT = _load_pot_provider_config()
 
 # YENİ: connected_sids TTL temizlik süresi (1 saat)
 CONNECTED_SID_MAX_AGE = 3600
@@ -452,7 +484,7 @@ class DownloadQueueTimeout(Exception):
 
 
 def service_busy(message, retry_after=10, status=503):
-    response = jsonify({"error": message})
+    response = jsonify({"error": message, "error_code": "server_busy"})
     response.status_code = status
     response.headers["Retry-After"] = str(retry_after)
     return response
@@ -529,6 +561,16 @@ try:
 except ImportError:
     _EJS_AVAILABLE = False
 
+try:
+    _POT_PLUGIN_VERSION = package_version("bgutil-ytdlp-pot-provider")
+except PackageNotFoundError:
+    _POT_PLUGIN_VERSION = None
+
+if POT_PROVIDER_URL and not _POT_PLUGIN_VERSION:
+    raise RuntimeError(
+        "YOUTUBE_POT_PROVIDER_URL is configured but bgutil-ytdlp-pot-provider is not installed"
+    )
+
 if _DENO_PATH and _EJS_AVAILABLE:
     logger.info(f"[INIT] yt-dlp JS solver: OK (deno={_DENO_PATH}, yt-dlp-ejs=loaded)")
 else:
@@ -538,6 +580,14 @@ else:
         "n-challenge çözümü yavaş/eksik fallback'e düşebilir, throttle veya "
         "bot-detection hatalarına yol açabilir."
     )
+
+if POT_PROVIDER_URL:
+    logger.info(
+        f"[INIT] YouTube PO Token provider configured "
+        f"(host={POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}, plugin={_POT_PLUGIN_VERSION}, client=mweb)"
+    )
+else:
+    logger.info("[INIT] YouTube PO Token provider disabled (YOUTUBE_POT_PROVIDER_URL not set)")
 
 # aria2c SSRF bypass riski nedeniyle tamamen devre dışı bırakıldı.
 # Gelecekte container seviyesinde egress firewall kurulursa tekrar açılabilir.
@@ -802,12 +852,37 @@ _orig_socket_connect_ex = socket.socket.connect_ex
 # doğrudan bu IP'lerden birine kurulur. Engellenen sonuçlar cache'lenmez.
 SSRF_HOST_CACHE_TTL = 30  # saniye -- rebinding penceresini kısa tutmak için
 SSRF_HOST_CACHE_MAX_SIZE = 2000
-_ssrf_safe_host_cache = OrderedDict()  # (host, port) -> (expiry, public_ips)
+_ssrf_safe_host_cache = OrderedDict()  # (host, port) -> (expiry, approved_ips)
 _ssrf_safe_host_cache_lock = threading.Lock()
+_ssrf_trusted_private_target = contextvars.ContextVar(
+    "ssrf_trusted_private_target", default=None
+)
+
+
+def _is_pot_provider_destination(host, port):
+    if not POT_PROVIDER_HOST or not isinstance(host, str):
+        return False
+    try:
+        normalized_port = int(port)
+    except (TypeError, ValueError):
+        return False
+    return (
+        host.lower().rstrip(".") == POT_PROVIDER_HOST
+        and normalized_port == POT_PROVIDER_PORT
+    )
+
+
+def _trusted_private_ip(ip_str, port):
+    try:
+        normalized_ip = str(ipaddress.ip_address(ip_str.split("%", 1)[0]))
+        normalized_port = int(port)
+    except (TypeError, ValueError):
+        return False
+    return _ssrf_trusted_private_target.get() == (normalized_ip, normalized_port)
 
 
 def _resolve_safe_host_cached(host, port):
-    """Hostname'i public IP'lere çözümler ve doğrulanan IP listesini döner."""
+    """Resolve public hosts, plus the one explicitly configured POT service."""
     cache_key = (host.lower(), port)
     now = time.time()
     with _ssrf_safe_host_cache_lock:
@@ -822,19 +897,21 @@ def _resolve_safe_host_cached(host, port):
     except Exception:
         return ()
 
-    public_ips = []
+    trusted_provider = _is_pot_provider_destination(host, port)
+    safe_ips = []
     for info in infos:
         ip_str = info[4][0]
         # Bir hostname hem public hem private adres döndürüyorsa tamamını engelle;
         # resolver sırası değiştiğinde private adrese düşme riski alınmamalı.
-        if _is_private_ip(ip_str):
+        # Tek istisna, startup'ta doğrulanan sabit POT provider host+port'udur.
+        if _is_private_ip(ip_str) and not trusted_provider:
             return ()
-        if ip_str not in public_ips:
-            public_ips.append(ip_str)
-    if not public_ips:
+        if ip_str not in safe_ips:
+            safe_ips.append(ip_str)
+    if not safe_ips:
         return ()
 
-    result = tuple(public_ips)
+    result = tuple(safe_ips)
     with _ssrf_safe_host_cache_lock:
         _ssrf_safe_host_cache[cache_key] = (now + SSRF_HOST_CACHE_TTL, result)
         _ssrf_safe_host_cache.move_to_end(cache_key)
@@ -847,7 +924,7 @@ def _guarded_create_connection(address, *args, **kwargs):
     host, port = address
     try:
         ip = ipaddress.ip_address(host)
-        if _is_private_ip(str(ip)):
+        if _is_private_ip(str(ip)) and not _trusted_private_ip(str(ip), port):
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
         return _orig_create_connection(address, *args, **kwargs)
     except ValueError:
@@ -860,10 +937,18 @@ def _guarded_create_connection(address, *args, **kwargs):
 
         last_error = None
         for safe_ip in safe_ips:
+            context_token = None
             try:
+                if _is_private_ip(safe_ip):
+                    context_token = _ssrf_trusted_private_target.set(
+                        (str(ipaddress.ip_address(safe_ip.split("%", 1)[0])), int(port))
+                    )
                 return _orig_create_connection((safe_ip, port), *args, **kwargs)
             except OSError as exc:
                 last_error = exc
+            finally:
+                if context_token is not None:
+                    _ssrf_trusted_private_target.reset(context_token)
         if last_error is not None:
             raise last_error
         raise OSError(f"Could not connect to {host}")
@@ -890,7 +975,7 @@ def _safe_socket_address(address):
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
         host = safe_ips[0]
     else:
-        if _is_private_ip(str(ip)):
+        if _is_private_ip(str(ip)) and not _trusted_private_ip(str(ip), port):
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
     return (host, port, *rest)
 
@@ -910,46 +995,95 @@ socket.socket.connect_ex = _guarded_socket_connect_ex
 AUDIO_FMTS = {"mp3", "flac", "wav", "ogg", "opus", "m4a"}
 
 # ── Hata mesajları ────────────────────────────────────
-def parse_error(error_msg, url):
-    es = error_msg.lower()
+PUBLIC_ERROR_MESSAGES = {
+    "playlist_not_supported": "Playlist downloads are not supported. Select a single video.",
+    "video_too_long": "This video is longer than the allowed limit.",
+    "youtube_restricted": "YouTube did not allow this download. Please wait a few minutes and try again.",
+    "private_video": "This video is private and cannot be downloaded.",
+    "copyright_restricted": "This video cannot be downloaded due to a copyright restriction.",
+    "age_restricted": "This video is age-restricted and cannot be accessed right now.",
+    "format_unavailable": "The selected format is not available. Try another format or quality.",
+    "video_unavailable": "This video is currently unavailable.",
+    "live_not_supported": "Live streams are not currently supported.",
+    "instagram_ratelimit": "Instagram is temporarily limiting requests. Please try again shortly.",
+    "platform_restricted": "The platform did not allow this download. Please try again later.",
+    "unsupported_url": "This link or platform is not supported.",
+    "network_error": "A connection problem occurred. Please try again.",
+    "request_timeout": "The request took too long. Please try again.",
+    "request_failed": "The request could not be completed. Please try again.",
+}
+
+
+def classify_error(error_msg, url):
+    """Map upstream/technical failures to stable codes safe for public clients."""
+    es = str(error_msg or "").lower()
     if "playlist downloads are not supported" in es:
-        return "Playlist downloads are not supported. Select a single video."
+        return "playlist_not_supported"
     if "video too long" in es:
-        max_min = MAX_VIDEO_DURATION_SECONDS // 60
-        return f"Video too long (maximum {max_min} minutes)."
+        return "video_too_long"
+    if "timed out" in es or "timeout" in es:
+        return "request_timeout"
     if is_youtube(url):
-        if "sign in" in es or "login" in es or "bot" in es:
-            return "YouTube bot protection is active. Please wait a few minutes and try again."
         if "private video" in es or ("private" in es and "video" in es):
-            return "This YouTube video is private and cannot be downloaded."
+            return "private_video"
         if "copyright" in es:
-            return "This video cannot be downloaded due to copyright."
-        if "age" in es:
-            return "This video is age-restricted. Cookie update may be required."
-        if "unavailable" in es or "not available" in es:
-            return "This YouTube video is no longer available."
-        if "live" in es:
-            return "Live streams are not supported."
+            return "copyright_restricted"
+        if any(token in es for token in ("age-restricted", "age restricted", "confirm your age")):
+            return "age_restricted"
+        # "Requested format is not available" also contains "not available";
+        # classify it before the generic unavailable-video branch.
         if "format" in es:
-            return "Requested format not found. Try a different quality."
-        return "YouTube download failed. Please try again in a few minutes."
+            return "format_unavailable"
+        if "live" in es:
+            return "live_not_supported"
+        if "unavailable" in es or "not available" in es:
+            return "video_unavailable"
+        if any(token in es for token in ("sign in", "login", "bot", "403", "forbidden", "po token")):
+            return "youtube_restricted"
+        return "youtube_restricted"
     if is_instagram(url):
         if "rate" in es or "429" in es:
             return "instagram_ratelimit"
-        if "login" in es:
-            return "This Instagram content is private or requires login."
-        return "Instagram download failed. Please try again in a few minutes."
+        if "login" in es or "private" in es:
+            return "platform_restricted"
+        return "platform_restricted"
     if is_tiktok(url):
-        if "private" in es:
-            return "This TikTok video is private."
-        return "TikTok download failed."
+        return "platform_restricted"
     if "unsupported url" in es:
-        return "This URL is not supported."
-    if "no video formats" in es:
-        return "No suitable format found for this content."
-    if "network" in es or "connection" in es:
-        return "Connection error. Please check your internet connection."
-    return error_msg[:200]
+        return "unsupported_url"
+    if "no video formats" in es or "requested format" in es:
+        return "format_unavailable"
+    if any(token in es for token in ("network", "connection", "403", "forbidden")):
+        return "network_error"
+    return "request_failed"
+
+
+def parse_error(error_msg, url):
+    code = classify_error(error_msg, url)
+    if code == "instagram_ratelimit":
+        return code  # Legacy frontend compatibility.
+    return PUBLIC_ERROR_MESSAGES[code]
+
+
+def public_error_payload(error_msg, url):
+    code = classify_error(error_msg, url)
+    return {
+        "error": PUBLIC_ERROR_MESSAGES[code],
+        "error_code": code,
+    }
+
+
+def remember_primary_error(primary_error, candidate):
+    """Keep the first meaningful failure across cookie/cookieless fallbacks."""
+    if primary_error is None:
+        return candidate
+    primary_text = str(primary_error).lower()
+    candidate_text = str(candidate).lower()
+    # A cookie-file parsing/config error is only about the first attempt; if
+    # the cookieless fallback also fails, that later failure is more useful.
+    if "cookie" in primary_text and "cookie" not in candidate_text:
+        return candidate
+    return primary_error
 
 # ── Base opts ─────────────────────────────────────────
 FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
@@ -980,6 +1114,15 @@ def get_base_opts(url, use_cookies=True):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         },
     }
+    if POT_PROVIDER_URL and is_youtube(url):
+        opts["extractor_args"] = {
+            "youtube": {
+                "player_client": ["mweb"],
+            },
+            "youtubepot-bgutilhttp": {
+                "base_url": [POT_PROVIDER_URL],
+            },
+        }
     if FFMPEG_DIR:
         opts["ffmpeg_location"] = FFMPEG_DIR
     # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
@@ -1208,6 +1351,7 @@ def health():
         "status": "ok",
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
         "js_solver": "OK" if (_DENO_PATH and _EJS_AVAILABLE) else "INCOMPLETE",
+        "po_token_provider": "CONFIGURED" if POT_PROVIDER_URL else "DISABLED",
         "cookies": f"Loaded ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "Missing",
         "disk_files": _disk_files,
         "active_downloads": _active,
@@ -1305,6 +1449,7 @@ def get_info_with_slot(url):
     }
     opts_list = get_opts_list(url, extra=extra_opts)
     last_err = None
+    primary_err = None
     deadline = time.monotonic() + INFO_TIMEOUT_SECONDS
     for attempt_index, opts in enumerate(opts_list):
         try:
@@ -1361,9 +1506,11 @@ def get_info_with_slot(url):
                 })
         except TimeoutError as e:
             last_err = e
+            primary_err = e
             break
         except Exception as e:
             last_err = e
+            primary_err = remember_primary_error(primary_err, e)
             es = str(e).lower()
             if "cookie" in es and attempt_index + 1 < len(opts_list):
                 continue
@@ -1371,14 +1518,15 @@ def get_info_with_slot(url):
                 break
             continue
 
-    error_msg = str(last_err) if last_err else "Unknown error"
+    public_err = primary_err or last_err
+    error_msg = str(public_err) if public_err else "Unknown error"
     logger.error(f"[INFO ERR] {url[:60]}: {error_msg[:150]}")
     if isinstance(last_err, TimeoutError):
-        return jsonify({"error": "Metadata request timed out. Please try again."}), 504
-    parsed = parse_error(error_msg, url)
-    if parsed == "instagram_ratelimit":
-        return jsonify({"error": "instagram_ratelimit"}), 400
-    return jsonify({"error": parsed}), 400
+        return jsonify({"error": "Metadata request timed out. Please try again.", "error_code": "request_timeout"}), 504
+    payload = public_error_payload(error_msg, url)
+    if payload["error_code"] == "instagram_ratelimit":
+        payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
+    return jsonify(payload), 400
 
 # ── /download ─────────────────────────────────────────
 @app.route("/download", methods=["POST"])
@@ -1605,6 +1753,7 @@ def download():
         opts_list = get_opts_list(url, extra=extra)
         success = False
         last_err = None
+        primary_err = None
         timed_out = False
         logger.info(f"[DL] starting download (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
 
@@ -1649,6 +1798,7 @@ def download():
             except TimeoutError as e:
                 timed_out = True
                 last_err = e
+                primary_err = e
                 logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
                 _reap_new_children(before_pids, download_id, filename)
                 break
@@ -1657,6 +1807,7 @@ def download():
                 raise
             except Exception as e:
                 last_err = e
+                primary_err = remember_primary_error(primary_err, e)
                 es = str(e).lower()
                 logger.error(f"[DL FAIL] {es[:100]}")
                 _reap_new_children(before_pids, download_id, filename)
@@ -1681,11 +1832,11 @@ def download():
                     except:
                         pass
             if sid:
-                safe_emit('progress', {'status': 'error', 'message': 'Download timed out, please try again.'}, room=sid)
-            return jsonify({"error": "Download timed out, please try again."}), 504
+                safe_emit('progress', {'status': 'error', 'error_code': 'request_timeout'}, room=sid)
+            return jsonify({"error": "The download took too long. Please try again.", "error_code": "request_timeout"}), 504
 
         if not success:
-            raise last_err or Exception("All attempts failed")
+            raise primary_err or last_err or Exception("All attempts failed")
 
         logger.info("[DL] download completed, processing file...")
 
@@ -1739,9 +1890,9 @@ def download():
             with cancel_events_lock:
                 cancel_events.pop(download_id, None)
             if sid:
-                safe_emit('progress', {'status': 'error', 'message': 'File size limit exceeded.'}, room=sid)
+                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
-            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB)."}), 400
+            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}), 400
 
         if sid:
             safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
@@ -1770,13 +1921,13 @@ def download():
         with cancel_events_lock:
             cancel_events.pop(download_id, None)
         if sid:
-            safe_emit('progress', {'status': 'error', 'message': 'Download queue is full.'}, room=sid)
+            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
         return service_busy("Download queue is full. Please try again shortly.", retry_after=10)
     except DownloadQueueTimeout:
         with cancel_events_lock:
             cancel_events.pop(download_id, None)
         if sid:
-            safe_emit('progress', {'status': 'error', 'message': 'Download queue wait timed out.'}, room=sid)
+            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
         return service_busy("Download queue wait timed out. Please try again.", retry_after=10)
     except yt_dlp.utils.DownloadCancelled:
         for f in os.listdir(DOWNLOAD_DIR):
@@ -1790,8 +1941,8 @@ def download():
         if size_exceeded["flag"]:
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
             if sid:
-                safe_emit('progress', {'status': 'error', 'message': f"File size limit exceeded (maximum {max_mb} MB)."}, room=sid)
-            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB)."}), 400
+                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
+            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}), 400
         if sid:
             safe_emit('progress', {'percent': 0, 'status': 'cancelled'}, room=sid)
         return jsonify({"error": "cancelled"}), 409
@@ -1809,12 +1960,12 @@ def download():
                         pass
         except Exception:
             pass
+        payload = public_error_payload(error_msg, url)
         if sid:
-            safe_emit('progress', {'status': 'error', 'message': error_msg[:100]}, room=sid)
-        parsed = parse_error(error_msg, url)
-        if parsed == "instagram_ratelimit":
-            return jsonify({"error": "instagram_ratelimit"}), 400
-        return jsonify({"error": parsed}), 400
+            safe_emit('progress', {'status': 'error', 'error_code': payload['error_code']}, room=sid)
+        if payload["error_code"] == "instagram_ratelimit":
+            payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
+        return jsonify(payload), 400
     finally:
         if slot_acquired:
             _release_download_slot()
@@ -1859,6 +2010,7 @@ def download_thumbnail_with_slot(url):
     }
     opts_list = get_opts_list(url, extra=extra)
     last_err = None
+    primary_err = None
     deadline = time.monotonic() + THUMBNAIL_TIMEOUT_SECONDS
     for opts in opts_list:
         before_pids = _snapshot_child_pids()
@@ -1882,18 +2034,21 @@ def download_thumbnail_with_slot(url):
                 return response
         except TimeoutError as e:
             last_err = e
+            primary_err = e
             _reap_new_children(before_pids, "thumbnail", filename)
             break
         except Exception as e:
             last_err = e
+            primary_err = remember_primary_error(primary_err, e)
             _reap_new_children(before_pids, "thumbnail", filename)
             continue
 
-    error_msg = str(last_err) if last_err else "Thumbnail could not be retrieved"
+    public_err = primary_err or last_err
+    error_msg = str(public_err) if public_err else "Thumbnail could not be retrieved"
     logger.error(f"[THUMB ERR] {error_msg[:150]}")
     if isinstance(last_err, TimeoutError):
-        return jsonify({"error": "Thumbnail request timed out. Please try again."}), 504
-    return jsonify({"error": parse_error(error_msg, url)}), 400
+        return jsonify({"error": "Thumbnail request timed out. Please try again.", "error_code": "request_timeout"}), 504
+    return jsonify(public_error_payload(error_msg, url)), 400
 
 # ── /convert ───────────────────────────────────────────
 ALLOWED_CONVERT_FORMATS = {

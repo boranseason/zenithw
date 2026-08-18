@@ -70,6 +70,11 @@ body{background:radial-gradient(circle at 22% 8%,rgba(var(--accent-rgb),var(--am
    privacy.html gibi uzun metinli sayfalar .legal-page kullanır ve normal
    şekilde kaymaya devam eder. Modaller kendi iç overflow'larıyla ayrı kayar. */
 body:has(>.page){overflow-y:hidden;overscroll-behavior-y:none;}
+/* Mobil tarayıcılarda overflow:hidden tek başına viewport rubber-band'ini
+   durdurmaz. Bir modal açıkken kök ve body birlikte sabitlenir; modal
+   içerisindeki kaydırılabilir alanlar aşağıdaki kendi overflow'larını korur. */
+html.modal-open,body.modal-open{overflow:hidden!important;overscroll-behavior:none;}
+body.modal-open{position:fixed;right:0;left:0;width:100%;height:100%;}
 
 /* PAGE */
 .page{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px calc(var(--bar-height) + var(--safe-bottom) + 28px);min-height:100dvh;}
@@ -517,7 +522,7 @@ body:not(.light) .gh-eyes-normal{animation-duration:7s;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* OVERLAY */
-.overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.65);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.22s,backdrop-filter 0.32s ease;}
+.overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.65);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;overscroll-behavior:contain;transition:opacity 0.22s,backdrop-filter 0.32s ease;}
 .overlay.open{opacity:1;pointer-events:all;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
 @media(min-width:601px){.overlay{align-items:center;padding:20px;}}
 
