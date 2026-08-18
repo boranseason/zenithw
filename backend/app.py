@@ -555,7 +555,12 @@ logger.info(f"[INIT] ffmpeg={FFMPEG_DIR}")
 # eksik bir fallback'e düşüyor (throttle veya "bot" hatası olarak karşımıza
 # çıkabiliyor). Deploy sonrası loglardan görünür olsun diye burada kontrol
 # ediyoruz.
-_DENO_PATH = shutil.which("deno")
+try:
+    import deno as _deno_package
+    _DENO_PATH = str(_deno_package.find_deno_bin())
+except (ImportError, AttributeError, OSError):
+    # Local development fallback. Production installs the pinned PyPI binary.
+    _DENO_PATH = shutil.which("deno")
 _DENO_VERSION = None
 if _DENO_PATH:
     try:
@@ -1593,6 +1598,10 @@ def get_info_with_slot(url):
             es = str(e).lower()
             if "cookie" in es and attempt_index + 1 < len(opts_list):
                 continue
+            if "429" in es or "too many requests" in es:
+                # A second cookie-less attempt hits the same Railway egress IP
+                # immediately and only extends YouTube's upstream cooldown.
+                break
             if "login" in es or "private" in es:
                 break
             continue
@@ -1893,6 +1902,10 @@ def download():
                 _reap_new_children(before_pids, download_id, filename)
                 if "cookie" in es and attempt_index + 1 < len(opts_list):
                     continue
+                if "429" in es or "too many requests" in es:
+                    # Do not double-hit the same rate-limited YouTube endpoint
+                    # with the immediate cookie-less fallback.
+                    break
                 if ("login" in es or "private" in es or "video too long" in es
                         or "playlist downloads are not supported" in es
                         or "downloaded media file path not found" in es):
