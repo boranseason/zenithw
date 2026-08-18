@@ -77,10 +77,23 @@ MAX_CONCURRENT_THUMBNAILS = int(os.environ.get("MAX_CONCURRENT_THUMBNAILS", 2))
 MAX_DOWNLOAD_QUEUE = int(os.environ.get("MAX_DOWNLOAD_QUEUE", 12))
 MAX_QUEUE_WAIT_SECONDS = int(os.environ.get("MAX_QUEUE_WAIT_SECONDS", 120))
 INFO_TIMEOUT_SECONDS = int(os.environ.get("INFO_TIMEOUT_SECONDS", 45))
+INFO_CACHE_TTL_SECONDS = int(os.environ.get("INFO_CACHE_TTL_SECONDS", 45))
+INFO_CACHE_MAX_SIZE = int(os.environ.get("INFO_CACHE_MAX_SIZE", 256))
 THUMBNAIL_TIMEOUT_SECONDS = int(os.environ.get("THUMBNAIL_TIMEOUT_SECONDS", 60))
 MAX_VIDEO_DURATION_SECONDS = int(os.environ.get("MAX_VIDEO_DURATION_SECONDS", 90 * 60))
 MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 1536)) * 1024 * 1024
 MAX_CONVERT_OUTPUT_SIZE_BYTES = int(os.environ.get("MAX_CONVERT_OUTPUT_SIZE_MB", 1024)) * 1024 * 1024
+MAX_SPOOL_SIZE_BYTES = int(os.environ.get("MAX_SPOOL_SIZE_MB", 4096)) * 1024 * 1024
+MIN_FREE_DISK_BYTES = int(os.environ.get("MIN_FREE_DISK_MB", 512)) * 1024 * 1024
+DOWNLOAD_SPOOL_RESERVATION_BYTES = int(
+    os.environ.get("DOWNLOAD_SPOOL_RESERVATION_MB", 2048)
+) * 1024 * 1024
+CONVERT_SPOOL_RESERVATION_BYTES = (
+    app.config['MAX_CONTENT_LENGTH'] + MAX_CONVERT_OUTPUT_SIZE_BYTES
+)
+MAX_CONCURRENT_TRANSFERS = int(os.environ.get("MAX_CONCURRENT_TRANSFERS", 2))
+MAX_CONCURRENT_TRANSFERS_PER_IP = int(os.environ.get("MAX_CONCURRENT_TRANSFERS_PER_IP", 2))
+TRANSFER_QUEUE_WAIT_SECONDS = int(os.environ.get("TRANSFER_QUEUE_WAIT_SECONDS", 120))
 PREPARED_FILE_TTL = int(os.environ.get("PREPARED_FILE_TTL", 10 * 60))
 PROGRESS_EMIT_INTERVAL = float(os.environ.get("PROGRESS_EMIT_INTERVAL", "0.2"))
 RATE_LIMIT_WINDOW = 60  # saniye
@@ -419,7 +432,10 @@ def _enforce_cloudflare_origin():
     # IP kontrolü artık sadece bilgilendirme/log amaçlı, isteği tek başına
     # reddetmiyor.
     if not _is_cloudflare_ip(remote_ip):
-        logger.info(f"[ORIGIN-LOCK] Non-Cloudflare-range IP (bilgi amaçlı, engellenmedi): {remote_ip} {request.path}")
+        logger.debug(
+            f"[ORIGIN-LOCK] Non-Cloudflare-range IP (bilgi amaçlı, engellenmedi): "
+            f"{remote_ip} {request.path}"
+        )
 
     # CORS preflight (OPTIONS) isteklerinde tarayıcı custom header (X-Origin-Verify)
     # gönderemez, bu yüzden preflight'ı burada engellemiyoruz; flask-cors zaten
@@ -471,6 +487,15 @@ download_slots = threading.Semaphore(MAX_CONCURRENT_DOWNLOADS)
 conversion_slots = threading.Semaphore(MAX_CONCURRENT_CONVERSIONS)
 info_slots = threading.Semaphore(MAX_CONCURRENT_INFO)
 thumbnail_slots = threading.Semaphore(MAX_CONCURRENT_THUMBNAILS)
+transfer_slots = threading.Semaphore(MAX_CONCURRENT_TRANSFERS)
+transfer_lock = threading.Lock()
+active_transfers_count = 0
+active_transfers_per_ip = defaultdict(int)
+info_cache_lock = threading.Lock()
+info_response_cache = OrderedDict()
+info_inflight = {}
+info_cache_hits = 0
+info_cache_misses = 0
 queue_lock = threading.Lock()
 queue_waiting = 0
 active_downloads_count = 0
@@ -484,11 +509,45 @@ class DownloadQueueTimeout(Exception):
     pass
 
 
+class SpoolBudgetExceeded(Exception):
+    pass
+
+
 def service_busy(message, retry_after=10, status=503):
     response = jsonify({"error": message, "error_code": "server_busy"})
     response.status_code = status
     response.headers["Retry-After"] = str(retry_after)
     return response
+
+
+def acquire_transfer_slot(ip):
+    """Wait for a bounded native-transfer slot without consuming the file token."""
+    global active_transfers_count
+    deadline = time.monotonic() + TRANSFER_QUEUE_WAIT_SECONDS
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        if not transfer_slots.acquire(blocking=True, timeout=min(1, remaining)):
+            continue
+        with transfer_lock:
+            if active_transfers_per_ip[ip] < MAX_CONCURRENT_TRANSFERS_PER_IP:
+                active_transfers_per_ip[ip] += 1
+                active_transfers_count += 1
+                return True
+        transfer_slots.release()
+        time.sleep(min(0.25, max(0, remaining)))
+
+
+def release_transfer_slot(ip):
+    global active_transfers_count
+    with transfer_lock:
+        if active_transfers_per_ip.get(ip, 0) > 0:
+            active_transfers_per_ip[ip] -= 1
+            if active_transfers_per_ip[ip] <= 0:
+                active_transfers_per_ip.pop(ip, None)
+            active_transfers_count = max(0, active_transfers_count - 1)
+            transfer_slots.release()
 
 
 def _release_download_slot():
@@ -623,6 +682,9 @@ _pending_cleanups = {}
 _pending_cleanups_lock = threading.Lock()
 _prepared_files = {}
 _prepared_files_lock = threading.Lock()
+_spool_lock = threading.Lock()
+_spool_reservations = {}
+_spool_paths = {}
 # Bir dosya bu süreden uzun süredir pending_cleanups'ta kalıyorsa (yani normal
 # akış -- send_file/call_on_close -- onu hiç kapatmamış demektir; muhtemelen
 # terk edilmiş bir download/convert), periyodik cleanup tarafından zorla
@@ -645,31 +707,174 @@ def _unregister_cleanup(path):
         _pending_cleanups.pop(path, None)
 
 
+def _spool_path_key(path):
+    return os.path.normcase(os.path.realpath(os.path.abspath(path)))
+
+
+def reserve_spool(byte_count, purpose):
+    """Reserve aggregate disk capacity before accepting an expensive job."""
+    byte_count = max(0, int(byte_count))
+    if byte_count <= 0 or byte_count > MAX_SPOOL_SIZE_BYTES:
+        return None
+    try:
+        free_bytes = shutil.disk_usage(DOWNLOAD_DIR).free
+    except OSError:
+        return None
+    with _spool_lock:
+        logical_total = sum(item["bytes"] for item in _spool_reservations.values())
+        active_reserved = sum(
+            item["bytes"] for item in _spool_reservations.values()
+            if item["state"] == "active"
+        )
+        if logical_total + byte_count > MAX_SPOOL_SIZE_BYTES:
+            return None
+        # Prepared bytes are already reflected in free_bytes. Active reservations
+        # are future growth, so subtract them before admitting another job.
+        if free_bytes < MIN_FREE_DISK_BYTES + active_reserved + byte_count:
+            return None
+        reservation_id = secrets.token_urlsafe(24)
+        _spool_reservations[reservation_id] = {
+            "bytes": byte_count,
+            "purpose": purpose,
+            "state": "active",
+            "path": None,
+        }
+        return reservation_id
+
+
+def commit_spool(reservation_id, path, actual_bytes):
+    """Convert an active estimate into the exact prepared-file reservation."""
+    actual_bytes = max(0, int(actual_bytes))
+    if not reservation_id or actual_bytes <= 0:
+        return False
+    path_key = _spool_path_key(path)
+    with _spool_lock:
+        record = _spool_reservations.get(reservation_id)
+        if not record:
+            return False
+        other_total = sum(
+            item["bytes"] for key, item in _spool_reservations.items()
+            if key != reservation_id
+        )
+        if other_total + actual_bytes > MAX_SPOOL_SIZE_BYTES:
+            return False
+        old_path = record.get("path")
+        if old_path:
+            _spool_paths.pop(old_path, None)
+        record.update(bytes=actual_bytes, state="prepared", path=path_key)
+        _spool_paths[path_key] = reservation_id
+        return True
+
+
+def release_spool(reservation_id):
+    if not reservation_id:
+        return
+    with _spool_lock:
+        record = _spool_reservations.pop(reservation_id, None)
+        if record and record.get("path"):
+            _spool_paths.pop(record["path"], None)
+
+
+def release_spool_for_path(path):
+    if not path:
+        return
+    path_key = _spool_path_key(path)
+    with _spool_lock:
+        reservation_id = _spool_paths.pop(path_key, None)
+        if reservation_id:
+            _spool_reservations.pop(reservation_id, None)
+
+
+def spool_snapshot():
+    with _spool_lock:
+        records = list(_spool_reservations.values())
+    return {
+        "reserved_bytes": sum(item["bytes"] for item in records),
+        "active_reserved_bytes": sum(
+            item["bytes"] for item in records if item["state"] == "active"
+        ),
+        "prepared_bytes": sum(
+            item["bytes"] for item in records if item["state"] == "prepared"
+        ),
+    }
+
+
+def has_minimum_free_disk():
+    try:
+        return shutil.disk_usage(DOWNLOAD_DIR).free >= MIN_FREE_DISK_BYTES
+    except OSError:
+        return False
+
+
 def _force_cleanup(path):
     """Dosyayı diskten siler ve pending_cleanups'tan çıkarır.
     NOT: _pending_cleanups_lock tutulurken çağrılmamalı -- kendi içinde
     locku alır (reentrant olmayan threading.Lock nedeniyle nested acquire
     deadlock'a yol açar)."""
+    removed = False
     try:
         if path and os.path.exists(path):
             os.remove(path)
+        removed = not path or not os.path.exists(path)
     except Exception:
         pass
     try:
+        if removed:
+            release_spool_for_path(path)
         with _pending_cleanups_lock:
-            _pending_cleanups.pop(path, None)
+            if removed:
+                _pending_cleanups.pop(path, None)
     except Exception:
         pass
 
 
-def prepare_native_download(path, download_name, owner_ip):
+def cleanup_download_artifacts(file_token):
+    """Remove only files belonging to one internal download token.
+
+    yt-dlp may leave .part, subtitle, thumbnail or post-processing files behind
+    after cancellation and timeout. Requiring an exact token or ``token.``
+    prefix prevents a short token from deleting another job's artifacts.
+    """
+    if not isinstance(file_token, str) or not DOWNLOAD_ID_RE.fullmatch(file_token):
+        return 0
+    try:
+        names = os.listdir(DOWNLOAD_DIR)
+    except OSError:
+        return 0
+    removed = 0
+    for name in names:
+        if name != file_token and not name.startswith(f"{file_token}."):
+            continue
+        path = os.path.join(DOWNLOAD_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        existed = os.path.exists(path)
+        _force_cleanup(path)
+        if existed and not os.path.exists(path):
+            removed += 1
+    return removed
+
+
+def prepare_native_download(path, download_name, owner_ip, reservation_id):
     """Tamamlanan dosyayı kısa ömürlü, tahmin edilemez bir indirme token'ına bağlar."""
+    try:
+        actual_bytes = os.path.getsize(path)
+    except OSError as exc:
+        raise SpoolBudgetExceeded("Prepared file is no longer available") from exc
+    if not commit_spool(reservation_id, path, actual_bytes):
+        raise SpoolBudgetExceeded("Prepared-file spool budget exceeded")
     expires_at = time.time() + PREPARED_FILE_TTL
     with _prepared_files_lock:
         while True:
             token = secrets.token_urlsafe(32)
             if token not in _prepared_files:
-                _prepared_files[token] = (path, download_name, owner_ip, expires_at)
+                _prepared_files[token] = {
+                    "path": path,
+                    "download_name": download_name,
+                    "owner_ip": owner_ip,
+                    "expires_at": expires_at,
+                    "reservation_id": reservation_id,
+                }
                 return token
 
 
@@ -678,8 +883,8 @@ def cleanup_expired_prepared_files():
     expired_paths = []
     with _prepared_files_lock:
         for token, entry in list(_prepared_files.items()):
-            if now >= entry[3]:
-                expired_paths.append(entry[0])
+            if now >= entry["expires_at"]:
+                expired_paths.append(entry["path"])
                 del _prepared_files[token]
     for path in expired_paths:
         _force_cleanup(path)
@@ -691,8 +896,7 @@ def cleanup_old_files():
         for f in os.listdir(DOWNLOAD_DIR):
             fpath = os.path.join(DOWNLOAD_DIR, f)
             if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > FILE_MAX_AGE:
-                os.remove(fpath)
-                _unregister_cleanup(fpath)
+                _force_cleanup(fpath)
         # YENİ: pending_cleanups'ta uzun süredir (PENDING_CLEANUP_MAX_AGE'den
         # fazla) bekleyen, yani normal akışta hiç kapanmamış/unutulmuş
         # kayıtları zorla temizle. Lock'u sadece snapshot almak için tutuyoruz;
@@ -767,6 +971,14 @@ def reserve_download_id(requested_id, cancel_event, ip):
             if candidate not in cancel_events:
                 cancel_events[candidate] = (cancel_event, ip, time.time())
                 return candidate
+
+
+def discard_cancel_event(download_id):
+    """Idempotently release one request's process-local cancellation record."""
+    if not download_id:
+        return
+    with cancel_events_lock:
+        cancel_events.pop(download_id, None)
 
 
 # YENİ: Stale cancel event'lerini temizle
@@ -853,14 +1065,13 @@ def is_safe_url(u):
     if lowered in ("localhost", "metadata", "metadata.google.internal"):
         return False
     try:
-        infos = socket.getaddrinfo(hostname, None)
-    except Exception:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
         return False
-    for info in infos:
-        addr = info[4][0]
-        if _is_private_ip(addr):
-            return False
-    return True
+    # URL validation and the guarded connection share the exact host+port IP
+    # tuple. This removes duplicate DNS work without caching a boolean-only
+    # safety decision or introducing a second rebinding opportunity.
+    return bool(_resolve_safe_host_cached(hostname, port, allow_private_provider=False))
 
 
 # Socket-level SSRF guard: her bağlantı anında hedef IP kontrolü
@@ -875,7 +1086,7 @@ _orig_socket_connect_ex = socket.socket.connect_ex
 # doğrudan bu IP'lerden birine kurulur. Engellenen sonuçlar cache'lenmez.
 SSRF_HOST_CACHE_TTL = 30  # saniye -- rebinding penceresini kısa tutmak için
 SSRF_HOST_CACHE_MAX_SIZE = 2000
-_ssrf_safe_host_cache = OrderedDict()  # (host, port) -> (expiry, approved_ips)
+_ssrf_safe_host_cache = OrderedDict()  # (host, port, private-provider-policy) -> (expiry, approved_ips)
 _ssrf_safe_host_cache_lock = threading.Lock()
 _ssrf_trusted_private_target = contextvars.ContextVar(
     "ssrf_trusted_private_target", default=frozenset()
@@ -904,9 +1115,17 @@ def _trusted_private_ip(ip_str, port):
     return (normalized_ip, normalized_port) in _ssrf_trusted_private_target.get()
 
 
-def _resolve_safe_host_cached(host, port):
+def _resolve_safe_host_cached(host, port, allow_private_provider=False):
     """Resolve public hosts, plus the one explicitly configured POT service."""
-    cache_key = (host.lower(), port)
+    if not isinstance(host, str):
+        return ()
+    try:
+        normalized_port = int(port)
+    except (TypeError, ValueError):
+        return ()
+    if not (1 <= normalized_port <= 65535):
+        return ()
+    cache_key = (host.lower(), normalized_port, bool(allow_private_provider))
     now = time.time()
     with _ssrf_safe_host_cache_lock:
         cached = _ssrf_safe_host_cache.get(cache_key)
@@ -916,11 +1135,13 @@ def _resolve_safe_host_cached(host, port):
         if cached is not None:
             _ssrf_safe_host_cache.pop(cache_key, None)
     try:
-        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        infos = socket.getaddrinfo(host, normalized_port, type=socket.SOCK_STREAM)
     except Exception:
         return ()
 
-    trusted_provider = _is_pot_provider_destination(host, port)
+    trusted_provider = (
+        allow_private_provider and _is_pot_provider_destination(host, normalized_port)
+    )
     safe_ips = []
     for info in infos:
         ip_str = info[4][0]
@@ -955,7 +1176,11 @@ def _pot_provider_network_scope(url):
     if not (POT_PROVIDER_URL and is_youtube(url)):
         yield
         return
-    safe_ips = _resolve_safe_host_cached(POT_PROVIDER_HOST, POT_PROVIDER_PORT)
+    safe_ips = _resolve_safe_host_cached(
+        POT_PROVIDER_HOST,
+        POT_PROVIDER_PORT,
+        allow_private_provider=True,
+    )
     trusted_targets = {
         (str(ipaddress.ip_address(ip.split("%", 1)[0])), POT_PROVIDER_PORT)
         for ip in safe_ips
@@ -981,7 +1206,15 @@ def _guarded_create_connection(address, *args, **kwargs):
         # Hostname'i bir kez çözümle, doğrulanan IP'ye doğrudan bağlan. Böylece
         # güvenlik kontrolü ile gerçek bağlantı arasında ikinci DNS çözümlemesi
         # (TOCTOU / DNS rebinding) oluşmaz.
-        safe_ips = _resolve_safe_host_cached(host, port)
+        allow_private_provider = (
+            _is_pot_provider_destination(host, port)
+            and bool(_ssrf_trusted_private_target.get())
+        )
+        safe_ips = _resolve_safe_host_cached(
+            host,
+            port,
+            allow_private_provider=allow_private_provider,
+        )
         if not safe_ips:
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
 
@@ -1024,7 +1257,15 @@ def _safe_socket_address(address, socket_family=None):
     try:
         ip = ipaddress.ip_address(host.split("%", 1)[0])
     except ValueError:
-        safe_ips = _resolve_safe_host_cached(host, port)
+        allow_private_provider = (
+            _is_pot_provider_destination(host, port)
+            and bool(_ssrf_trusted_private_target.get())
+        )
+        safe_ips = _resolve_safe_host_cached(
+            host,
+            port,
+            allow_private_provider=allow_private_provider,
+        )
         if not safe_ips:
             raise PermissionError(f"SSRF protection: connection to {host} blocked")
         if socket_family == socket.AF_INET:
@@ -1238,12 +1479,19 @@ def get_opts_list(url, extra=None, youtube_video_fallback=False):
     return opts_list
 
 # ── Format string builder ─────────────────────────────
-def build_format_str(url, quality, fmt, codec):
+def build_format_str(url, quality, fmt, codec, mute=False):
     if fmt in AUDIO_FMTS:
         return "bestaudio/best"
     q = str(quality)
     best = (q == "9999")
     if is_youtube(url):
+        if mute:
+            height_filter = "" if best else f"[height<={q}]"
+            if codec == "av1":
+                return f"bestvideo[vcodec^=av01]{height_filter}/bestvideo{height_filter}"
+            if codec == "vp9":
+                return f"bestvideo[vcodec^=vp9]{height_filter}/bestvideo{height_filter}"
+            return f"bestvideo[vcodec^=avc1]{height_filter}/bestvideo{height_filter}"
         if codec == "av1":
             if best:
                 return ("bestvideo[vcodec^=av01]+bestaudio[acodec^=opus]"
@@ -1391,6 +1639,102 @@ def resolve_downloaded_thumbnail_path(info, file_token):
     return None
 
 
+ALLOWED_SPONSORBLOCK_CATEGORIES = {
+    "sponsor", "intro", "outro", "selfpromo", "preview",
+    "filler", "interaction", "music_offtopic", "poi_highlight",
+    "chapter", "exclusive_access",
+}
+ALLOWED_DOWNLOAD_FORMATS = {"mp4", "webm", "mkv", "avi", "mov"} | AUDIO_FMTS
+ALLOWED_VIDEO_CODECS = {"h264", "av1", "vp9"}
+
+
+class DownloadRequestError(ValueError):
+    pass
+
+
+def parse_download_request(data):
+    """Validate and normalize the JSON contract before reserving job state."""
+    if not isinstance(data, dict):
+        raise DownloadRequestError("Invalid request body")
+
+    raw_url = data.get("url", "")
+    url = raw_url.strip() if isinstance(raw_url, str) else ""
+    quality = str(data.get("quality", "1080"))
+    raw_format = data.get("format", "mp4")
+    raw_codec = data.get("codec", "h264")
+    fmt = raw_format.lower() if isinstance(raw_format, str) else ""
+    codec = raw_codec.lower() if isinstance(raw_codec, str) else ""
+    audio_q = str(data.get("audioQ", "256"))
+
+    if fmt not in ALLOWED_DOWNLOAD_FORMATS:
+        raise DownloadRequestError("Unsupported format")
+    if codec not in ALLOWED_VIDEO_CODECS:
+        raise DownloadRequestError("Unsupported codec")
+    if not quality.isdigit() or not (1 <= len(quality) <= 4):
+        raise DownloadRequestError("Invalid quality value")
+    if not audio_q.isdigit():
+        audio_q = "256"
+    if not url:
+        raise DownloadRequestError("URL required")
+    if not is_safe_url(url):
+        raise DownloadRequestError("Invalid or disallowed URL.")
+    if is_youtube_live_url(url):
+        raise DownloadRequestError("Live streams are not currently supported.")
+    if is_unsupported_domain(url):
+        raise DownloadRequestError("This platform is not supported.")
+
+    sub_langs = data.get("sub_langs") or ["en"]
+    if isinstance(sub_langs, str):
+        sub_langs = [sub_langs]
+    if not isinstance(sub_langs, list):
+        sub_langs = ["en"]
+    sub_langs = [
+        lang for lang in sub_langs
+        if isinstance(lang, str)
+        and 1 <= len(lang) <= 10
+        and all(char.isalnum() or char == "-" for char in lang)
+    ][:5]
+
+    sb_categories = data.get("sponsorblock_categories") or ["sponsor"]
+    if not isinstance(sb_categories, list):
+        sb_categories = ["sponsor"]
+    sb_categories = [
+        category for category in sb_categories
+        if category in ALLOWED_SPONSORBLOCK_CATEGORIES
+    ][:9] or ["sponsor"]
+    sb_mode = data.get("sponsorblock_mode", "remove")
+    if sb_mode not in ("remove", "mark"):
+        sb_mode = "remove"
+
+    is_audio = fmt in AUDIO_FMTS
+    mute = bool(data.get("mute", False))
+    youtube_video_only_mute = mute and not is_audio and is_youtube(url)
+    mute_needs_strip = mute and not is_audio and not youtube_video_only_mute
+    if mute_needs_strip and not FFMPEG_DIR:
+        raise DownloadRequestError("FFmpeg is required for mute downloads.")
+
+    return {
+        "url": url,
+        "quality": quality,
+        "format": fmt,
+        "codec": codec,
+        "audio_q": audio_q,
+        "sid": data.get("sid", ""),
+        "requested_download_id": data.get("download_id"),
+        "requested_download_name": data.get("download_name"),
+        "add_meta": bool(data.get("metadata", True)),
+        "mute": mute,
+        "want_subs": bool(data.get("subtitles", False)),
+        "sub_langs": sub_langs,
+        "want_sponsorblock": bool(data.get("sponsorblock", False)),
+        "sb_categories": sb_categories,
+        "sb_mode": sb_mode,
+        "is_audio": is_audio,
+        "youtube_video_only_mute": youtube_video_only_mute,
+        "mute_needs_strip": mute_needs_strip,
+    }
+
+
 # ── Routes ────────────────────────────────────────────
 PREPARED_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{40,64}$")
 
@@ -1401,43 +1745,75 @@ def download_prepared_file(token):
         return jsonify({"error": "Not Found"}), 404
 
     owner_ip = get_client_ip()
-    expired_path = None
+    preliminary_expired_path = None
     with _prepared_files_lock:
-        entry = _prepared_files.get(token)
-        if entry is None:
+        preliminary = _prepared_files.get(token)
+        if preliminary is None:
             return jsonify({"error": "Download expired or already used"}), 410
-        path, download_name, expected_ip, expires_at = entry
-        if time.time() >= expires_at:
-            expired_path = path
+        if time.time() >= preliminary["expires_at"]:
+            preliminary_expired_path = preliminary["path"]
             del _prepared_files[token]
-        elif not hmac.compare_digest(expected_ip, owner_ip):
+        elif not hmac.compare_digest(preliminary["owner_ip"], owner_ip):
             return jsonify({"error": "Not Found"}), 404
-        else:
-            # Flask GET route'ları HEAD'i de kabul eder. HEAD token'ı tüketirse
-            # tarayıcının sonraki gerçek GET'i 410 alır; yalnızca GET tüketir.
-            if request.method != "HEAD":
+    if preliminary_expired_path is not None:
+        _force_cleanup(preliminary_expired_path)
+        return jsonify({"error": "Download expired"}), 410
+
+    transfer_acquired = False
+    if request.method != "HEAD":
+        if not acquire_transfer_slot(owner_ip):
+            return service_busy(
+                "Too many active file transfers. Please try again shortly.",
+                retry_after=5,
+            )
+        transfer_acquired = True
+
+    expired_path = None
+    try:
+        with _prepared_files_lock:
+            entry = _prepared_files.get(token)
+            if entry is None:
+                return jsonify({"error": "Download expired or already used"}), 410
+            path = entry["path"]
+            download_name = entry["download_name"]
+            expected_ip = entry["owner_ip"]
+            expires_at = entry["expires_at"]
+            if time.time() >= expires_at:
+                expired_path = path
+                del _prepared_files[token]
+            elif not hmac.compare_digest(expected_ip, owner_ip):
+                return jsonify({"error": "Not Found"}), 404
+            elif request.method != "HEAD":
                 # Token tek kullanımlıktır; eşzamanlı ikinci GET aynı dosyayı açamaz.
                 del _prepared_files[token]
 
-    if expired_path is not None:
-        _force_cleanup(expired_path)
-        return jsonify({"error": "Download expired"}), 410
-    if not os.path.isfile(path):
-        _force_cleanup(path)
-        return jsonify({"error": "Download no longer available"}), 410
-
-    try:
-        response = send_file(path, as_attachment=True, download_name=download_name)
-    except Exception:
-        _force_cleanup(path)
-        raise
-
-    if request.method != "HEAD":
-        @response.call_on_close
-        def _cleanup_prepared_file():
+        if expired_path is not None:
+            _force_cleanup(expired_path)
+            return jsonify({"error": "Download expired"}), 410
+        if not os.path.isfile(path):
             _force_cleanup(path)
+            return jsonify({"error": "Download no longer available"}), 410
 
-    return response
+        try:
+            response = send_file(path, as_attachment=True, download_name=download_name)
+        except Exception:
+            _force_cleanup(path)
+            raise
+
+        if request.method != "HEAD":
+            @response.call_on_close
+            def _cleanup_prepared_file():
+                try:
+                    _force_cleanup(path)
+                finally:
+                    release_transfer_slot(owner_ip)
+
+            transfer_acquired = False
+
+        return response
+    finally:
+        if transfer_acquired:
+            release_transfer_slot(owner_ip)
 
 
 @app.route("/health")
@@ -1452,8 +1828,23 @@ def health():
     # (bkz. OPTIMIZATIONS.md Finding 7).
     with _pending_cleanups_lock:
         _disk_files = len(_pending_cleanups)
+    with transfer_lock:
+        _active_transfers = active_transfers_count
+    with info_cache_lock:
+        _info_cache_entries = len(info_response_cache)
+        _info_inflight = len(info_inflight)
+        _info_cache_hits = info_cache_hits
+        _info_cache_misses = info_cache_misses
+    _spool = spool_snapshot()
+    try:
+        _free_disk = shutil.disk_usage(DOWNLOAD_DIR).free
+    except OSError:
+        _free_disk = 0
     return jsonify({
         "status": "ok",
+        "deployment_mode": "single_worker_process_local_state",
+        "horizontal_scaling_safe": False,
+        "expected_gunicorn_workers": 1,
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
         "js_solver": "OK" if (_DENO_PATH and _EJS_AVAILABLE) else "INCOMPLETE",
         "po_token_provider": "CONFIGURED" if POT_PROVIDER_URL else "DISABLED",
@@ -1463,6 +1854,16 @@ def health():
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
         "max_download_queue": MAX_DOWNLOAD_QUEUE,
         "queue_waiting": _waiting,
+        "active_transfers": _active_transfers,
+        "max_concurrent_transfers": MAX_CONCURRENT_TRANSFERS,
+        "spool_reserved_bytes": _spool["reserved_bytes"],
+        "spool_prepared_bytes": _spool["prepared_bytes"],
+        "max_spool_bytes": MAX_SPOOL_SIZE_BYTES,
+        "free_disk_bytes": _free_disk,
+        "info_cache_entries": _info_cache_entries,
+        "info_inflight": _info_inflight,
+        "info_cache_hits": _info_cache_hits,
+        "info_cache_misses": _info_cache_misses,
     }), 200
 
 
@@ -1524,6 +1925,65 @@ def not_found(e):
     return jsonify({"error": "Not Found"}), 404
 
 # ── /info ─────────────────────────────────────────────
+def _info_cache_key(url):
+    """Keep cache entries separate when extraction access policy changes."""
+    uses_cookie_file = os.path.isfile(COOKIES_FILE) and not is_instagram(url)
+    return (url, uses_cookie_file, bool(POT_PROVIDER_URL))
+
+
+def _acquire_info_work(cache_key):
+    """Return cached payload or elect exactly one extractor for this key."""
+    global info_cache_hits, info_cache_misses
+    now = time.monotonic()
+    with info_cache_lock:
+        cached = info_response_cache.get(cache_key)
+        if cached is not None and now < cached[0]:
+            info_response_cache.move_to_end(cache_key)
+            info_cache_hits += 1
+            return cached[1], None, False
+        if cached is not None:
+            info_response_cache.pop(cache_key, None)
+
+        info_cache_misses += 1
+        event = info_inflight.get(cache_key)
+        if event is not None:
+            return None, event, False
+        event = threading.Event()
+        info_inflight[cache_key] = event
+        return None, event, True
+
+
+def _get_cached_info(cache_key):
+    now = time.monotonic()
+    with info_cache_lock:
+        cached = info_response_cache.get(cache_key)
+        if cached is None:
+            return None
+        if now >= cached[0]:
+            info_response_cache.pop(cache_key, None)
+            return None
+        info_response_cache.move_to_end(cache_key)
+        return cached[1]
+
+
+def _store_cached_info(cache_key, payload):
+    with info_cache_lock:
+        info_response_cache[cache_key] = (
+            time.monotonic() + INFO_CACHE_TTL_SECONDS,
+            payload,
+        )
+        info_response_cache.move_to_end(cache_key)
+        while len(info_response_cache) > INFO_CACHE_MAX_SIZE:
+            info_response_cache.popitem(last=False)
+
+
+def _finish_info_work(cache_key, event):
+    with info_cache_lock:
+        if info_inflight.get(cache_key) is event:
+            info_inflight.pop(cache_key, None)
+    event.set()
+
+
 @app.route("/info", methods=["POST"])
 def get_info():
     ip = get_client_ip()
@@ -1533,18 +1993,39 @@ def get_info():
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"error": "URL required"}), 400
-    if not info_slots.acquire(blocking=False):
-        return service_busy("Metadata service is busy. Please try again shortly.", retry_after=5)
+    if not is_safe_url(url):
+        return jsonify({"error": "Invalid or disallowed URL."}), 400
+    if is_youtube_live_url(url):
+        return jsonify({"error": "Live streams are not currently supported."}), 400
+    if is_unsupported_domain(url):
+        return jsonify({"error": "This platform is not supported."}), 400
+
+    cache_key = _info_cache_key(url)
+    cached_payload, inflight_event, is_leader = _acquire_info_work(cache_key)
+    if cached_payload is not None:
+        return jsonify(cached_payload), 200
+
+    if not is_leader:
+        if not inflight_event.wait(INFO_TIMEOUT_SECONDS + 1):
+            return service_busy("Metadata request is still running. Please try again shortly.", retry_after=2)
+        cached_payload = _get_cached_info(cache_key)
+        if cached_payload is not None:
+            return jsonify(cached_payload), 200
+        return service_busy("Metadata lookup failed. Please try again shortly.", retry_after=2)
+
+    slot_acquired = False
     try:
-        if not is_safe_url(url):
-            return jsonify({"error": "Invalid or disallowed URL."}), 400
-        if is_youtube_live_url(url):
-            return jsonify({"error": "Live streams are not currently supported."}), 400
-        if is_unsupported_domain(url):
-            return jsonify({"error": "This platform is not supported."}), 400
-        return get_info_with_slot(url)
+        if not info_slots.acquire(blocking=False):
+            return service_busy("Metadata service is busy. Please try again shortly.", retry_after=5)
+        slot_acquired = True
+        payload, status = get_info_with_slot(url)
+        if status == 200:
+            _store_cached_info(cache_key, payload)
+        return jsonify(payload), status
     finally:
-        info_slots.release()
+        if slot_acquired:
+            info_slots.release()
+        _finish_info_work(cache_key, inflight_event)
 
 
 def get_info_with_slot(url):
@@ -1595,7 +2076,7 @@ def get_info_with_slot(url):
                             "thumbnail": thumb,
                         })
                     total_count = info.get("playlist_count") or len(items)
-                    return jsonify({
+                    return {
                         "is_playlist": True,
                         "playlist_title": info.get("title") or "Playlist",
                         "playlist_count": len(items),
@@ -1603,11 +2084,11 @@ def get_info_with_slot(url):
                         "limited_to": PLAYLIST_LIMIT,
                         "items": items,
                         "platform": info.get("extractor_key", "").lower(),
-                    })
+                    }, 200
                 subs = info.get("subtitles") or {}
                 auto_subs = info.get("automatic_captions") or {}
                 sub_langs = sorted(set(subs.keys()) | set(auto_subs.keys()))
-                return jsonify({
+                return {
                     "is_playlist": False,
                     "title": info.get("title") or "Video",
                     "duration": info.get("duration") or 0,
@@ -1616,7 +2097,7 @@ def get_info_with_slot(url):
                     "platform": info.get("extractor_key", "").lower(),
                     "subtitles": sub_langs,
                     "has_manual_subtitles": bool(subs),
-                })
+                }, 200
         except TimeoutError as e:
             last_err = e
             primary_err = e
@@ -1639,11 +2120,14 @@ def get_info_with_slot(url):
     error_msg = str(public_err) if public_err else "Unknown error"
     logger.error(f"[INFO ERR] {url[:60]}: {error_msg[:150]}")
     if isinstance(last_err, TimeoutError):
-        return jsonify({"error": "Metadata request timed out. Please try again.", "error_code": "request_timeout"}), 504
+        return {
+            "error": "Metadata request timed out. Please try again.",
+            "error_code": "request_timeout",
+        }, 504
     payload = public_error_payload(error_msg, url)
     if payload["error_code"] == "instagram_ratelimit":
         payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
-    return jsonify(payload), 400
+    return payload, 400
 
 # ── /download ─────────────────────────────────────────
 @app.route("/download", methods=["POST"])
@@ -1656,61 +2140,32 @@ def download():
     # aynı işi yapıyor. Her /download isteğinde tüm DOWNLOAD_DIR'i
     # listeleyip stat'lamak gereksiz I/O + gecikme ekliyordu (bkz.
     # OPTIMIZATIONS.md Finding 3).
-    data = request.json or {}
-    url = data.get("url", "").strip()
-    quality = str(data.get("quality", "1080"))
-    fmt = data.get("format", "mp4").lower()
-    codec = data.get("codec", "h264").lower()
-    audio_q = str(data.get("audioQ", "256"))
-    sid = validate_sid(data.get("sid", ""))
-    requested_download_id = data.get("download_id")
-    requested_download_name = data.get("download_name")
-    add_meta = bool(data.get("metadata", True))
+    try:
+        dl_request = parse_download_request(request.json or {})
+    except DownloadRequestError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    want_subs = bool(data.get("subtitles", False))
-    sub_langs = data.get("sub_langs") or ["en"]
-    if isinstance(sub_langs, str):
-        sub_langs = [sub_langs]
-    sub_langs = [l for l in sub_langs if isinstance(l, str) and 1 <= len(l) <= 10 and all(c.isalnum() or c == '-' for c in l)][:5]
-    embed_subs = bool(data.get("embed_subs", True))
-
-    want_sponsorblock = bool(data.get("sponsorblock", False))
-    ALLOWED_SB_CATEGORIES = {
-        "sponsor", "intro", "outro", "selfpromo", "preview",
-        "filler", "interaction", "music_offtopic", "poi_highlight",
-        "chapter", "exclusive_access",
-    }
-    sb_categories = data.get("sponsorblock_categories") or ["sponsor"]
-    if not isinstance(sb_categories, list):
-        sb_categories = ["sponsor"]
-    sb_categories = [c for c in sb_categories if c in ALLOWED_SB_CATEGORIES][:9] or ["sponsor"]
-    sb_mode = data.get("sponsorblock_mode", "remove")
-    if sb_mode not in ("remove", "mark"):
-        sb_mode = "remove"
-
-    ALLOWED_FORMATS = {"mp4", "webm", "mkv", "avi", "mov"} | AUDIO_FMTS
-    ALLOWED_CODECS = {"h264", "av1", "vp9"}
-    if fmt not in ALLOWED_FORMATS:
-        return jsonify({"error": "Unsupported format"}), 400
-    if codec not in ALLOWED_CODECS:
-        return jsonify({"error": "Unsupported codec"}), 400
-    if not quality.isdigit() or not (1 <= len(quality) <= 4):
-        return jsonify({"error": "Invalid quality value"}), 400
-    if not audio_q.isdigit():
-        audio_q = "256"
-
-    if not url:
-        return jsonify({"error": "URL required"}), 400
-    if not is_safe_url(url):
-        return jsonify({"error": "Invalid or disallowed URL."}), 400
-    if is_youtube_live_url(url):
-        return jsonify({"error": "Live streams are not currently supported."}), 400
-    if is_unsupported_domain(url):
-        return jsonify({"error": "This platform is not supported."}), 400
-
-    is_audio = fmt in AUDIO_FMTS
+    url = dl_request["url"]
+    quality = dl_request["quality"]
+    fmt = dl_request["format"]
+    codec = dl_request["codec"]
+    audio_q = dl_request["audio_q"]
+    sid = validate_sid(dl_request["sid"])
+    requested_download_id = dl_request["requested_download_id"]
+    requested_download_name = dl_request["requested_download_name"]
+    add_meta = dl_request["add_meta"]
+    mute = dl_request["mute"]
+    want_subs = dl_request["want_subs"]
+    sub_langs = dl_request["sub_langs"]
+    want_sponsorblock = dl_request["want_sponsorblock"]
+    sb_categories = dl_request["sb_categories"]
+    sb_mode = dl_request["sb_mode"]
+    is_audio = dl_request["is_audio"]
+    youtube_video_only_mute = dl_request["youtube_video_only_mute"]
+    mute_needs_strip = dl_request["mute_needs_strip"]
     cancel_event = threading.Event()
     size_exceeded = {"flag": False}
+    spool_exceeded = {"flag": False}
     try:
         download_id = reserve_download_id(requested_download_id, cancel_event, ip)
     except ValueError:
@@ -1727,6 +2182,8 @@ def download():
     dl_start_time = time.time()
     request_deadline = time.monotonic() + DOWNLOAD_TIMEOUT_SECONDS
     last_progress = {"time": 0.0, "percent": None, "status": None}
+    last_disk_check = {"time": 0.0}
+    spool_reservation_id = None
 
     def emit_progress(payload, force=False):
         if not sid:
@@ -1745,6 +2202,13 @@ def download():
         if cancel_event.is_set():
             raise yt_dlp.utils.DownloadCancelled("Cancelled")
         if d['status'] == 'downloading':
+            now = time.monotonic()
+            if now - last_disk_check["time"] >= 1:
+                last_disk_check["time"] = now
+                if not has_minimum_free_disk():
+                    spool_exceeded["flag"] = True
+                    cancel_event.set()
+                    raise yt_dlp.utils.DownloadCancelled("Spool disk watermark reached")
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
             downloaded = d.get('downloaded_bytes', 0)
             if (total and total > MAX_DOWNLOAD_SIZE_BYTES) or downloaded > MAX_DOWNLOAD_SIZE_BYTES:
@@ -1781,13 +2245,25 @@ def download():
         acquire_download_slot(sid, cancel_event)
         slot_acquired = True
 
-        fmt_str = build_format_str(url, quality, fmt, codec)
-        logger.info(f"[DL] q={quality} fmt={fmt} codec={codec} audio={is_audio}")
+        reservation_bytes = DOWNLOAD_SPOOL_RESERVATION_BYTES
+        if mute_needs_strip:
+            reservation_bytes = min(
+                MAX_SPOOL_SIZE_BYTES,
+                reservation_bytes + MAX_DOWNLOAD_SIZE_BYTES,
+            )
+        spool_reservation_id = reserve_spool(reservation_bytes, "download")
+        if not spool_reservation_id:
+            raise SpoolBudgetExceeded("Download spool capacity is full")
+
+        fmt_str = build_format_str(url, quality, fmt, codec, mute=mute)
+        logger.info(
+            f"[DL] q={quality} fmt={fmt} codec={codec} audio={is_audio} "
+            f"mute_plan={'video-only' if youtube_video_only_mute else 'strip' if mute_needs_strip else 'none'}"
+        )
 
         if is_audio:
             if not FFMPEG_DIR:
-                with cancel_events_lock:
-                    cancel_events.pop(download_id, None)
+                discard_cancel_event(download_id)
                 return jsonify({"error": "FFmpeg is required for audio conversion."}), 400
             codec_map = {
                 "mp3": "mp3", "flac": "flac", "wav": "wav",
@@ -1970,14 +2446,8 @@ def download():
             raise yt_dlp.utils.DownloadCancelled("Cancelled")
 
         if timed_out:
-            with cancel_events_lock:
-                cancel_events.pop(download_id, None)
-            for f in os.listdir(DOWNLOAD_DIR):
-                if f.startswith(filename):
-                    try:
-                        os.remove(os.path.join(DOWNLOAD_DIR, f))
-                    except:
-                        pass
+            discard_cancel_event(download_id)
+            cleanup_download_artifacts(filename)
             if sid:
                 safe_emit('progress', {'status': 'error', 'error_code': 'request_timeout'}, room=sid)
             return jsonify({"error": "The download took too long. Please try again.", "error_code": "request_timeout"}), 504
@@ -1988,17 +2458,17 @@ def download():
         logger.info("[DL] download completed, processing file...")
 
         if not full_path:
-            with cancel_events_lock:
-                cancel_events.pop(download_id, None)
+            discard_cancel_event(download_id)
             return jsonify({"error": "File not found"}), 500
 
         # YENİ: Kesin temizlik için register et
         _register_cleanup(full_path)
 
-        if not is_audio and data.get("mute", False) and FFMPEG_DIR:
+        if mute_needs_strip:
             logger.info("[DL] mute step starting")
             base, ext = os.path.splitext(full_path)
             muted_path = base + ".muted" + ext
+            _register_cleanup(muted_path)
             try:
                 ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
                 result = subprocess.run(
@@ -2011,11 +2481,14 @@ def download():
                     os.remove(full_path)
                     _unregister_cleanup(full_path)
                     os.rename(muted_path, full_path)
+                    _unregister_cleanup(muted_path)
                     _register_cleanup(full_path)
                 else:
                     logger.error(f"[MUTE FFMPEG FAIL] {result.stderr[:200]}")
+                    raise RuntimeError("Mute processing failed")
             except Exception as e:
                 logger.error(f"[MUTE FFMPEG ERR] {e}")
+                raise
             finally:
                 try:
                     if os.path.exists(muted_path):
@@ -2034,8 +2507,7 @@ def download():
                 _unregister_cleanup(full_path)
             except Exception:
                 pass
-            with cancel_events_lock:
-                cancel_events.pop(download_id, None)
+            discard_cancel_event(download_id)
             if sid:
                 safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
@@ -2051,9 +2523,14 @@ def download():
         ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
         fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
         download_name = safe_download_name(requested_download_name, fallback_title, ext)
-        token = prepare_native_download(full_path, download_name, ip)
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
+        token = prepare_native_download(
+            full_path,
+            download_name,
+            ip,
+            spool_reservation_id,
+        )
+        spool_reservation_id = None
+        discard_cancel_event(download_id)
         logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
         return jsonify({
             "ok": True,
@@ -2065,26 +2542,35 @@ def download():
         }), 200
 
     except DownloadQueueFull:
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
+        discard_cancel_event(download_id)
         if sid:
             safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
         return service_busy("Download queue is full. Please try again shortly.", retry_after=10)
     except DownloadQueueTimeout:
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
+        discard_cancel_event(download_id)
         if sid:
             safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
         return service_busy("Download queue wait timed out. Please try again.", retry_after=10)
+    except SpoolBudgetExceeded:
+        discard_cancel_event(download_id)
+        if full_path:
+            _force_cleanup(full_path)
+        if sid:
+            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+        return service_busy(
+            "Temporary file capacity is full. Please try again after active transfers finish.",
+            retry_after=10,
+        )
     except yt_dlp.utils.DownloadCancelled:
-        for f in os.listdir(DOWNLOAD_DIR):
-            if f.startswith(filename):
-                try:
-                    os.remove(os.path.join(DOWNLOAD_DIR, f))
-                except:
-                    pass
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
+        cleanup_download_artifacts(filename)
+        discard_cancel_event(download_id)
+        if spool_exceeded["flag"]:
+            if sid:
+                safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+            return service_busy(
+                "Temporary disk capacity is low. Please try again later.",
+                retry_after=15,
+            )
         if size_exceeded["flag"]:
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
             if sid:
@@ -2096,17 +2582,8 @@ def download():
     except Exception as e:
         error_msg = str(e)
         logger.error(f"[DL ERR] {error_msg[:200]}")
-        with cancel_events_lock:
-            cancel_events.pop(download_id, None)
-        try:
-            for f in os.listdir(DOWNLOAD_DIR):
-                if f.startswith(filename):
-                    try:
-                        os.remove(os.path.join(DOWNLOAD_DIR, f))
-                    except:
-                        pass
-        except Exception:
-            pass
+        discard_cancel_event(download_id)
+        cleanup_download_artifacts(filename)
         payload = public_error_payload(error_msg, url)
         if sid:
             safe_emit('progress', {'status': 'error', 'error_code': payload['error_code']}, room=sid)
@@ -2114,6 +2591,9 @@ def download():
             payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
         return jsonify(payload), 400
     finally:
+        if spool_reservation_id:
+            release_spool(spool_reservation_id)
+            spool_reservation_id = None
         if slot_acquired:
             _release_download_slot()
             slot_acquired = False
@@ -2208,6 +2688,7 @@ ALLOWED_INPUT_EXTS = {
     ".mp3", ".flac", ".wav", ".ogg", ".opus", ".m4a", ".aac",
     ".mp4", ".webm", ".mkv", ".avi", ".mov", ".m4v", ".flv", ".wmv", ".3gp",
 }
+ALLOWED_CONVERT_MODES = {"auto", "remux", "transcode"}
 
 
 def safe_input_suffix(original_filename):
@@ -2238,22 +2719,37 @@ def convert_file():
     # ayrılır; dolu sunucu 230 MB'a kadar gereksiz upload kabul etmez.
     if not conversion_slots.acquire(blocking=False):
         return service_busy("Server is busy with another conversion. Please try again shortly.", retry_after=10)
+    spool_reservation = {"id": None}
     try:
-        return convert_file_with_slot(ip)
+        spool_reservation["id"] = reserve_spool(
+            CONVERT_SPOOL_RESERVATION_BYTES,
+            "conversion",
+        )
+        if not spool_reservation["id"]:
+            return service_busy(
+                "Temporary file capacity is full. Please try again after active transfers finish.",
+                retry_after=10,
+            )
+        return convert_file_with_slot(ip, spool_reservation)
     finally:
+        if spool_reservation["id"]:
+            release_spool(spool_reservation["id"])
         conversion_slots.release()
 
 
-def convert_file_with_slot(ip):
+def convert_file_with_slot(ip, spool_reservation):
     if 'file' not in request.files:
         return jsonify({"error": "File required"}), 400
     file = request.files['file']
     target_format = request.form.get('target_format', 'mp3').lower()
+    conversion_mode = request.form.get('mode', 'auto').lower()
     requested_download_name = request.form.get('download_name')
     if not file or file.filename == '':
         return jsonify({"error": "Invalid file"}), 400
     if target_format not in ALLOWED_CONVERT_FORMATS:
         return jsonify({"error": "Unsupported target format"}), 400
+    if conversion_mode not in ALLOWED_CONVERT_MODES:
+        return jsonify({"error": "Unsupported conversion mode"}), 400
     if not FFMPEG_DIR:
         return jsonify({"error": "FFmpeg required"}), 400
 
@@ -2267,11 +2763,14 @@ def convert_file_with_slot(ip):
             _register_cleanup(input_path)
 
         base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
-        output_path = os.path.join(os.path.dirname(input_path), base_no_ext + '.' + target_format)
+        output_path = os.path.join(
+            os.path.dirname(input_path),
+            base_no_ext + '.output.' + target_format,
+        )
         _register_cleanup(output_path)
 
         ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
-        cmd = [
+        base_cmd = [
             ffmpeg_cmd,
             '-hide_banner', '-loglevel', 'fatal', '-nostdin',
             '-protocol_whitelist', FFMPEG_LOCAL_PROTOCOLS,
@@ -2280,46 +2779,84 @@ def convert_file_with_slot(ip):
         ]
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}
-        if target_format in audio_formats:
-            cmd.extend(['-vn'])
-            if target_format == 'mp3':
-                cmd.extend(['-codec:a', 'libmp3lame', '-q:a', '2'])
-            elif target_format == 'flac':
-                cmd.extend(['-codec:a', 'flac'])
-            elif target_format == 'wav':
-                cmd.extend(['-codec:a', 'pcm_s16le'])
-            elif target_format == 'ogg':
-                cmd.extend(['-codec:a', 'libvorbis', '-q:a', '5'])
-            elif target_format == 'opus':
-                cmd.extend(['-codec:a', 'libopus', '-b:a', '128k'])
-            elif target_format == 'm4a':
-                cmd.extend(['-codec:a', 'aac', '-b:a', '192k'])
-        else:
-            if target_format == 'mp4':
-                cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
-            elif target_format == 'webm':
-                cmd.extend(['-c:v', 'libvpx-vp9', '-c:a', 'libopus'])
-            elif target_format == 'mkv':
-                cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
-            elif target_format == 'avi':
-                cmd.extend(['-c:v', 'libx264', '-c:a', 'mp3'])
-            elif target_format == 'mov':
-                cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
-
-        # FFmpeg'in sıkıştırılmış bir girdiden sınırsız büyüklükte WAV/AVI vb.
-        # üretip diski doldurmasını engelle. Sonrasında gerçek boyut ayrıca
-        # kontrol edilir; -fs erken durdurma için savunma katmanıdır.
-        cmd.extend([
+        limit_args = [
             '-t', str(MAX_VIDEO_DURATION_SECONDS),
             '-fs', str(MAX_CONVERT_OUTPUT_SIZE_BYTES),
-            output_path,
-        ])
+        ]
+        copy_args = (
+            ['-map', '0:a:0', '-vn', '-c:a', 'copy']
+            if target_format in audio_formats
+            else ['-map', '0', '-map_metadata', '0', '-c', 'copy']
+        )
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT)
-        if result.returncode != 0:
-            logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
-            _force_cleanup(output_path)
-            return jsonify({"error": "Conversion failed. Please check the file format."}), 400
+        completed_mode = None
+        result = None
+        if conversion_mode in {'auto', 'remux'}:
+            copy_cmd = base_cmd + copy_args + limit_args + [output_path]
+            result = subprocess.run(
+                copy_cmd,
+                capture_output=True,
+                text=True,
+                timeout=FFMPEG_TIMEOUT,
+            )
+            if result.returncode == 0 and os.path.isfile(output_path):
+                completed_mode = 'remux'
+            elif conversion_mode == 'remux':
+                logger.info(f"[REMUX INCOMPATIBLE] {result.stderr[:300]}")
+                _force_cleanup(output_path)
+                return jsonify({
+                    "error": "The streams are not compatible with this container.",
+                    "error_code": "remux_incompatible",
+                }), 400
+            else:
+                logger.info(f"[CONV] stream copy incompatible; transcoding: {result.stderr[:200]}")
+                _force_cleanup(output_path)
+                _register_cleanup(output_path)
+
+        if completed_mode is None:
+            transcode_args = []
+            if target_format in audio_formats:
+                transcode_args.extend(['-vn'])
+
+            if target_format == 'mp3':
+                transcode_args.extend(['-codec:a', 'libmp3lame', '-q:a', '2'])
+            elif target_format == 'flac':
+                transcode_args.extend(['-codec:a', 'flac'])
+            elif target_format == 'wav':
+                transcode_args.extend(['-codec:a', 'pcm_s16le'])
+            elif target_format == 'ogg':
+                transcode_args.extend(['-codec:a', 'libvorbis', '-q:a', '5'])
+            elif target_format == 'opus':
+                transcode_args.extend(['-codec:a', 'libopus', '-b:a', '128k'])
+            elif target_format == 'm4a':
+                transcode_args.extend(['-codec:a', 'aac', '-b:a', '192k'])
+            elif target_format == 'mp4':
+                transcode_args.extend(['-c:v', 'libx264', '-c:a', 'aac'])
+            elif target_format == 'webm':
+                transcode_args.extend(['-c:v', 'libvpx-vp9', '-c:a', 'libopus'])
+            elif target_format == 'mkv':
+                transcode_args.extend(['-c:v', 'libx264', '-c:a', 'aac'])
+            elif target_format == 'avi':
+                transcode_args.extend(['-c:v', 'libx264', '-c:a', 'mp3'])
+            elif target_format == 'mov':
+                transcode_args.extend(['-c:v', 'libx264', '-c:a', 'aac'])
+
+            # -fs is an early-stop guard; the exact output size is checked below.
+            transcode_cmd = base_cmd + transcode_args + limit_args + [output_path]
+            result = subprocess.run(
+                transcode_cmd,
+                capture_output=True,
+                text=True,
+                timeout=FFMPEG_TIMEOUT,
+            )
+            if result.returncode != 0:
+                logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
+                _force_cleanup(output_path)
+                return jsonify({
+                    "error": "Conversion failed. Please check the file format.",
+                    "error_code": "conversion_failed",
+                }), 400
+            completed_mode = 'transcode'
 
         try:
             output_size = os.path.getsize(output_path)
@@ -2341,15 +2878,30 @@ def convert_file_with_slot(ip):
             pass
 
         download_name = safe_download_name(requested_download_name, "converted", target_format)
-        token = prepare_native_download(output_path, download_name, ip)
+        token = prepare_native_download(
+            output_path,
+            download_name,
+            ip,
+            spool_reservation["id"],
+        )
+        spool_reservation["id"] = None
         return jsonify({
             "ok": True,
             "download_url": f"/files/{token}",
             "filename": download_name,
             "size": output_size,
             "expires_in": PREPARED_FILE_TTL,
+            "processing_mode": completed_mode,
         }), 200
 
+    except SpoolBudgetExceeded:
+        logger.warning("[CONV] prepared-file spool budget exceeded")
+        if output_path:
+            _force_cleanup(output_path)
+        return service_busy(
+            "Temporary file capacity is full. Please try again after active transfers finish.",
+            retry_after=10,
+        )
     except subprocess.TimeoutExpired:
         logger.error("[CONV ERR] ffmpeg timeout")
         try:
