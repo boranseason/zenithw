@@ -556,6 +556,19 @@ logger.info(f"[INIT] ffmpeg={FFMPEG_DIR}")
 # çıkabiliyor). Deploy sonrası loglardan görünür olsun diye burada kontrol
 # ediyoruz.
 _DENO_PATH = shutil.which("deno")
+_DENO_VERSION = None
+if _DENO_PATH:
+    try:
+        _deno_version_result = subprocess.run(
+            [_DENO_PATH, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        _DENO_VERSION = (_deno_version_result.stdout or "").splitlines()[0].strip() or None
+    except (OSError, subprocess.SubprocessError):
+        _DENO_VERSION = None
 try:
     import yt_dlp_ejs  # noqa: F401
     _EJS_AVAILABLE = True
@@ -573,7 +586,10 @@ if POT_PROVIDER_URL and not _POT_PLUGIN_VERSION:
     )
 
 if _DENO_PATH and _EJS_AVAILABLE:
-    logger.info(f"[INIT] yt-dlp JS solver: OK (deno={_DENO_PATH}, yt-dlp-ejs=loaded)")
+    logger.info(
+        f"[INIT] yt-dlp JS solver: OK "
+        f"(deno={_DENO_PATH}, version={_DENO_VERSION or 'unknown'}, yt-dlp-ejs=loaded)"
+    )
 else:
     logger.warning(
         f"[INIT] yt-dlp JS solver INCOMPLETE (deno={'found' if _DENO_PATH else 'MISSING'}, "
@@ -1168,6 +1184,16 @@ def get_base_opts(url, use_cookies=True):
                 "base_url": [POT_PROVIDER_URL],
             },
         }
+        if _DENO_PATH:
+            # Do not rely on yt-dlp rediscovering the Nix-provided runtime in
+            # the worker environment; pass the verified executable directly.
+            opts["js_runtimes"] = {
+                "deno": {"path": _DENO_PATH},
+            }
+            # The installed yt-dlp-ejs package is preferred. This official npm
+            # source is a fallback when yt-dlp rejects/misses the local script
+            # bundle after a YouTube player update.
+            opts["remote_components"] = {"ejs:npm"}
     if FFMPEG_DIR:
         opts["ffmpeg_location"] = FFMPEG_DIR
     # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
