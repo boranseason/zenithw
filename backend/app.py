@@ -1418,6 +1418,9 @@ def remember_primary_error(primary_error, candidate):
 FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
 
 
+YOUTUBE_PROXY_URL = os.environ.get("YOUTUBE_PROXY_URL", "").strip()
+
+
 def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
     opts = {
         "quiet": True,
@@ -1474,6 +1477,8 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
     # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
     if use_cookies and os.path.exists(COOKIES_FILE) and not is_instagram(url):
         opts["cookiefile"] = COOKIES_FILE
+    if YOUTUBE_PROXY_URL and is_youtube(url):
+        opts["proxy"] = YOUTUBE_PROXY_URL
     return opts
 
 
