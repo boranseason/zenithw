@@ -1430,12 +1430,52 @@ FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
 
 
 YOUTUBE_PROXY_URL = os.environ.get("YOUTUBE_PROXY_URL", "").strip()
-if YOUTUBE_PROXY_URL:
+
+
+def _parse_proxy_list(raw):
+    """
+    YOUTUBE_PROXY_URLS için virgülle ayrılmış proxy listesini parse eder.
+    Her satır iki formatı destekler:
+      - ip:port:user:pass   (Webshare'in ham export formatı)
+      - http://user:pass@ip:port   (tam URL)
+    Geçersiz satırlar atlanır (loglanır).
+    """
+    urls = []
+    for raw_entry in raw.split(","):
+        entry = raw_entry.strip()
+        if not entry:
+            continue
+        if "://" in entry:
+            urls.append(entry)
+            continue
+        parts = entry.split(":")
+        if len(parts) == 4:
+            host, port, user, pwd = parts
+            urls.append(f"http://{user}:{pwd}@{host}:{port}")
+        else:
+            logger.warning(f"[INIT] Skipping malformed proxy entry: {entry[:30]}...")
+    return urls
+
+
+YOUTUBE_PROXY_URLS = _parse_proxy_list(os.environ.get("YOUTUBE_PROXY_URLS", ""))
+if YOUTUBE_PROXY_URLS:
+    logger.info(
+        f"[INIT] YouTube proxy pool loaded ({len(YOUTUBE_PROXY_URLS)} proxies, "
+        "random per attempt)"
+    )
+elif YOUTUBE_PROXY_URL:
     logger.info(
         f"[INIT] YouTube proxy configured ({_mask_proxy_url(YOUTUBE_PROXY_URL)})"
     )
 else:
-    logger.info("[INIT] YouTube proxy disabled (YOUTUBE_PROXY_URL not set)")
+    logger.info("[INIT] YouTube proxy disabled (YOUTUBE_PROXY_URL / YOUTUBE_PROXY_URLS not set)")
+
+
+def _pick_youtube_proxy():
+    """Proxy havuzu varsa rastgele birini, yoksa tekil YOUTUBE_PROXY_URL'i, o da yoksa None döner."""
+    if YOUTUBE_PROXY_URLS:
+        return secrets.choice(YOUTUBE_PROXY_URLS)
+    return YOUTUBE_PROXY_URL or None
 
 
 def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
@@ -1494,8 +1534,9 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
     # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
     if use_cookies and os.path.exists(COOKIES_FILE) and not is_instagram(url):
         opts["cookiefile"] = COOKIES_FILE
-    if YOUTUBE_PROXY_URL and is_youtube(url):
-        opts["proxy"] = YOUTUBE_PROXY_URL
+    chosen_proxy = _pick_youtube_proxy() if is_youtube(url) else None
+    if chosen_proxy:
+        opts["proxy"] = chosen_proxy
     return opts
 
 
