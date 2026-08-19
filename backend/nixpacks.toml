@@ -1,5 +1,2 @@
 [phases.setup]
 nixPkgs = ["python3", "gcc", "ffmpeg"]
-
-[phases.install]
-cmds = ["pip install -r backend/requirements.txt"]
