@@ -671,6 +671,17 @@ if POT_PROVIDER_URL:
 else:
     logger.info("[INIT] YouTube PO Token provider disabled (YOUTUBE_POT_PROVIDER_URL not set)")
 
+
+def _mask_proxy_url(raw_url):
+    """Log'larda şifre/kullanıcı adı görünmesin diye proxy URL'sini maskeler."""
+    try:
+        parsed = urlparse(raw_url)
+        host_part = parsed.hostname or "?"
+        port_part = f":{parsed.port}" if parsed.port else ""
+        return f"{parsed.scheme}://***:***@{host_part}{port_part}"
+    except Exception:
+        return "***"
+
 # aria2c SSRF bypass riski nedeniyle tamamen devre dışı bırakıldı.
 # Gelecekte container seviyesinde egress firewall kurulursa tekrar açılabilir.
 ARIA2_PATH = None
@@ -1419,6 +1430,12 @@ FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
 
 
 YOUTUBE_PROXY_URL = os.environ.get("YOUTUBE_PROXY_URL", "").strip()
+if YOUTUBE_PROXY_URL:
+    logger.info(
+        f"[INIT] YouTube proxy configured ({_mask_proxy_url(YOUTUBE_PROXY_URL)})"
+    )
+else:
+    logger.info("[INIT] YouTube proxy disabled (YOUTUBE_PROXY_URL not set)")
 
 
 def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
@@ -2210,9 +2227,10 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
         if is_youtube(url):
             youtube_args = opts.get("extractor_args", {}).get("youtube", {})
             player_clients = ",".join(youtube_args.get("player_client") or ()) or "auto"
+            proxy_status = _mask_proxy_url(opts["proxy"]) if opts.get("proxy") else "none"
             logger.info(
                 f"[DL] YouTube attempt {attempt_index + 1}/{len(opts_list)} "
-                f"client={player_clients}"
+                f"client={player_clients} proxy={proxy_status}"
             )
         before_pids = _snapshot_child_pids()
         try:
