@@ -1024,9 +1024,37 @@ def safe_emit(event, data, room=None):
         logger.warning(f"[SOCKET] Emit failed for room {room}: {e}")
 
 # ── Platform helpers ──────────────────────────────────
-def is_youtube(u): return "youtube.com" in u or "youtu.be" in u
-def is_tiktok(u): return "tiktok.com" in u
-def is_instagram(u): return "instagram.com" in u
+# NOT: Önceden "domain in url" substring kontrolü yapılıyordu (ör. "youtube.com" in u).
+# Bu, https://evil.com/?x=youtube.com gibi URL'lerde yanlış pozitif/negatif
+# sınıflandırmaya yol açabiliyordu -- gerçek güvenlik kontrolü değil (SSRF
+# koruması is_safe_url()/DNS çözümlemesi üzerinden ayrı yapılıyor), ama
+# extractor_args/PO-token seçimini ve platform bazlı hata mesajlarını
+# yanlış URL'lere uygulayabiliyordu. Artık yalnızca gerçek hostname (ve alt
+# alan adları) eşleşiyor.
+def _get_hostname(u):
+    try:
+        return (urlparse(u).hostname or "").lower()
+    except Exception:
+        return ""
+
+
+def _hostname_matches(hostname, domain):
+    return bool(hostname) and (hostname == domain or hostname.endswith("." + domain))
+
+
+def is_youtube(u):
+    h = _get_hostname(u)
+    return _hostname_matches(h, "youtube.com") or _hostname_matches(h, "youtu.be")
+
+
+def is_tiktok(u):
+    return _hostname_matches(_get_hostname(u), "tiktok.com")
+
+
+def is_instagram(u):
+    return _hostname_matches(_get_hostname(u), "instagram.com")
+
+
 def is_youtube_live_url(u): return is_youtube(u) and "/live/" in u
 
 UNSUPPORTED_DOMAINS = (
@@ -1036,8 +1064,8 @@ UNSUPPORTED_DOMAINS = (
 
 
 def is_unsupported_domain(u):
-    ul = u.lower()
-    return any(d in ul for d in UNSUPPORTED_DOMAINS)
+    h = _get_hostname(u)
+    return any(_hostname_matches(h, d) for d in UNSUPPORTED_DOMAINS)
 
 # ── SSRF Koruması ──────────────────────────────────────
 def _is_private_ip(ip_str):
@@ -2748,7 +2776,13 @@ def download_thumbnail_with_slot(url):
             {"key": "FFmpegThumbnailsConvertor", "format": "jpg"},
         ],
     }
-    opts_list = get_opts_list(url, extra=extra)
+    opts_list = get_opts_list(
+        url,
+        extra=extra,
+        # /download ile aynı bot-detection kurtarma zinciri: mweb bot
+        # korumasına takılırsa "default" player client ile son bir kez dene.
+        youtube_video_fallback=is_youtube(url),
+    )
     last_err = None
     primary_err = None
     deadline = time.monotonic() + THUMBNAIL_TIMEOUT_SECONDS
