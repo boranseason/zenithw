@@ -1,7 +1,11 @@
-# Keep the public repository focused on the main README. Optimization notes,
-# deployment notes, and other local Markdown documents stay on this machine.
-*.md
-!/README.md
-
-# Local characterization/regression tests are kept out of deployments and Git.
-/backend/tests/
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+backend/download/
+backend/downloads/
+backend/cookies.txt
+cookies.txt
+docs/OPTIMIZATIONS.md

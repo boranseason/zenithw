@@ -1,0 +1,22 @@
+/app.8333ca441639.js
+  Cache-Control: public, max-age=31536000, immutable
+/style.11baf1c0d7fe.css
+  Cache-Control: public, max-age=31536000, immutable
+/updates-core.63274ffa232d.js
+  Cache-Control: public, max-age=31536000, immutable
+/updates-archive.479fcc570552.js
+  Cache-Control: public, max-age=31536000, immutable
+/updates.4afebabda436.css
+  Cache-Control: public, max-age=31536000, immutable
+/info.6c44eb6f52e7.css
+  Cache-Control: public, max-age=31536000, immutable
+/info-page.412ae0f21fba.js
+  Cache-Control: public, max-age=31536000, immutable
+/compare.a0575b77ab4c.css
+  Cache-Control: public, max-age=31536000, immutable
+/version.js
+  Cache-Control: public, max-age=0, must-revalidate
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+/
+  Cache-Control: public, max-age=0, must-revalidate

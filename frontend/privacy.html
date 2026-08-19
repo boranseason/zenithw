@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#060606">
   <link rel="icon" type="image/png" href="zenithw.png">
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.11baf1c0d7fe.css">
+  <link rel="stylesheet" href="info.6c44eb6f52e7.css">
 </head>
 <body class="info-page">
   <main class="info-shell">
@@ -112,25 +112,7 @@
       }
     };
 
-    function setPageLang(lang) {
-      const active = COPY[lang] ? lang : 'en';
-      const text = COPY[active];
-      document.documentElement.lang = active;
-      document.getElementById('pgTitle').textContent = text.title;
-      document.getElementById('pgDesc').setAttribute('content', text.desc);
-      document.getElementById('pgBack').textContent = text.back;
-      document.getElementById('pgKicker').textContent = text.kicker;
-      document.getElementById('pgH1').textContent = text.h1;
-      document.getElementById('pgLead').textContent = text.lead;
-      document.getElementById('pgUpdated').textContent = text.updated;
-      document.getElementById('pgBody').innerHTML = text.body;
-      document.getElementById('pgFooter').innerHTML = text.footer;
-      document.querySelectorAll('#langSwitch button').forEach(button => button.classList.toggle('active', button.dataset.lang === active));
-      try { localStorage.setItem('zw_lang', active); } catch (_) {}
-    }
-    let savedLanguage = 'tr';
-    try { savedLanguage = localStorage.getItem('zw_lang') || 'tr'; } catch (_) {}
-    setPageLang(savedLanguage === 'tr' ? 'tr' : 'en');
-  </script>
+</script>
+  <script src="info-page.412ae0f21fba.js"></script>
 </body>
 </html>

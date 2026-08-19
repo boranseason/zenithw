@@ -2129,6 +2129,250 @@ def get_info_with_slot(url):
         payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
     return payload, 400
 
+class DownloadAttemptResult:
+    """Outcome of run_download_attempts(): which opts_list entry (if any)
+    produced a finished file, plus enough error context for the route to
+    build the right HTTP response. Deliberately a plain attribute bag, not
+    a class hierarchy -- the route still owns all the response-building
+    decisions, this just reports what happened.
+    """
+    __slots__ = ("success", "full_path", "video_title", "timed_out", "last_err", "primary_err")
+
+    def __init__(self, success=False, full_path=None, video_title=None,
+                 timed_out=False, last_err=None, primary_err=None):
+        self.success = success
+        self.full_path = full_path
+        self.video_title = video_title
+        self.timed_out = timed_out
+        self.last_err = last_err
+        self.primary_err = primary_err
+
+
+def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
+                           request_deadline, cancel_event):
+    """Runs the yt-dlp extract_info(download=True) retry loop for /download.
+
+    Tries each entry in opts_list in order (the client-fallback ladder built
+    by get_opts_list), stopping at the first one that produces a finished
+    media file. This is a line-for-line extraction of the previous inline
+    loop (OPTIMIZATIONS.md Finding 11): same end-to-end deadline handling,
+    same child-process reaping via _reap_new_children, same cookie/429/
+    login/format fallback rules between attempts.
+
+    yt_dlp.utils.DownloadCancelled and the process-fatal exceptions
+    (MemoryError/SystemError/KeyboardInterrupt/SystemExit) are re-raised
+    exactly as before so the route's existing except blocks keep handling
+    them unchanged. Every other outcome -- success, timeout, or exhausted
+    retries -- is reported back via the returned DownloadAttemptResult so
+    the route stays the single place that turns outcomes into HTTP
+    responses.
+    """
+    result = DownloadAttemptResult(video_title=video_title)
+    primary_err = None
+    last_err = None
+
+    for attempt_index, opts in enumerate(opts_list):
+        if cancel_event.is_set():
+            break
+        if is_youtube(url):
+            youtube_args = opts.get("extractor_args", {}).get("youtube", {})
+            player_clients = ",".join(youtube_args.get("player_client") or ()) or "auto"
+            logger.info(
+                f"[DL] YouTube attempt {attempt_index + 1}/{len(opts_list)} "
+                f"client={player_clients}"
+            )
+        before_pids = _snapshot_child_pids()
+        try:
+            # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz,
+            # sadece Python kodunu kapsar. Bu yüzden timeout/exception
+            # sonrası _reap_new_children ile process ağacı taranıp
+            # timeout süresince doğan ffmpeg/aria2c process'leri öldürülür.
+            # Ayrıca uzun süren işlemler için gunicorn --timeout (660s)
+            # devreye girer ve worker'ı restart eder. Bu yüzden
+            # DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
+            remaining = request_deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")
+            with gevent.Timeout(remaining, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")):
+                with _pot_provider_network_scope(url):
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        download_info = ydl.extract_info(url, download=True)
+                        if not isinstance(download_info, dict):
+                            raise ValueError(
+                                "Playlist downloads are not supported. Select a single video."
+                            )
+                        if download_info.get("_type") in ("playlist", "multi_video") or "entries" in download_info:
+                            raise ValueError(
+                                "Playlist downloads are not supported. Select a single video."
+                            )
+                        limit_error = enforce_download_limits(download_info, incomplete=False)
+                        if limit_error:
+                            raise ValueError(limit_error)
+                        full_path = resolve_downloaded_media_path(download_info, filename)
+                        if not full_path:
+                            raise FileNotFoundError("Downloaded media file path not found")
+                        result.full_path = full_path
+                        result.video_title = download_info.get("title") or result.video_title
+                        result.success = True
+                        break
+        except yt_dlp.utils.DownloadCancelled:
+            _reap_new_children(before_pids, download_id, filename)
+            raise
+        except TimeoutError as e:
+            result.timed_out = True
+            last_err = e
+            primary_err = e
+            logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
+            _reap_new_children(before_pids, download_id, filename)
+            break
+        except (MemoryError, SystemError, KeyboardInterrupt, SystemExit):
+            _reap_new_children(before_pids, download_id, filename)
+            raise
+        except Exception as e:
+            last_err = e
+            primary_err = remember_primary_error(primary_err, e)
+            es = str(e).lower()
+            logger.error(f"[DL FAIL] {es[:100]}")
+            _reap_new_children(before_pids, download_id, filename)
+            if "cookie" in es and attempt_index + 1 < len(opts_list):
+                continue
+            if "429" in es or "too many requests" in es:
+                # Do not double-hit the same rate-limited YouTube endpoint
+                # with the immediate cookie-less fallback.
+                break
+            if ("login" in es or "private" in es or "video too long" in es
+                    or "playlist downloads are not supported" in es
+                    or "downloaded media file path not found" in es):
+                break
+            if attempt_index + 1 < len(opts_list):
+                next_youtube_args = (
+                    opts_list[attempt_index + 1]
+                    .get("extractor_args", {})
+                    .get("youtube", {})
+                )
+                next_clients = next_youtube_args.get("player_client") or ()
+                next_is_video_fallback = list(next_clients) == ["default"]
+                format_missing = any(token in es for token in (
+                    "requested format", "no video formats", "only images",
+                    "format is not available", "format unavailable",
+                ))
+                if next_is_video_fallback and not format_missing:
+                    break
+            continue
+
+    result.last_err = last_err
+    result.primary_err = primary_err
+    return result
+
+
+def apply_mute_postprocessing(full_path):
+    """Strips the audio track from an already-downloaded file via a second
+    FFmpeg stream-copy pass (OPTIMIZATIONS.md Finding 11's media
+    post-processing extraction).
+
+    This is only a fallback path now: build_format_str's
+    youtube_video_only_mute selection (Finding 2) avoids this entirely on
+    YouTube by requesting a video-only format up front. Non-YouTube
+    extractors that only expose muxed formats still land here.
+
+    Mutates the file on disk in place -- the stripped copy is renamed over
+    full_path -- and raises on any FFmpeg failure so the caller's existing
+    error handling and artifact cleanup take over unchanged.
+    """
+    logger.info("[DL] mute step starting")
+    base, ext = os.path.splitext(full_path)
+    muted_path = base + ".muted" + ext
+    _register_cleanup(muted_path)
+    try:
+        ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
+        result = subprocess.run(
+            [ffmpeg_cmd, "-y", "-protocol_whitelist", FFMPEG_LOCAL_PROTOCOLS,
+             "-i", full_path,
+             "-c", "copy", "-an", muted_path],
+            capture_output=True, text=True, timeout=FFMPEG_TIMEOUT
+        )
+        if result.returncode == 0 and os.path.exists(muted_path):
+            os.remove(full_path)
+            _unregister_cleanup(full_path)
+            os.rename(muted_path, full_path)
+            _unregister_cleanup(muted_path)
+            _register_cleanup(full_path)
+        else:
+            logger.error(f"[MUTE FFMPEG FAIL] {result.stderr[:200]}")
+            raise RuntimeError("Mute processing failed")
+    except Exception as e:
+        logger.error(f"[MUTE FFMPEG ERR] {e}")
+        raise
+    finally:
+        try:
+            if os.path.exists(muted_path):
+                os.remove(muted_path)
+                _unregister_cleanup(muted_path)
+        except Exception:
+            pass
+
+
+def finalize_prepared_download(full_path, *, fmt, video_title, requested_download_name,
+                                ip, spool_reservation_id, sid, download_id, release_slot):
+    """Idempotent job finalizer for a completed /download attempt
+    (OPTIMIZATIONS.md Finding 11): validates the final size, emits the
+    'done' progress event, hands the artifact off for native file transfer,
+    and returns the Flask response.
+
+    Runs exactly once per successful job, mirroring the previous inline
+    tail of the route. `release_slot` is called at most once -- at the same
+    point the processing slot was freed before this extraction, right after
+    the size check and before native-transfer prep -- so the caller's own
+    slot_acquired bookkeeping (and the route's `finally` fallback release)
+    stays correct. Returns (response_tuple, reservation_consumed); the
+    caller should clear its own spool_reservation_id bookkeeping when
+    reservation_consumed is True, since ownership of that reservation has
+    passed to the prepared-file lifecycle.
+    """
+    try:
+        final_size = os.path.getsize(full_path)
+    except OSError:
+        final_size = 0
+
+    if final_size > MAX_DOWNLOAD_SIZE_BYTES:
+        try:
+            os.remove(full_path)
+            _unregister_cleanup(full_path)
+        except Exception:
+            pass
+        discard_cancel_event(download_id)
+        if sid:
+            safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
+        max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
+        return (
+            jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}),
+            400,
+        ), False
+
+    if sid:
+        safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+
+    release_slot()
+
+    ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
+    fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
+    download_name = safe_download_name(requested_download_name, fallback_title, ext)
+    token = prepare_native_download(full_path, download_name, ip, spool_reservation_id)
+    discard_cancel_event(download_id)
+    logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
+    return (
+        jsonify({
+            "ok": True,
+            "download_id": download_id,
+            "download_url": f"/files/{token}",
+            "filename": download_name,
+            "size": final_size,
+            "expires_in": PREPARED_FILE_TTL,
+        }),
+        200,
+    ), True
+
+
 # ── /download ─────────────────────────────────────────
 @app.route("/download", methods=["POST"])
 def download():
@@ -2348,99 +2592,21 @@ def download():
             extra=extra,
             youtube_video_fallback=is_youtube(url) and not is_audio,
         )
-        success = False
-        last_err = None
-        primary_err = None
-        timed_out = False
         logger.info(f"[DL] starting download (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
-
-        for attempt_index, opts in enumerate(opts_list):
-            if cancel_event.is_set():
-                break
-            if is_youtube(url):
-                youtube_args = opts.get("extractor_args", {}).get("youtube", {})
-                player_clients = ",".join(youtube_args.get("player_client") or ()) or "auto"
-                logger.info(
-                    f"[DL] YouTube attempt {attempt_index + 1}/{len(opts_list)} "
-                    f"client={player_clients}"
-                )
-            before_pids = _snapshot_child_pids()
-            try:
-                # NOT: gevent.Timeout subprocess'leri (ffmpeg merge) durduramaz,
-                # sadece Python kodunu kapsar. Bu yüzden timeout/exception
-                # sonrası _reap_new_children ile process ağacı taranıp
-                # timeout süresince doğan ffmpeg/aria2c process'leri öldürülür.
-                # Ayrıca uzun süren işlemler için gunicorn --timeout (660s)
-                # devreye girer ve worker'ı restart eder. Bu yüzden
-                # DOWNLOAD_TIMEOUT_SECONDS < gunicorn timeout.
-                remaining = request_deadline - time.monotonic()
-                if remaining <= 0:
-                    raise TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")
-                with gevent.Timeout(remaining, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")):
-                    with _pot_provider_network_scope(url):
-                        with yt_dlp.YoutubeDL(opts) as ydl:
-                            download_info = ydl.extract_info(url, download=True)
-                            if not isinstance(download_info, dict):
-                                raise ValueError(
-                                    "Playlist downloads are not supported. Select a single video."
-                                )
-                            if download_info.get("_type") in ("playlist", "multi_video") or "entries" in download_info:
-                                raise ValueError(
-                                    "Playlist downloads are not supported. Select a single video."
-                                )
-                            limit_error = enforce_download_limits(download_info, incomplete=False)
-                            if limit_error:
-                                raise ValueError(limit_error)
-                            full_path = resolve_downloaded_media_path(download_info, filename)
-                            if not full_path:
-                                raise FileNotFoundError("Downloaded media file path not found")
-                            video_title = download_info.get("title") or video_title
-                            success = True
-                            break
-            except yt_dlp.utils.DownloadCancelled:
-                _reap_new_children(before_pids, download_id, filename)
-                raise
-            except TimeoutError as e:
-                timed_out = True
-                last_err = e
-                primary_err = e
-                logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
-                _reap_new_children(before_pids, download_id, filename)
-                break
-            except (MemoryError, SystemError, KeyboardInterrupt, SystemExit):
-                _reap_new_children(before_pids, download_id, filename)
-                raise
-            except Exception as e:
-                last_err = e
-                primary_err = remember_primary_error(primary_err, e)
-                es = str(e).lower()
-                logger.error(f"[DL FAIL] {es[:100]}")
-                _reap_new_children(before_pids, download_id, filename)
-                if "cookie" in es and attempt_index + 1 < len(opts_list):
-                    continue
-                if "429" in es or "too many requests" in es:
-                    # Do not double-hit the same rate-limited YouTube endpoint
-                    # with the immediate cookie-less fallback.
-                    break
-                if ("login" in es or "private" in es or "video too long" in es
-                        or "playlist downloads are not supported" in es
-                        or "downloaded media file path not found" in es):
-                    break
-                if attempt_index + 1 < len(opts_list):
-                    next_youtube_args = (
-                        opts_list[attempt_index + 1]
-                        .get("extractor_args", {})
-                        .get("youtube", {})
-                    )
-                    next_clients = next_youtube_args.get("player_client") or ()
-                    next_is_video_fallback = list(next_clients) == ["default"]
-                    format_missing = any(token in es for token in (
-                        "requested format", "no video formats", "only images",
-                        "format is not available", "format unavailable",
-                    ))
-                    if next_is_video_fallback and not format_missing:
-                        break
-                continue
+        attempt_result = run_download_attempts(
+            url, opts_list,
+            download_id=download_id,
+            filename=filename,
+            video_title=video_title,
+            request_deadline=request_deadline,
+            cancel_event=cancel_event,
+        )
+        success = attempt_result.success
+        full_path = attempt_result.full_path
+        video_title = attempt_result.video_title
+        timed_out = attempt_result.timed_out
+        last_err = attempt_result.last_err
+        primary_err = attempt_result.primary_err
 
         if cancel_event.is_set():
             raise yt_dlp.utils.DownloadCancelled("Cancelled")
@@ -2465,81 +2631,28 @@ def download():
         _register_cleanup(full_path)
 
         if mute_needs_strip:
-            logger.info("[DL] mute step starting")
-            base, ext = os.path.splitext(full_path)
-            muted_path = base + ".muted" + ext
-            _register_cleanup(muted_path)
-            try:
-                ffmpeg_cmd = FFMPEG_PATH or os.path.join(FFMPEG_DIR, "ffmpeg")
-                result = subprocess.run(
-                    [ffmpeg_cmd, "-y", "-protocol_whitelist", FFMPEG_LOCAL_PROTOCOLS,
-                     "-i", full_path,
-                     "-c", "copy", "-an", muted_path],
-                    capture_output=True, text=True, timeout=FFMPEG_TIMEOUT
-                )
-                if result.returncode == 0 and os.path.exists(muted_path):
-                    os.remove(full_path)
-                    _unregister_cleanup(full_path)
-                    os.rename(muted_path, full_path)
-                    _unregister_cleanup(muted_path)
-                    _register_cleanup(full_path)
-                else:
-                    logger.error(f"[MUTE FFMPEG FAIL] {result.stderr[:200]}")
-                    raise RuntimeError("Mute processing failed")
-            except Exception as e:
-                logger.error(f"[MUTE FFMPEG ERR] {e}")
-                raise
-            finally:
-                try:
-                    if os.path.exists(muted_path):
-                        os.remove(muted_path)
-                        _unregister_cleanup(muted_path)
-                except Exception:
-                    pass
+            apply_mute_postprocessing(full_path)
 
-        try:
-            final_size = os.path.getsize(full_path)
-        except OSError:
-            final_size = 0
-        if final_size > MAX_DOWNLOAD_SIZE_BYTES:
-            try:
-                os.remove(full_path)
-                _unregister_cleanup(full_path)
-            except Exception:
-                pass
-            discard_cancel_event(download_id)
-            if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
-            max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
-            return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}), 400
+        def _release_download_slot_once():
+            nonlocal slot_acquired
+            if slot_acquired:
+                _release_download_slot()
+                slot_acquired = False
 
-        if sid:
-            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
-
-        if slot_acquired:
-            _release_download_slot()
-            slot_acquired = False
-
-        ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
-        fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
-        download_name = safe_download_name(requested_download_name, fallback_title, ext)
-        token = prepare_native_download(
+        response, reservation_consumed = finalize_prepared_download(
             full_path,
-            download_name,
-            ip,
-            spool_reservation_id,
+            fmt=fmt,
+            video_title=video_title,
+            requested_download_name=requested_download_name,
+            ip=ip,
+            spool_reservation_id=spool_reservation_id,
+            sid=sid,
+            download_id=download_id,
+            release_slot=_release_download_slot_once,
         )
-        spool_reservation_id = None
-        discard_cancel_event(download_id)
-        logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
-        return jsonify({
-            "ok": True,
-            "download_id": download_id,
-            "download_url": f"/files/{token}",
-            "filename": download_name,
-            "size": final_size,
-            "expires_in": PREPARED_FILE_TTL,
-        }), 200
+        if reservation_consumed:
+            spool_reservation_id = None
+        return response
 
     except DownloadQueueFull:
         discard_cancel_event(download_id)
