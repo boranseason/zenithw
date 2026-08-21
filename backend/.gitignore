@@ -6,4 +6,6 @@ downloads/
 .env
 cookies.txt
 backend/cookies.txt
-OPTIMIZATIONS.md
+frontend/OPTIMIZATIONS.md
+backend/DEPLOYMENT.md
+backend/tests/

@@ -8,4 +8,5 @@ backend/download/
 backend/downloads/
 backend/cookies.txt
 cookies.txt
-docs/OPTIMIZATIONS.md
+frontend/OPTIMIZATIONS.md
+backend/DEPLOYMENT.md

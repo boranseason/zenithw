@@ -1145,7 +1145,7 @@ async function handleRemuxFile(inp){
     const payload=await res.json().catch(()=>({}));
     if(!res.ok){showPublicError(payload.error_code?payload:{error_code:'conversion_failed'},res.status,'',false);return;}
     if(!payload.download_url)throw new Error('Remuxed file was not prepared');
-    triggerNativeDownload(payload.download_url);toast(t('remuxDone'),'#3bba64');
+    await handoffPreparedDownload(payload,true);toast(t('remuxDone'),'#3bba64');
   }catch(e){toast(t('errConversion'),'#ed4245');}
   finally{remuxBusy=false;setTimeout(resetRemuxDrop,1200);}
 }
@@ -1173,7 +1173,7 @@ async function startConvert(){
     if(!res.ok){lbl.textContent=t('errConversion');btn.disabled=false;showPublicError(payload.error_code?payload:{error_code:'conversion_failed'},res.status,'',false);return;}
     if(!payload.download_url)throw new Error('Converted file was not prepared');
     lbl.textContent=t('convDoneLabel');pct.textContent='✓';
-    triggerNativeDownload(payload.download_url);
+    await handoffPreparedDownload(payload,true);
     toast(t('convDone'),'#3bba64');
     setTimeout(()=>{prog.classList.remove('show');btn.disabled=false;_updateConvBtn();},1500);
   }catch(e){lbl.textContent=t('errConversion');btn.disabled=false;toast(t('errConversion'),'#ed4245');}
