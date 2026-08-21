@@ -1164,8 +1164,8 @@ async function startConvert(){
   const prog=document.getElementById('convProgress'),btn=document.getElementById('convBtn'),lbl=document.getElementById('convProgLabel'),pct=document.getElementById('convProgPct');
   prog.classList.add('show');btn.disabled=true;lbl.textContent=t('uploading');pct.textContent='—';
   try{
-    const parts=convFile.name.split('.');parts[parts.length-1]=convTargetFmt;
-    const outputName=parts.join('.');
+    const dot=convFile.name.lastIndexOf('.');
+    const outputName=(dot>0?convFile.name.slice(0,dot):convFile.name)+'.'+convTargetFmt;
     const fd=new FormData();fd.append('file',convFile);fd.append('target_format',convTargetFmt);fd.append('mode','auto');fd.append('download_name',outputName);
     lbl.textContent=t('converting');
     const res=await fetch(API+'/convert',{method:'POST',body:fd});
