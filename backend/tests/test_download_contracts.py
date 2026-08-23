@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 
-APP_PATH = Path(__file__).resolve().parents[1] / "backend" / "app.py"
+APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 APP_SOURCE = APP_PATH.read_text(encoding="utf-8")
 APP_TREE = ast.parse(APP_SOURCE, filename=str(APP_PATH))
 
@@ -45,11 +45,13 @@ def download_source():
 
 def orchestration_source():
     """download() plus the units docs/OPTIMIZATIONS.md Finding 11 extracted from
-    it (attempt execution, media post-processing, job finalizer). Route-wide
+    it (option planning, attempt execution, media post-processing, job
+    finalizer). Route-wide
     invariants (single extraction call, cleanup coverage) are checked across
-    all four, since the logic now lives across them rather than only inline.
+    all five, since the logic now lives across them rather than only inline.
     """
     return "\n".join(function_source(name) for name in (
+        "build_download_options",
         "run_download_attempts",
         "apply_mute_postprocessing",
         "finalize_prepared_download",
@@ -64,9 +66,10 @@ class SourceHealthTests(unittest.TestCase):
     def test_single_extraction_and_native_token_handoff_are_preserved(self):
         source = orchestration_source()
         self.assertEqual(source.count("extract_info(url, download=True)"), 1)
-        self.assertIn('extra["noplaylist"] = True', download_source())
-        self.assertIn('extra["match_filter"] = enforce_download_limits', download_source())
-        self.assertIn("token = prepare_native_download(", source)
+        plan_source = function_source("build_download_options")
+        self.assertIn('extra["noplaylist"] = True', plan_source)
+        self.assertIn('extra["match_filter"] = enforce_download_limits', plan_source)
+        self.assertEqual(source.count("prepare_native_download("), 1)
         self.assertIn('"download_url": f"/files/{token}"', source)
 
     def test_all_terminal_failure_paths_use_scoped_cleanup_helpers(self):
@@ -82,12 +85,14 @@ class SourceHealthTests(unittest.TestCase):
         stay small enough to reason about without them.
         """
         source = download_source()
+        self.assertIn("make_download_progress_hook(", source)
+        self.assertIn("build_download_options(", source)
         self.assertIn("run_download_attempts(", source)
         self.assertIn("apply_mute_postprocessing(", source)
         self.assertIn("finalize_prepared_download(", source)
         # Regression guard: route previously spanned ~470 lines (all hot-path
         # concerns inline). It should now be meaningfully smaller.
-        self.assertLess(len(source.splitlines()), 350)
+        self.assertLess(len(source.splitlines()), 250)
 
 
 class FormatPlanningTests(unittest.TestCase):
@@ -116,6 +121,70 @@ class FormatPlanningTests(unittest.TestCase):
             self.build_format_str("https://example.com/video", "1080", "mp3", "h264"),
             "bestaudio/best",
         )
+
+
+class DownloadOptionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.limit_filter = staticmethod(lambda info, incomplete=False: None)
+
+        def get_opts_list(url, *, extra, youtube_video_fallback):
+            return {
+                "url": url,
+                "extra": extra,
+                "youtube_video_fallback": youtube_video_fallback,
+            }
+
+        cls.build_options = staticmethod(load_function("build_download_options", {
+            "build_format_str": lambda url, quality, fmt, codec, mute=False: "selected-format",
+            "FFMPEG_DIR": "ffmpeg",
+            "enforce_download_limits": cls.limit_filter,
+            "get_opts_list": get_opts_list,
+            "is_youtube": lambda url: "youtube.com" in url,
+        }))
+
+    def _build(self, **overrides):
+        values = {
+            "quality": "1080",
+            "fmt": "mp4",
+            "codec": "h264",
+            "audio_q": "192",
+            "mute": False,
+            "is_audio": False,
+            "add_meta": False,
+            "want_sponsorblock": False,
+            "sb_categories": ["sponsor"],
+            "sb_mode": "mark",
+            "want_subs": False,
+            "sub_langs": ["en"],
+            "filepath": "download/job",
+            "progress_hook": object(),
+        }
+        values.update(overrides)
+        return self.build_options("https://youtube.com/watch?v=abcdefghijk", **values)
+
+    def test_video_plan_keeps_single_item_limits_and_optional_processors(self):
+        result = self._build(add_meta=True, want_sponsorblock=True, sb_mode="remove", want_subs=True)
+        extra = result["extra"]
+        self.assertEqual(extra["format"], "selected-format")
+        self.assertEqual(extra["merge_output_format"], "mp4")
+        self.assertTrue(extra["noplaylist"])
+        self.assertIs(extra["match_filter"], self.limit_filter)
+        self.assertTrue(result["youtube_video_fallback"])
+        self.assertEqual(
+            [processor["key"] for processor in extra["postprocessors"]],
+            ["FFmpegMetadata", "SponsorBlock", "ModifyChapters", "FFmpegEmbedSubtitle"],
+        )
+
+    def test_audio_plan_extracts_requested_codec_without_video_fallback(self):
+        result = self._build(fmt="mp3", is_audio=True, audio_q="320", want_subs=True)
+        extra = result["extra"]
+        extractor = extra["postprocessors"][0]
+        self.assertEqual(extractor["key"], "FFmpegExtractAudio")
+        self.assertEqual(extractor["preferredcodec"], "mp3")
+        self.assertEqual(extractor["preferredquality"], "320")
+        self.assertNotIn("writesubtitles", extra)
+        self.assertFalse(result["youtube_video_fallback"])
 
 
 class DownloadLimitTests(unittest.TestCase):
@@ -449,7 +518,8 @@ class MutePostprocessingTests(unittest.TestCase):
 class JobFinalizerTests(unittest.TestCase):
     """docs/OPTIMIZATIONS.md Finding 11: the success/too-large decision, progress
     emit, slot release, and native-transfer handoff were extracted into
-    finalize_prepared_download(). release_slot must fire exactly once, and
+    finalize_prepared_download(). Repeated calls with the same state must
+    return the cached result. release_slot must fire exactly once, and
     only on the success path -- the too-large path leaves it to the route's
     own `finally` fallback, matching the pre-extraction behavior.
     """
@@ -479,10 +549,12 @@ class JobFinalizerTests(unittest.TestCase):
             Path(full_path).write_bytes(b"x" * 100)
             fn, calls = self._load(max_size=10)
             released = []
+            state = {"lock": threading.Lock()}
             (payload, status), reservation_consumed = fn(
                 full_path, fmt="mp4", video_title="T", requested_download_name=None,
                 ip="1.2.3.4", spool_reservation_id="res1", sid=None, download_id="d1",
                 release_slot=lambda: released.append(1),
+                state=state,
             )
             self.assertEqual(status, 400)
             self.assertEqual(payload["error_code"], "file_too_large")
@@ -496,17 +568,66 @@ class JobFinalizerTests(unittest.TestCase):
             Path(full_path).write_bytes(b"x" * 10)
             fn, calls = self._load(max_size=1000)
             released = []
-            (payload, status), reservation_consumed = fn(
+            state = {"lock": threading.Lock()}
+            first = fn(
                 full_path, fmt="mp4", video_title="My Title", requested_download_name=None,
                 ip="1.2.3.4", spool_reservation_id="res1", sid=None, download_id="d1",
                 release_slot=lambda: released.append(1),
+                state=state,
             )
+            second = fn(
+                full_path, fmt="mp4", video_title="My Title", requested_download_name=None,
+                ip="1.2.3.4", spool_reservation_id="res1", sid=None, download_id="d1",
+                release_slot=lambda: released.append(1),
+                state=state,
+            )
+            (payload, status), reservation_consumed = first
+            self.assertIs(second, first)
             self.assertEqual(status, 200)
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["download_url"], "/files/TOKEN123")
             self.assertTrue(reservation_consumed)
             self.assertEqual(released, [1])
             self.assertEqual(calls["prepared"], (full_path, calls["prepared"][1], "1.2.3.4", "res1"))
+            self.assertEqual(calls["discard"], 1)
+
+    def test_retry_after_prepare_failure_does_not_release_slot_twice(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            full_path = str(Path(temp_dir, "clip.mp4"))
+            Path(full_path).write_bytes(b"x" * 10)
+            fn, calls = self._load(max_size=1000)
+            released = []
+            attempts = []
+
+            def flaky_prepare(path, name, ip, reservation_id):
+                attempts.append((path, name, ip, reservation_id))
+                if len(attempts) == 1:
+                    raise RuntimeError("temporary handoff failure")
+                calls["prepared"] = attempts[-1]
+                return "TOKEN123"
+
+            fn.__globals__["prepare_native_download"] = flaky_prepare
+            state = {"lock": threading.Lock()}
+            kwargs = {
+                "fmt": "mp4",
+                "video_title": "My Title",
+                "requested_download_name": None,
+                "ip": "1.2.3.4",
+                "spool_reservation_id": "res1",
+                "sid": None,
+                "download_id": "d1",
+                "release_slot": lambda: released.append(1),
+                "state": state,
+            }
+            with self.assertRaisesRegex(RuntimeError, "temporary handoff failure"):
+                fn(full_path, **kwargs)
+
+            (payload, status), reservation_consumed = fn(full_path, **kwargs)
+            self.assertEqual(status, 200)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(reservation_consumed)
+            self.assertEqual(released, [1])
+            self.assertEqual(len(attempts), 2)
             self.assertEqual(calls["discard"], 1)
 
 

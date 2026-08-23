@@ -17,13 +17,20 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0a0a">
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.11baf1c0d7fe.css">
+<link rel="stylesheet" href="style.0f46294b97e0.css">
 <script src="version.js?v=13.0"></script>
 <style>
+.legal-page{max-width:720px;margin:0 auto;padding:40px 20px 80px;width:100%;box-sizing:border-box;}
+.legal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:36px;gap:10px;flex-wrap:wrap;}
+.legal-logo{font-size:20px;font-weight:700;letter-spacing:-1px;color:var(--text);text-decoration:none;}
+.legal-logo span{color:var(--accent);}
+.legal-back{font-size:11px;font-weight:600;color:var(--text2);text-decoration:none;background:var(--chip-bg,var(--surface));border:1px solid var(--border);border-radius:20px;padding:7px 14px;transition:all .15s;}
+.legal-back:hover{color:var(--text);border-color:var(--border2);}
+.legal-body{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 26px;backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);}
 .legal-lang-toggle{display:flex;gap:4px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:3px;}
 .legal-lang-toggle button{border:none;background:transparent;color:var(--text3);font-family:var(--font);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;transition:all .15s;}
 .legal-lang-toggle button.active{background:var(--text);color:var(--bg);}
-.legal-nav{gap:10px;flex-wrap:wrap;}
+@media(hover:none) and (pointer:coarse){.legal-body{backdrop-filter:none;-webkit-backdrop-filter:none;}}
 
 .app-hero{text-align:center;margin-bottom:28px;}
 .app-icon{width:84px;height:84px;border-radius:22px;margin:0 auto 16px;background:linear-gradient(135deg,rgba(var(--accent-rgb),0.35),rgba(168,139,250,0.15) 45%,var(--surface2) 80%);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px rgba(var(--accent-rgb),0.18);}

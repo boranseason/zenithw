@@ -2157,6 +2157,132 @@ def get_info_with_slot(url):
         payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
     return payload, 400
 
+
+def make_download_progress_hook(sid, cancel_event, size_exceeded, spool_exceeded,
+                                dl_start_time):
+    """Create the throttled yt-dlp progress hook used by one download job."""
+    last_progress = {"time": 0.0, "percent": None, "status": None}
+    last_disk_check = {"time": 0.0}
+
+    def emit_progress(payload, force=False):
+        if not sid:
+            return
+        now = time.monotonic()
+        percent = payload.get("percent")
+        status = payload.get("status")
+        same_value = percent == last_progress["percent"] and status == last_progress["status"]
+        too_soon = now - last_progress["time"] < PROGRESS_EMIT_INTERVAL
+        if not force and (same_value or too_soon):
+            return
+        last_progress.update(time=now, percent=percent, status=status)
+        safe_emit("progress", payload, room=sid)
+
+    def progress_hook(data):
+        if cancel_event.is_set():
+            raise yt_dlp.utils.DownloadCancelled("Cancelled")
+        if data["status"] == "downloading":
+            now = time.monotonic()
+            if now - last_disk_check["time"] >= 1:
+                last_disk_check["time"] = now
+                if not has_minimum_free_disk():
+                    spool_exceeded["flag"] = True
+                    cancel_event.set()
+                    raise yt_dlp.utils.DownloadCancelled("Spool disk watermark reached")
+            total = data.get("total_bytes") or data.get("total_bytes_estimate", 0)
+            downloaded = data.get("downloaded_bytes", 0)
+            if (total and total > MAX_DOWNLOAD_SIZE_BYTES) or downloaded > MAX_DOWNLOAD_SIZE_BYTES:
+                size_exceeded["flag"] = True
+                cancel_event.set()
+                if sid:
+                    safe_emit("progress", {
+                        "status": "error",
+                        "message": f"File size limit exceeded (maximum {MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)} MB).",
+                    }, room=sid)
+                raise yt_dlp.utils.DownloadCancelled("Size limit exceeded")
+            if total > 0:
+                percent = max(5, int(downloaded / total * 82))
+            elif data.get("fragment_index") is not None and data.get("fragment_count"):
+                percent = max(5, int(data["fragment_index"] / data["fragment_count"] * 82))
+            else:
+                percent = min(80, 5 + int(time.time() - dl_start_time) * 2)
+            emit_progress({
+                "percent": percent,
+                "speed": data.get("_speed_str", "").strip(),
+                "eta": data.get("_eta_str", "").strip(),
+                "status": "downloading",
+            })
+        elif data["status"] == "finished" and sid:
+            emit_progress({"percent": 88, "status": "merging"}, force=True)
+
+    return progress_hook
+
+
+def build_download_options(url, *, quality, fmt, codec, audio_q, mute, is_audio,
+                           add_meta, want_sponsorblock, sb_categories, sb_mode,
+                           want_subs, sub_langs, filepath, progress_hook):
+    """Build yt-dlp options without mixing plan construction into the route."""
+    fmt_str = build_format_str(url, quality, fmt, codec, mute=mute)
+    if is_audio:
+        codec_map = {
+            "mp3": "mp3", "flac": "flac", "wav": "wav",
+            "ogg": "vorbis", "opus": "opus", "m4a": "m4a",
+        }
+        preferred = codec_map.get(fmt, "mp3")
+        preferred_q = audio_q if fmt in ("mp3", "ogg", "m4a") else "0"
+        postprocessors = [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": preferred,
+            "preferredquality": preferred_q,
+        }]
+        extra = {
+            "format": fmt_str,
+            "outtmpl": filepath + ".%(ext)s",
+            "progress_hooks": [progress_hook],
+            "postprocessors": postprocessors,
+        }
+    else:
+        merge_fmt = fmt if fmt in ("webm", "mkv", "avi", "mov") else "mp4"
+        postprocessors = []
+        extra = {
+            "format": fmt_str,
+            "outtmpl": filepath + ".%(ext)s",
+            "progress_hooks": [progress_hook],
+            "merge_output_format": merge_fmt,
+        }
+
+    if add_meta:
+        postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
+    if want_sponsorblock:
+        postprocessors.append({
+            "key": "SponsorBlock",
+            "categories": sb_categories,
+            "api": "https://sponsor.ajay.app",
+        })
+        if sb_mode == "remove":
+            postprocessors.append({
+                "key": "ModifyChapters",
+                "remove_sponsor_segments": sb_categories,
+            })
+    if not is_audio and want_subs and FFMPEG_DIR:
+        extra["writesubtitles"] = True
+        extra["writeautomaticsub"] = True
+        extra["subtitleslangs"] = sub_langs
+        extra["subtitlesformat"] = "srt/best"
+        postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+    if postprocessors:
+        extra["postprocessors"] = postprocessors
+
+    # Metadata and download stay in one extraction. noplaylist selects the
+    # single video from video+playlist URLs; match_filter rejects containers.
+    extra["noplaylist"] = True
+    extra["match_filter"] = enforce_download_limits
+    return get_opts_list(
+        url,
+        extra=extra,
+        youtube_video_fallback=is_youtube(url) and not is_audio,
+    )
+
+
 class DownloadAttemptResult:
     """Outcome of run_download_attempts(): which opts_list entry (if any)
     produced a finished file, plus enough error context for the route to
@@ -2341,15 +2467,17 @@ def apply_mute_postprocessing(full_path):
 
 
 def finalize_prepared_download(full_path, *, fmt, video_title, requested_download_name,
-                                ip, spool_reservation_id, sid, download_id, release_slot):
+                                ip, spool_reservation_id, sid, download_id, release_slot,
+                                state):
     """Idempotent job finalizer for a completed /download attempt
     (OPTIMIZATIONS.md Finding 11): validates the final size, emits the
     'done' progress event, hands the artifact off for native file transfer,
     and returns the Flask response.
 
-    Runs exactly once per successful job, mirroring the previous inline
-    tail of the route. `release_slot` is called at most once -- at the same
-    point the processing slot was freed before this extraction, right after
+    Repeated calls with the same state return the first result without issuing
+    another token or releasing the slot again. `release_slot` is called at most
+    once -- at the same point the processing slot was freed before this
+    extraction, right after
     the size check and before native-transfer prep -- so the caller's own
     slot_acquired bookkeeping (and the route's `finally` fallback release)
     stays correct. Returns (response_tuple, reservation_consumed); the
@@ -2357,48 +2485,65 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
     reservation_consumed is True, since ownership of that reservation has
     passed to the prepared-file lifecycle.
     """
-    try:
-        final_size = os.path.getsize(full_path)
-    except OSError:
-        final_size = 0
+    with state["lock"]:
+        if state.get("completed"):
+            return state["result"]
 
-    if final_size > MAX_DOWNLOAD_SIZE_BYTES:
         try:
-            os.remove(full_path)
-            _unregister_cleanup(full_path)
-        except Exception:
-            pass
-        discard_cancel_event(download_id)
-        if sid:
-            safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
-        max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
-        return (
-            jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}),
-            400,
-        ), False
+            final_size = os.path.getsize(full_path)
+        except OSError:
+            final_size = 0
 
-    if sid:
-        safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+        if final_size > MAX_DOWNLOAD_SIZE_BYTES:
+            try:
+                os.remove(full_path)
+                _unregister_cleanup(full_path)
+            except Exception:
+                pass
+            discard_cancel_event(download_id)
+            if sid:
+                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
+            max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
+            state["result"] = ((
+                jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}),
+                400,
+            ), False)
+            state["completed"] = True
+            return state["result"]
 
-    release_slot()
+        if sid and not state.get("done_emitted"):
+            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+            state["done_emitted"] = True
 
-    ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
-    fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
-    download_name = safe_download_name(requested_download_name, fallback_title, ext)
-    token = prepare_native_download(full_path, download_name, ip, spool_reservation_id)
-    discard_cancel_event(download_id)
-    logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
-    return (
-        jsonify({
-            "ok": True,
-            "download_id": download_id,
-            "download_url": f"/files/{token}",
-            "filename": download_name,
-            "size": final_size,
-            "expires_in": PREPARED_FILE_TTL,
-        }),
-        200,
-    ), True
+        if not state.get("slot_released"):
+            release_slot()
+            state["slot_released"] = True
+
+        ext = os.path.splitext(full_path)[1].lstrip('.') or fmt
+        fallback_title = sanitize_filename(video_title) if video_title else "zenithw"
+        download_name = safe_download_name(requested_download_name, fallback_title, ext)
+        if "token" not in state:
+            state["token"] = prepare_native_download(
+                full_path, download_name, ip, spool_reservation_id
+            )
+        token = state["token"]
+        if not state.get("cancel_discarded"):
+            discard_cancel_event(download_id)
+            state["cancel_discarded"] = True
+        logger.info(f"[DL] ready for native transfer: {download_name} ({final_size} bytes)")
+        state["result"] = ((
+            jsonify({
+                "ok": True,
+                "download_id": download_id,
+                "download_url": f"/files/{token}",
+                "filename": download_name,
+                "size": final_size,
+                "expires_in": PREPARED_FILE_TTL,
+            }),
+            200,
+        ), True)
+        state["completed"] = True
+        return state["result"]
 
 
 # ── /download ─────────────────────────────────────────
@@ -2453,64 +2598,15 @@ def download():
     full_path = None
     dl_start_time = time.time()
     request_deadline = time.monotonic() + DOWNLOAD_TIMEOUT_SECONDS
-    last_progress = {"time": 0.0, "percent": None, "status": None}
-    last_disk_check = {"time": 0.0}
     spool_reservation_id = None
-
-    def emit_progress(payload, force=False):
-        if not sid:
-            return
-        now = time.monotonic()
-        percent = payload.get("percent")
-        status = payload.get("status")
-        same_value = percent == last_progress["percent"] and status == last_progress["status"]
-        too_soon = now - last_progress["time"] < PROGRESS_EMIT_INTERVAL
-        if not force and (same_value or too_soon):
-            return
-        last_progress.update(time=now, percent=percent, status=status)
-        safe_emit("progress", payload, room=sid)
-
-    def progress_hook(d):
-        if cancel_event.is_set():
-            raise yt_dlp.utils.DownloadCancelled("Cancelled")
-        if d['status'] == 'downloading':
-            now = time.monotonic()
-            if now - last_disk_check["time"] >= 1:
-                last_disk_check["time"] = now
-                if not has_minimum_free_disk():
-                    spool_exceeded["flag"] = True
-                    cancel_event.set()
-                    raise yt_dlp.utils.DownloadCancelled("Spool disk watermark reached")
-            total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
-            downloaded = d.get('downloaded_bytes', 0)
-            if (total and total > MAX_DOWNLOAD_SIZE_BYTES) or downloaded > MAX_DOWNLOAD_SIZE_BYTES:
-                size_exceeded["flag"] = True
-                cancel_event.set()
-                if sid:
-                    safe_emit('progress', {
-                        'status': 'error',
-                        'message': f"File size limit exceeded (maximum {MAX_DOWNLOAD_SIZE_BYTES // (1024*1024)} MB)."
-                    }, room=sid)
-                raise yt_dlp.utils.DownloadCancelled("Size limit exceeded")
-            pct = None
-            if total > 0:
-                pct = max(5, int(downloaded / total * 82))
-            else:
-                frag_idx = d.get('fragment_index')
-                frag_cnt = d.get('fragment_count')
-                if frag_idx is not None and frag_cnt:
-                    pct = max(5, int(frag_idx / frag_cnt * 82))
-                else:
-                    pct = min(80, 5 + int(time.time() - dl_start_time) * 2)
-            if pct is not None and sid:
-                emit_progress({
-                    'percent': pct,
-                    'speed': d.get('_speed_str', '').strip(),
-                    'eta': d.get('_eta_str', '').strip(),
-                    'status': 'downloading'
-                })
-        elif d['status'] == 'finished' and sid:
-            emit_progress({'percent': 88, 'status': 'merging'}, force=True)
+    finalization_state = {"lock": threading.Lock()}
+    progress_hook = make_download_progress_hook(
+        sid,
+        cancel_event,
+        size_exceeded,
+        spool_exceeded,
+        dl_start_time,
+    )
 
     slot_acquired = False
     try:
@@ -2527,98 +2623,30 @@ def download():
         if not spool_reservation_id:
             raise SpoolBudgetExceeded("Download spool capacity is full")
 
-        fmt_str = build_format_str(url, quality, fmt, codec, mute=mute)
         logger.info(
             f"[DL] q={quality} fmt={fmt} codec={codec} audio={is_audio} "
             f"mute_plan={'video-only' if youtube_video_only_mute else 'strip' if mute_needs_strip else 'none'}"
         )
 
-        if is_audio:
-            if not FFMPEG_DIR:
-                discard_cancel_event(download_id)
-                return jsonify({"error": "FFmpeg is required for audio conversion."}), 400
-            codec_map = {
-                "mp3": "mp3", "flac": "flac", "wav": "wav",
-                "ogg": "vorbis", "opus": "opus", "m4a": "m4a"
-            }
-            preferred = codec_map.get(fmt, "mp3")
-            preferred_q = audio_q if fmt in ("mp3", "ogg", "m4a") else "0"
-            postprocessors = [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": preferred,
-                    "preferredquality": preferred_q
-                }
-            ]
-            if add_meta:
-                postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-            if want_sponsorblock:
-                postprocessors.append({
-                    "key": "SponsorBlock",
-                    "categories": sb_categories,
-                    "api": "https://sponsor.ajay.app",
-                })
-                if sb_mode == "remove":
-                    postprocessors.append({
-                        "key": "ModifyChapters",
-                        "remove_sponsor_segments": sb_categories,
-                    })
-            extra = {
-                "format": fmt_str,
-                "outtmpl": filepath + ".%(ext)s",
-                "progress_hooks": [progress_hook],
-                "postprocessors": postprocessors,
-            }
-        else:
-            merge_fmt = "mp4"
-            if fmt == "webm":
-                merge_fmt = "webm"
-            elif fmt == "mkv":
-                merge_fmt = "mkv"
-            elif fmt == "avi":
-                merge_fmt = "avi"
-            elif fmt == "mov":
-                merge_fmt = "mov"
-            elif codec in ("av1", "vp9") and fmt != "mp4":
-                merge_fmt = "webm"
-            postprocessors = []
-            if add_meta:
-                postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-            if want_sponsorblock:
-                postprocessors.append({
-                    "key": "SponsorBlock",
-                    "categories": sb_categories,
-                    "api": "https://sponsor.ajay.app",
-                })
-                if sb_mode == "remove":
-                    postprocessors.append({
-                        "key": "ModifyChapters",
-                        "remove_sponsor_segments": sb_categories,
-                    })
-            extra = {
-                "format": fmt_str,
-                "outtmpl": filepath + ".%(ext)s",
-                "progress_hooks": [progress_hook],
-                "merge_output_format": merge_fmt,
-            }
-            if want_subs and FFMPEG_DIR:
-                extra["writesubtitles"] = True
-                extra["writeautomaticsub"] = True
-                extra["subtitleslangs"] = sub_langs
-                extra["subtitlesformat"] = "srt/best"
-                postprocessors.append({"key": "FFmpegEmbedSubtitle"})
-            if postprocessors:
-                extra["postprocessors"] = postprocessors
-
-        # Metadata ve indirme aynı extract_info(download=True) çağrısında
-        # yapılır. noplaylist, video+playlist URL'lerinde tek videoyu seçer;
-        # match_filter ise saf playlist container'ını ve uzun videoyu reddeder.
-        extra["noplaylist"] = True
-        extra["match_filter"] = enforce_download_limits
-        opts_list = get_opts_list(
+        if is_audio and not FFMPEG_DIR:
+            discard_cancel_event(download_id)
+            return jsonify({"error": "FFmpeg is required for audio conversion."}), 400
+        opts_list = build_download_options(
             url,
-            extra=extra,
-            youtube_video_fallback=is_youtube(url) and not is_audio,
+            quality=quality,
+            fmt=fmt,
+            codec=codec,
+            audio_q=audio_q,
+            mute=mute,
+            is_audio=is_audio,
+            add_meta=add_meta,
+            want_sponsorblock=want_sponsorblock,
+            sb_categories=sb_categories,
+            sb_mode=sb_mode,
+            want_subs=want_subs,
+            sub_langs=sub_langs,
+            filepath=filepath,
+            progress_hook=progress_hook,
         )
         logger.info(f"[DL] starting download (timeout={DOWNLOAD_TIMEOUT_SECONDS}s)")
         attempt_result = run_download_attempts(
@@ -2677,6 +2705,7 @@ def download():
             sid=sid,
             download_id=download_id,
             release_slot=_release_download_slot_once,
+            state=finalization_state,
         )
         if reservation_consumed:
             spool_reservation_id = None
