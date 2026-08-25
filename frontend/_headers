@@ -16,6 +16,12 @@
   Cache-Control: public, max-age=31536000, immutable
 /version.js
   Cache-Control: public, max-age=0, must-revalidate
+/maintenance
+  Cache-Control: no-store, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow, noarchive
+/maintenance.html
+  Cache-Control: no-store, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow, noarchive
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
 /

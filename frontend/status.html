@@ -68,8 +68,8 @@
         dependencyText: 'ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API\'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.',
         helpTitle: 'Sorun devam mı ediyor?',
         helpText: 'Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.',
-        checkingMeta: 'kontrol ediliyor…', ok: 'Tüm temel sistemler çalışıyor', down: 'Sunucuya şu anda ulaşılamıyor',
-        apiActive: ms => `çalışıyor · ${ms} ms`, unreachable: 'ulaşılamıyor', ready: 'hazır', issue: 'kontrol gerekli', loaded: 'hazır', notLoaded: 'erişim sınırlı',
+        checkingMeta: 'kontrol ediliyor…', ok: 'Tüm temel sistemler çalışıyor', maintenance: 'Planlı bakım sürüyor', down: 'Sunucuya şu anda ulaşılamıyor',
+        apiActive: ms => `çalışıyor · ${ms} ms`, apiMaintenance: ms => `bakım · ${ms} ms`, unreachable: 'ulaşılamıyor', ready: 'hazır', issue: 'kontrol gerekli', loaded: 'hazır', notLoaded: 'erişim sınırlı',
         queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} aktif · ${waiting} bekliyor` : `${active}/${max} aktif`,
         checked: 'son kontrol: ', locale: 'tr-TR',
         footer: '<a href="/about">hakkında</a><a href="/privacy">gizlilik</a><a href="/terms">kullanım koşulları</a><a href="/dmca">telif</a>'
@@ -84,8 +84,8 @@
         dependencyText: 'ZenithW depends on third-party platforms such as YouTube, TikTok, and Instagram. If a platform changes its bot protection or access method, downloads from that source may be temporarily affected; a healthy API does not guarantee that every platform is available.',
         helpTitle: 'Still having trouble?',
         helpText: 'If the status is healthy but you still receive an error, send the source link and the error message to <a href="mailto:info@zenithw.space?subject=ZenithW%20Issue%20Report">info@zenithw.space</a>.',
-        checkingMeta: 'checking…', ok: 'All core systems operational', down: 'The server is currently unreachable',
-        apiActive: ms => `operational · ${ms} ms`, unreachable: 'unreachable', ready: 'ready', issue: 'check required', loaded: 'ready', notLoaded: 'access limited',
+        checkingMeta: 'checking…', ok: 'All core systems operational', maintenance: 'Scheduled maintenance in progress', down: 'The server is currently unreachable',
+        apiActive: ms => `operational · ${ms} ms`, apiMaintenance: ms => `maintenance · ${ms} ms`, unreachable: 'unreachable', ready: 'ready', issue: 'check required', loaded: 'ready', notLoaded: 'access limited',
         queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} active · ${waiting} waiting` : `${active}/${max} active`,
         checked: 'last checked: ', locale: 'en-US',
         footer: '<a href="/about">about</a><a href="/privacy">privacy</a><a href="/terms">terms</a><a href="/dmca">copyright</a>'
@@ -136,9 +136,9 @@
         const latency = Math.round(performance.now() - startedAt);
         if (!response.ok) throw new Error('health check failed');
         const data = await response.json();
-        indicator.className = 'status-indicator ok';
-        document.getElementById('statusMain').textContent = text.ok;
-        document.getElementById('apiValue').textContent = text.apiActive(latency);
+        indicator.className = data.maintenance ? 'status-indicator' : 'status-indicator ok';
+        document.getElementById('statusMain').textContent = data.maintenance ? text.maintenance : text.ok;
+        document.getElementById('apiValue').textContent = data.maintenance ? text.apiMaintenance(latency) : text.apiActive(latency);
         document.getElementById('ffmpegValue').textContent = data.ffmpeg && String(data.ffmpeg).startsWith('OK') ? text.ready : text.issue;
         document.getElementById('accessValue').textContent = data.cookies && String(data.cookies).toLowerCase().startsWith('loaded') ? text.loaded : text.notLoaded;
         document.getElementById('queueValue').textContent = Number.isFinite(data.active_downloads) && Number.isFinite(data.max_concurrent_downloads)

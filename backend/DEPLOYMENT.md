@@ -33,3 +33,18 @@ limits. Instance-local files would also be unavailable from another replica.
 Production dependencies are in `backend/requirements.txt`. Local and CI tests should
 install `backend/requirements-dev.txt`; test-only packages do not belong in the runtime
 image.
+
+## Maintenance operations
+
+Maintenance mode is coordinated with the Cloudflare Pages project through the same
+environment variables:
+
+- `MAINTENANCE_MODE=1` rejects new `/info`, `/download`, `/thumbnail`, and `/convert`
+  work with HTTP 503.
+- `MAINTENANCE_MESSAGE` and `MAINTENANCE_UNTIL` describe the maintenance window.
+- `MAINTENANCE_RETRY_AFTER` controls the retry hint in seconds (default 900).
+
+Enable the Cloudflare and Railway flags together. When returning to service, disable
+Railway maintenance first and verify `/health`, then disable the Cloudflare flag. Do
+not scale workers or replicas as part of maintenance; the single-process boundary
+still applies.

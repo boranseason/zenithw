@@ -108,6 +108,37 @@ FILE_MAX_AGE = 1800  # 30 dakika
 PLAYLIST_LIMIT = 50
 
 
+def _env_flag(name, default=False):
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _bounded_env_int(name, default, minimum, maximum):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return min(maximum, max(minimum, value))
+
+
+MAINTENANCE_MODE = _env_flag("MAINTENANCE_MODE")
+MAINTENANCE_MESSAGE = (
+    os.environ.get(
+        "MAINTENANCE_MESSAGE",
+        "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
+    ).strip()[:240]
+)
+MAINTENANCE_UNTIL = os.environ.get("MAINTENANCE_UNTIL", "").strip()[:64]
+MAINTENANCE_RETRY_AFTER = _bounded_env_int(
+    "MAINTENANCE_RETRY_AFTER", 900, 60, 86400
+)
+MAINTENANCE_BLOCKED_PATHS = frozenset({
+    "/info", "/download", "/thumbnail", "/convert",
+})
+
+
 def _load_pot_provider_config():
     """Validate the optional private PO Token provider endpoint at startup."""
     raw_url = os.environ.get("YOUTUBE_POT_PROVIDER_URL", "").strip()
@@ -456,6 +487,29 @@ def _enforce_cloudflare_origin():
                        "X-Origin-Verify header'ı olarak enjekte eden bir Transform Rule tanımlayın.")
 
     return None
+
+
+@app.before_request
+def _enforce_maintenance_mode():
+    """Bakım sırasında yeni ve pahalı işleri durdur; mevcut dosya/cancel akışını koru."""
+    if not MAINTENANCE_MODE or request.method == "OPTIONS":
+        return None
+    normalized_path = request.path.rstrip("/") or "/"
+    if normalized_path not in MAINTENANCE_BLOCKED_PATHS:
+        return None
+
+    response = jsonify({
+        "error": "ZenithW is temporarily unavailable during maintenance.",
+        "error_code": "maintenance",
+        "maintenance": True,
+        "message": MAINTENANCE_MESSAGE,
+        "until": MAINTENANCE_UNTIL or None,
+        "retry_after": MAINTENANCE_RETRY_AFTER,
+    })
+    response.status_code = 503
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Retry-After"] = str(MAINTENANCE_RETRY_AFTER)
+    return response
 
 # ── Aynı IP'den eşzamanlı istek sınırı ─────────────────
 concurrent_ip_lock = threading.Lock()
@@ -1872,6 +1926,9 @@ def health():
         _free_disk = 0
     return jsonify({
         "status": "ok",
+        "maintenance": MAINTENANCE_MODE,
+        "maintenance_message": MAINTENANCE_MESSAGE if MAINTENANCE_MODE else "",
+        "maintenance_until": MAINTENANCE_UNTIL if MAINTENANCE_MODE else "",
         "deployment_mode": "single_worker_process_local_state",
         "horizontal_scaling_safe": False,
         "expected_gunicorn_workers": 1,
