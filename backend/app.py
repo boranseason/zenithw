@@ -1963,6 +1963,13 @@ def request_too_large(e):
         "error_code": "file_too_large",
     }), 413
 
+
+@app.after_request
+def prevent_api_indexing(response):
+    """API uçlarının arama sonucu olarak dizine alınmasını engelle."""
+    response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
+    return response
+
 # ── /info ─────────────────────────────────────────────
 def _info_cache_key(url):
     """Keep cache entries separate when extraction access policy changes."""

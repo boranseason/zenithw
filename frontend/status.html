@@ -6,7 +6,7 @@
   <title id="pgTitle">Sistem Durumu — ZenithW</title>
   <meta name="description" id="pgDesc" content="ZenithW API, FFmpeg, platform erişimi ve indirme kuyruğu için canlı sistem durumu.">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://zenithw.space/status.html">
+  <link rel="canonical" href="https://zenithw.space/status">
   <meta name="theme-color" content="#060606">
   <link rel="icon" type="image/png" href="zenithw.png">
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -72,7 +72,7 @@
         apiActive: ms => `çalışıyor · ${ms} ms`, unreachable: 'ulaşılamıyor', ready: 'hazır', issue: 'kontrol gerekli', loaded: 'hazır', notLoaded: 'erişim sınırlı',
         queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} aktif · ${waiting} bekliyor` : `${active}/${max} aktif`,
         checked: 'son kontrol: ', locale: 'tr-TR',
-        footer: '<a href="/about.html">hakkında</a><a href="/privacy.html">gizlilik</a><a href="/terms.html">kullanım koşulları</a><a href="/dmca.html">telif</a>'
+        footer: '<a href="/about">hakkında</a><a href="/privacy">gizlilik</a><a href="/terms">kullanım koşulları</a><a href="/dmca">telif</a>'
       },
       en: {
         title: 'System Status — ZenithW', desc: 'Live status for the ZenithW API, FFmpeg, platform access, and download queue.',
@@ -88,7 +88,7 @@
         apiActive: ms => `operational · ${ms} ms`, unreachable: 'unreachable', ready: 'ready', issue: 'check required', loaded: 'ready', notLoaded: 'access limited',
         queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} active · ${waiting} waiting` : `${active}/${max} active`,
         checked: 'last checked: ', locale: 'en-US',
-        footer: '<a href="/about.html">about</a><a href="/privacy.html">privacy</a><a href="/terms.html">terms</a><a href="/dmca.html">copyright</a>'
+        footer: '<a href="/about">about</a><a href="/privacy">privacy</a><a href="/terms">terms</a><a href="/dmca">copyright</a>'
       }
     };
     let currentLanguage = 'tr';
