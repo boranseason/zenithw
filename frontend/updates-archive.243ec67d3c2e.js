@@ -1,4 +1,38 @@
 window.ZW_UPDATE_ARCHIVE=[
+{ver:'v13.0',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
+titleTr:'indirmeler hızlandı, dosya işlemleri daha akıllı ve güvenli hale geldi',
+titleEn:'faster downloads with smarter and safer file processing',
+introTr:[
+'v13.0 ile indirme zincirini daha hızlı, daha tutarlı ve yoğun kullanımda daha dayanıklı hale getirdik.',
+'YouTube uyumluluğu güncellendi; teknik altyapı ayrıntıları kullanıcıdan uzak tutulurken toplu indirme, sessiz video, remux, dönüştürme ve dosya aktarımı baştan sona iyileştirildi.'
+],
+introEn:[
+'v13.0 makes the download chain faster, more consistent, and more resilient under load.',
+'YouTube compatibility has been refreshed while internal infrastructure details stay out of the way. Bulk downloads, mute video, remuxing, conversion, and file delivery all received practical improvements.'
+],
+sections:[
+{hTr:'daha sağlam YouTube indirmeleri',hEn:'more reliable YouTube downloads',
+pTr:'YouTube tarafındaki güncel değişikliklere uyum sağlandı. Geçici kısıtlamalarda gereksiz tekrarlar azaltıldı ve teknik hata metinleri yerine daha anlaşılır mesajlar gösteriliyor.',
+pEn:'ZenithW now follows recent YouTube changes more reliably. Unnecessary retries are reduced during temporary restrictions, and technical failures are presented as clearer messages.'},
+{hTr:'toplu indirme artık doğru ve daha hafif',hEn:'bulk downloads are now accurate and lighter',
+pTr:'Toplu mod her bağlantı için gereksiz bilgi isteği göndermiyor; tamamlanan indirmeler doğru biçimde başarılı sayılıyor ve dosyalar doğrudan tarayıcı indirmesine aktarılıyor.',
+pEn:'Bulk mode no longer performs an unnecessary information request for every link. Completed items are counted correctly and files move directly into the browser download flow.'},
+{hTr:'sessiz video gerçekten yalnızca videoyu indiriyor',hEn:'mute mode downloads video only',
+pTr:'Uyumlu kaynaklarda ses akışı artık boşuna indirilip sonradan sökülmüyor. Bu sayede ağ kullanımı, işlem süresi ve geçici disk ihtiyacı azalıyor.',
+pEn:'On compatible sources, the audio stream is no longer downloaded only to be removed later. This reduces network use, processing time, and temporary disk demand.'},
+{hTr:'gerçek remux ve akıllı dönüştürme',hEn:'real remux and smarter conversion',
+pTr:'Remux aracı artık kapsayıcıyı gerçekten değiştiriyor. Uyumlu görüntü ve ses akışları kalite kaybı olmadan kopyalanıyor; yalnızca gerekli durumlarda yeniden kodlama yapılıyor.',
+pEn:'The remux tool now performs a real container change. Compatible video and audio streams are copied without quality loss, with re-encoding used only when required.'},
+{hTr:'kontrollü disk kullanımı ve doğal dosya aktarımı',hEn:'bounded storage and native file delivery',
+pTr:'Hazırlanan dosyalar, geçici depolama ve eşzamanlı aktarımlar artık belirli sınırlar içinde tutuluyor. Büyük dosyalar tarayıcı belleğine kopyalanmadan kısa ömürlü bağlantılarla indiriliyor.',
+pEn:'Prepared files, temporary storage, and simultaneous transfers now stay within defined limits. Large files download through short-lived links instead of being copied into browser memory.'},
+{hTr:'daha hızlı tekrar ziyaretleri',hEn:'faster repeat visits',
+pTr:'Ana uygulama kodu, güncelleme sayfası ve ortak stiller ayrı, sürümlü dosyalara taşındı. Tarayıcı değişmeyen dosyaları yeniden kullanabildiği için tekrar açılışlar daha hafif hale geliyor.',
+pEn:'The main application code, updates page, and shared styles now use separate versioned assets. Browsers can reuse unchanged files, making repeat visits lighter.'}
+],
+outroTr:'Kısacası v13.0: daha az gereksiz işlem, daha doğru sonuçlar ve kullanıcıya görünmeden çalışan daha sağlam bir altyapı.',
+outroEn:'In short, v13.0 brings less wasted work, more accurate results, and a stronger foundation that stays out of the user’s way.'
+},
 {ver:'v12.9',latest:false,dateTr:'ağustos 2026',dateEn:'August 2026',
 titleTr:'dönüştürme, remux ve destek araçları daha sade bir deneyimde buluştu',
 titleEn:'convert, remux, and support tools now share a calmer experience',

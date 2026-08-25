@@ -1,39 +1,36 @@
 const LATEST_UPDATE=
 {ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
-titleTr:'indirmeler hızlandı, dosya işlemleri daha akıllı ve güvenli hale geldi',
-titleEn:'faster downloads with smarter and safer file processing',
+titleTr:'ZenithW artık Cloudflare Pages üzerinde',
+titleEn:'ZenithW now runs on Cloudflare Pages',
 introTr:[
-'v13.0 ile indirme zincirini daha hızlı, daha tutarlı ve yoğun kullanımda daha dayanıklı hale getirdik.',
-'YouTube uyumluluğu güncellendi; teknik altyapı ayrıntıları kullanıcıdan uzak tutulurken toplu indirme, sessiz video, remux, dönüştürme ve dosya aktarımı baştan sona iyileştirildi.'
+'v13.1 ile web arayüzümüzü Netlify’dan Cloudflare Pages’e taşıdık. zenithw.space adresi, SSL sertifikası ve statik dosyalar artık Cloudflare üzerinden sunuluyor; Railway üzerindeki indirme ve dönüştürme sunucumuz ise aynı adresinde çalışmaya devam ediyor.',
+'Bu yalnızca bir tabela değişikliği değil: alan adı, önbellek ve yayın akışı tek bir Cloudflare çatısı altında toplandı. Yine de her altyapı değişikliğinde olduğu gibi kazançların yanında bazı sınırlar ve yeni bağımlılıklar da var.'
 ],
 introEn:[
-'v13.0 makes the download chain faster, more consistent, and more resilient under load.',
-'YouTube compatibility has been refreshed while internal infrastructure details stay out of the way. Bulk downloads, mute video, remuxing, conversion, and file delivery all received practical improvements.'
+'With v13.1, the web interface has moved from Netlify to Cloudflare Pages. zenithw.space, its SSL certificate, and static assets are now served by Cloudflare, while the download and conversion backend continues to run on Railway at the same API address.',
+'This is more than a change of sign: domain routing, caching, and deployments now live under one Cloudflare roof. As with every infrastructure move, the benefits come with a few limits and new dependencies.'
 ],
 sections:[
-{hTr:'daha sağlam YouTube indirmeleri',hEn:'more reliable YouTube downloads',
-pTr:'YouTube tarafındaki güncel değişikliklere uyum sağlandı. Geçici kısıtlamalarda gereksiz tekrarlar azaltıldı ve teknik hata metinleri yerine daha anlaşılır mesajlar gösteriliyor.',
-pEn:'ZenithW now follows recent YouTube changes more reliably. Unnecessary retries are reduced during temporary restrictions, and technical failures are presented as clearer messages.'},
-{hTr:'toplu indirme artık doğru ve daha hafif',hEn:'bulk downloads are now accurate and lighter',
-pTr:'Toplu mod her bağlantı için gereksiz bilgi isteği göndermiyor; tamamlanan indirmeler doğru biçimde başarılı sayılıyor ve dosyalar doğrudan tarayıcı indirmesine aktarılıyor.',
-pEn:'Bulk mode no longer performs an unnecessary information request for every link. Completed items are counted correctly and files move directly into the browser download flow.'},
-{hTr:'sessiz video gerçekten yalnızca videoyu indiriyor',hEn:'mute mode downloads video only',
-pTr:'Uyumlu kaynaklarda ses akışı artık boşuna indirilip sonradan sökülmüyor. Bu sayede ağ kullanımı, işlem süresi ve geçici disk ihtiyacı azalıyor.',
-pEn:'On compatible sources, the audio stream is no longer downloaded only to be removed later. This reduces network use, processing time, and temporary disk demand.'},
-{hTr:'gerçek remux ve akıllı dönüştürme',hEn:'real remux and smarter conversion',
-pTr:'Remux aracı artık kapsayıcıyı gerçekten değiştiriyor. Uyumlu görüntü ve ses akışları kalite kaybı olmadan kopyalanıyor; yalnızca gerekli durumlarda yeniden kodlama yapılıyor.',
-pEn:'The remux tool now performs a real container change. Compatible video and audio streams are copied without quality loss, with re-encoding used only when required.'},
-{hTr:'kontrollü disk kullanımı ve doğal dosya aktarımı',hEn:'bounded storage and native file delivery',
-pTr:'Hazırlanan dosyalar, geçici depolama ve eşzamanlı aktarımlar artık belirli sınırlar içinde tutuluyor. Büyük dosyalar tarayıcı belleğine kopyalanmadan kısa ömürlü bağlantılarla indiriliyor.',
-pEn:'Prepared files, temporary storage, and simultaneous transfers now stay within defined limits. Large files download through short-lived links instead of being copied into browser memory.'},
-{hTr:'daha hızlı tekrar ziyaretleri',hEn:'faster repeat visits',
-pTr:'Ana uygulama kodu, güncelleme sayfası ve ortak stiller ayrı, sürümlü dosyalara taşındı. Tarayıcı değişmeyen dosyaları yeniden kullanabildiği için tekrar açılışlar daha hafif hale geliyor.',
-pEn:'The main application code, updates page, and shared styles now use separate versioned assets. Browsers can reuse unchanged files, making repeat visits lighter.'}
+{hTr:'alan adı ve yayın tek yerde',hEn:'domain and deployment in one place',
+pTr:'DNS zaten Cloudflare tarafından yönetiliyordu; artık web arayüzü de aynı platformda. Özel alan adı ve SSL kurulumu daha az parçaya bölünüyor, GitHub’daki ana dal güncellendiğinde Cloudflare Pages yeni sürümü otomatik hazırlıyor.',
+pEn:'DNS was already managed by Cloudflare, and now the web interface lives there too. Custom-domain and SSL setup involve fewer moving parts, while updates to the main GitHub branch automatically produce a new Pages deployment.'},
+{hTr:'önbellek kuralları korunuyor',hEn:'cache rules stay intact',
+pTr:'Sürümlü uygulama dosyaları uzun süreli önbellekte tutuluyor; HTML ve sürüm bilgisi ise yeniden doğrulanıyor. Bu sayede değişmeyen dosyalar tekrar indirilmezken yeni sürümler ziyaretçilere eski içerik göstermeden ulaşabiliyor.',
+pEn:'Versioned application assets keep their long-lived cache policy, while HTML and version metadata are revalidated. Unchanged files avoid repeat downloads without leaving visitors stuck on an old release.'},
+{hTr:'frontend ve backend sınırı net',hEn:'a clear frontend and backend boundary',
+pTr:'Cloudflare Pages yalnızca arayüzü sunuyor. İndirme, remux ve dönüştürme işlemleri api.zenithw.space üzerinden Railway’e gidiyor. Taşıma sırasında API adresi değişmedi ve canlı bağlantı, CORS ile SSL kontrolleri yeniden doğrulandı.',
+pEn:'Cloudflare Pages serves only the interface. Downloads, remuxing, and conversion continue through api.zenithw.space on Railway. The API address did not change, and the live connection, CORS, and SSL path were rechecked after the move.'},
+{hTr:'peki eksisi ne?',hEn:'so what is the downside?',
+pTr:'Netlify’a özel netlify.toml artık yayını yönetmiyor; aynı ayarlar Cloudflare Pages proje yapılandırması ve _headers dosyasıyla sürdürülüyor. Cloudflare ücretsiz planı proxy üzerinden 100 MB’tan büyük yüklemeleri reddettiği için dönüştürme ve remux dosya sınırı, multipart payı bırakılarak 95 MB’a ayarlandı. Ayrıca platform kesintileri veya ileride değişebilecek kurallar bizi daha doğrudan etkileyebilir.',
+pEn:'The Netlify-specific netlify.toml file no longer controls deployment; equivalent behavior now comes from the Cloudflare Pages project configuration and the _headers file. Because Cloudflare’s free plan rejects proxied uploads above 100 MB, convert and remux uploads now use a 95 MB ceiling to leave room for multipart overhead. Platform outages or future policy changes can also affect us more directly.'},
+{hTr:'küçük ama önemli sağlamlaştırmalar',hEn:'small but important reliability fixes',
+pTr:'Boş veya okunamayan dosyalar daha erken reddediliyor, hazırlanmış indirme gerçekten hazır olmadan ilerleme tamamlandı sayılmıyor ve dönüştürme/remux istekleri bağlantı sonsuza kadar beklerse güvenli biçimde sonlandırılıyor.',
+pEn:'Empty or unreadable files are rejected earlier, progress is not marked complete until the prepared download is actually ready, and conversion or remux requests now end safely instead of waiting forever on a stalled connection.'}
 ],
-outroTr:'Kısacası v13.0: daha az gereksiz işlem, daha doğru sonuçlar ve kullanıcıya görünmeden çalışan daha sağlam bir altyapı.',
-outroEn:'In short, v13.0 brings less wasted work, more accurate results, and a stronger foundation that stays out of the user’s way.'
+outroTr:'Kısacası v13.1, daha sade bir yayın zinciri ve Cloudflare ile daha bütünleşik bir alan adı yönetimi getiriyor. Sihirli değnek değil; ama artısı, eksisi ve sınırları bilinen daha düzenli bir temel.',
+outroEn:'In short, v13.1 brings a simpler release chain and tighter domain integration with Cloudflare. It is not a magic wand, but it is a cleaner foundation with known benefits, tradeoffs, and limits.'
 };
-const UPDATE_VERSIONS=['v13.0', 'v12.9', 'v12.8', 'v12.7', 'v12.6', 'v12.5', 'v12.4', 'v12.3', 'v12.2', 'v12.1', 'v12.0', 'v11.7', 'v11.6', 'v11.5', 'v11.4', 'v11.3', 'v11.2', 'v11.1', 'v11.0', 'v10.9', 'v10.8', 'v10.7', 'v10.6', 'v10.5', 'v10.4', 'v10.3', 'v10.2', 'v10.1', 'v10.0', 'v9.0', 'v8.1', 'v8.0', 'v7.3', 'v7.2', 'v7.1', 'v7.0', 'v6.1', 'v6.0', 'v5.6', 'v5.5', 'v5.4', 'v5.3', 'v5.2', 'v5.1', 'v5.0', 'v4.0'];
+const UPDATE_VERSIONS=['v13.1', 'v13.0', 'v12.9', 'v12.8', 'v12.7', 'v12.6', 'v12.5', 'v12.4', 'v12.3', 'v12.2', 'v12.1', 'v12.0', 'v11.7', 'v11.6', 'v11.5', 'v11.4', 'v11.3', 'v11.2', 'v11.1', 'v11.0', 'v10.9', 'v10.8', 'v10.7', 'v10.6', 'v10.5', 'v10.4', 'v10.3', 'v10.2', 'v10.1', 'v10.0', 'v9.0', 'v8.1', 'v8.0', 'v7.3', 'v7.2', 'v7.1', 'v7.0', 'v6.1', 'v6.0', 'v5.6', 'v5.5', 'v5.4', 'v5.3', 'v5.2', 'v5.1', 'v5.0', 'v4.0'];
 let UPDATES=[LATEST_UPDATE];
 let archivePromise=null;
 
@@ -43,7 +40,7 @@ function loadUpdateArchive(){
   if(archivePromise)return archivePromise;
   archivePromise=new Promise((resolve,reject)=>{
     const s=document.createElement('script');
-    s.src='updates-archive.479fcc570552.js';
+    s.src='updates-archive.243ec67d3c2e.js';
     s.async=true;
     s.onload=()=>{
       if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[LATEST_UPDATE,...window.ZW_UPDATE_ARCHIVE];resolve(UPDATES);}

@@ -562,6 +562,27 @@ class JobFinalizerTests(unittest.TestCase):
             self.assertEqual(released, [])
             self.assertEqual(calls["discard"], 1)
 
+    def test_empty_file_is_rejected_before_handoff(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            full_path = str(Path(temp_dir, "empty.mp4"))
+            Path(full_path).write_bytes(b"")
+            fn, calls = self._load(max_size=1000)
+            released = []
+            (payload, status), reservation_consumed = fn(
+                full_path, fmt="mp4", video_title="T", requested_download_name=None,
+                ip="1.2.3.4", spool_reservation_id="res1", sid=None, download_id="d1",
+                release_slot=lambda: released.append(1),
+                state={"lock": threading.Lock()},
+            )
+
+            self.assertEqual(status, 500)
+            self.assertEqual(payload["error_code"], "request_failed")
+            self.assertFalse(reservation_consumed)
+            self.assertEqual(released, [])
+            self.assertIsNone(calls["prepared"])
+            self.assertEqual(calls["discard"], 1)
+            self.assertFalse(Path(full_path).exists())
+
     def test_successful_file_releases_slot_once_and_hands_off_token(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             full_path = str(Path(temp_dir, "clip.mp4"))

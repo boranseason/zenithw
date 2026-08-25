@@ -63,8 +63,10 @@ if not SECRET_KEY:
         )
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# /convert için maksimum upload boyutu (230 MB)
-app.config['MAX_CONTENT_LENGTH'] = 230 * 1024 * 1024
+# Cloudflare Free/Pro proxy sınırı 100 MB. Multipart sınır başlıkları için
+# pay bırakarak büyük yüklemelerin Railway'e ulaşmadan 413 almasını önlüyoruz.
+MAX_UPLOAD_SIZE_BYTES = 95 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE_BYTES
 
 # ── Constants ──────────────────────────────────────────
 FFMPEG_TIMEOUT = int(os.environ.get("FFMPEG_TIMEOUT_SECONDS", 120))
@@ -1952,6 +1954,15 @@ def api_root():
 def not_found(e):
     return jsonify({"error": "Not Found"}), 404
 
+
+@app.errorhandler(413)
+def request_too_large(e):
+    max_mb = MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
+    return jsonify({
+        "error": f"Uploaded file exceeds the {max_mb} MB limit.",
+        "error_code": "file_too_large",
+    }), 413
+
 # ── /info ─────────────────────────────────────────────
 def _info_cache_key(url):
     """Keep cache entries separate when extraction access policy changes."""
@@ -2497,6 +2508,25 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
         except OSError:
             final_size = 0
 
+        if final_size <= 0:
+            try:
+                os.remove(full_path)
+                _unregister_cleanup(full_path)
+            except Exception:
+                pass
+            discard_cancel_event(download_id)
+            if sid:
+                safe_emit('progress', {'status': 'error', 'error_code': 'request_failed'}, room=sid)
+            state["result"] = ((
+                jsonify({
+                    "error": "The prepared download is empty or could not be read.",
+                    "error_code": "request_failed",
+                }),
+                500,
+            ), False)
+            state["completed"] = True
+            return state["result"]
+
         if final_size > MAX_DOWNLOAD_SIZE_BYTES:
             try:
                 os.remove(full_path)
@@ -2897,7 +2927,7 @@ def convert_file():
         response.headers["Retry-After"] = str(CONVERSION_RATE_LIMIT_WINDOW)
         return response
     # Slot, request.files multipart gövdesini parse edip diske almadan önce
-    # ayrılır; dolu sunucu 230 MB'a kadar gereksiz upload kabul etmez.
+    # ayrılır; dolu sunucu maksimum boyuta kadar gereksiz upload kabul etmez.
     if not conversion_slots.acquire(blocking=False):
         return service_busy("Server is busy with another conversion. Please try again shortly.", retry_after=10)
     spool_reservation = {"id": None}
@@ -3056,11 +3086,17 @@ def convert_file_with_slot(ip, spool_reservation):
             output_size = 0
         if output_size <= 0:
             _force_cleanup(output_path)
-            return jsonify({"error": "Conversion did not produce a valid output file."}), 400
+            return jsonify({
+                "error": "Conversion did not produce a valid output file.",
+                "error_code": "conversion_failed",
+            }), 400
         if output_size >= MAX_CONVERT_OUTPUT_SIZE_BYTES:
             _force_cleanup(output_path)
             max_mb = MAX_CONVERT_OUTPUT_SIZE_BYTES // (1024 * 1024)
-            return jsonify({"error": f"Converted file exceeds the {max_mb} MB limit."}), 400
+            return jsonify({
+                "error": f"Converted file exceeds the {max_mb} MB limit.",
+                "error_code": "file_too_large",
+            }), 413
 
         try:
             if input_path and os.path.exists(input_path):
@@ -3102,7 +3138,10 @@ def convert_file_with_slot(ip, spool_reservation):
                 _unregister_cleanup(output_path)
         except Exception:
             pass
-        return jsonify({"error": "Conversion timed out."}), 400
+        return jsonify({
+            "error": "Conversion timed out.",
+            "error_code": "request_timeout",
+        }), 504
     except Exception as e:
         error_msg = str(e)
         logger.error(f"[CONV ERR] {error_msg[:200]}")
@@ -3112,7 +3151,10 @@ def convert_file_with_slot(ip, spool_reservation):
                 _unregister_cleanup(output_path)
         except Exception:
             pass
-        return jsonify({"error": "An error occurred during conversion."}), 400
+        return jsonify({
+            "error": "An error occurred during conversion.",
+            "error_code": "conversion_failed",
+        }), 400
     finally:
         try:
             if input_path and os.path.exists(input_path):

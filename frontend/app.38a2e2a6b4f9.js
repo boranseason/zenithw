@@ -87,9 +87,9 @@ const TX={
     stLblFnfEx:'örnek formatlar',
     connecting:'bağlanıyor...',downloading:'indiriliyor...',merging:'birleştiriliyor...',queued:'sırada bekleniyor...',done:'tamamlandı!',
     found:'video bulundu ✓',downloaded:'indirildi ✓',cancelled:'iptal edildi',error:'hata',
-    convTitleTxt:'dönüştür',convModalSub:'dosyanı istediğin formata çevir',convDropTitle:'dosya seç veya sürükle',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convTitleTxt:'dönüştür',convModalSub:'dosyanı istediğin formata çevir',convDropTitle:'dosya seç veya sürükle',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · en fazla 95 MB',
     convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',convBtnReady:'{fmt} olarak dönüştür',
-    remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a',
+    remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a · en fazla 95 MB',
     updTitle:'güncellemeler',
     servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',servicesModalSub:'22 platform · tek bağlantı',
     servicesNoteTxt:'bir platformu desteklemek, teknik uyumluluk dışında ilişki anlamına gelmez. tüm sorumluluk kullanıcıdadır.',
@@ -151,9 +151,9 @@ const TX={
     stLblFnfEx:'example formats',
     connecting:'connecting...',downloading:'downloading...',merging:'merging...',queued:'waiting in queue...',done:'done!',
     found:'video found ✓',downloaded:'downloaded ✓',cancelled:'cancelled',error:'error',
-    convTitleTxt:'convert',convModalSub:'convert a file to another format',convDropTitle:'select or drag file',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convTitleTxt:'convert',convModalSub:'convert a file to another format',convDropTitle:'select or drag file',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · up to 95 MB',
     convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',convBtnReady:'convert to {fmt}',
-    remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a',
+    remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a · up to 95 MB',
     updTitle:'updates',
     servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',servicesModalSub:'22 platforms · one link',
     servicesNoteTxt:'supporting a service does not imply affiliation beyond technical compatibility.',
@@ -217,9 +217,9 @@ const TX={
     stLblFnfEx:'exemples de formats',
     connecting:'connexion...',downloading:'téléchargement...',merging:'fusion...',done:'terminé !',
     found:'vidéo trouvée ✓',downloaded:'téléchargé ✓',cancelled:'annulé',error:'erreur',
-    convTitleTxt:'convertir',convModalSub:'convertissez un fichier au format souhaité',convDropTitle:'choisir ou glisser un fichier',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convTitleTxt:'convertir',convModalSub:'convertissez un fichier au format souhaité',convDropTitle:'choisir ou glisser un fichier',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · 95 Mo maximum',
     convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',convBtnReady:'convertir en {fmt}',
-    remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a',
+    remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a · 95 Mo maximum',
     updTitle:'nouveautés',
     servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',servicesModalSub:'22 plateformes · un seul lien',
     servicesNoteTxt:'la prise en charge d\'une plateforme n\'implique aucune affiliation au-delà de la compatibilité technique.',
@@ -283,9 +283,9 @@ const TX={
     stLblFnfEx:'beispielformate',
     connecting:'verbinde...',downloading:'lädt herunter...',merging:'wird zusammengeführt...',done:'fertig!',
     found:'video gefunden ✓',downloaded:'heruntergeladen ✓',cancelled:'abgebrochen',error:'fehler',
-    convTitleTxt:'konvertieren',convModalSub:'datei in das gewünschte format umwandeln',convDropTitle:'datei auswählen oder ablegen',convDropSub:'mp4, webm, mkv, mp3, flac, wav...',
+    convTitleTxt:'konvertieren',convModalSub:'datei in das gewünschte format umwandeln',convDropTitle:'datei auswählen oder ablegen',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · maximal 95 MB',
     convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',convBtnReady:'in {fmt} konvertieren',
-    remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a',
+    remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a · maximal 95 MB',
     updTitle:'neuigkeiten',
     servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',servicesModalSub:'22 plattformen · ein link',
     servicesNoteTxt:'die unterstützung einer plattform bedeutet keine zusammenarbeit über die technische kompatibilität hinaus.',
@@ -941,6 +941,14 @@ function triggerNativeDownload(path){
   document.body.removeChild(a);
 }
 const BLOB_SAVE_LIMIT=32*1024*1024;
+const MAX_TOOL_FILE_BYTES=95*1024*1024;
+const MEDIA_JOB_TIMEOUT_MS=15*60*1000;
+async function fetchMediaJob(formData){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),MEDIA_JOB_TIMEOUT_MS);
+  try{return await fetch(API+'/convert',{method:'POST',body:formData,signal:controller.signal});}
+  finally{clearTimeout(timeout);}
+}
 async function handoffPreparedDownload(payload,allowSaveModal,onProgress){
   if(!payload||!payload.download_url)throw new Error('Download file was not prepared');
   if(allowSaveModal&&Number(payload.size)>0&&Number(payload.size)<=BLOB_SAVE_LIMIT){
@@ -1148,11 +1156,16 @@ function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+ke
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){document.getElementById('remuxOverlay').classList.add('open');lockPageScroll();}
 function formatLocalFileSize(bytes){if(bytes<=0)return'0 bayt';if(bytes<1024)return bytes+' bayt';if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';return(bytes/1024/1024).toFixed(2)+' MB';}
+function validateToolFile(f){
+  if(!f||f.size<=0){toast(t('errConversion'),'#ed4245');return false;}
+  if(f.size>MAX_TOOL_FILE_BYTES){toast(t('errFileTooLarge'),'#ed4245');return false;}
+  return true;
+}
 function showSelectedToolFile(dropId,f){const drop=document.getElementById(dropId);if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.add('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6"/></svg>';}if(title)title.textContent=f.name;if(sub)sub.textContent=formatLocalFileSize(f.size);}
 function resetRemuxDrop(){const drop=document.getElementById('remuxDrop');if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.remove('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>';}if(title)title.textContent=t('remuxDropTitle');if(sub)sub.textContent=t('remuxDropSub');const input=document.getElementById('remuxFileInput');if(input)input.value='';}
 let remuxBusy=false;
 async function handleRemuxFile(inp){
-  const f=inp.files[0];if(!f||remuxBusy)return;
+  const f=inp.files[0];if(remuxBusy||!validateToolFile(f))return;
   const dot=f.name.lastIndexOf('.');
   const target=dot>=0?f.name.slice(dot+1).toLowerCase():'';
   const allowed=new Set(['mp4','webm','mkv','avi','mov','mp3','flac','ogg','opus','wav','m4a']);
@@ -1163,44 +1176,46 @@ async function handleRemuxFile(inp){
     const fd=new FormData();
     fd.append('file',f);fd.append('target_format',target);fd.append('mode','remux');
     fd.append('download_name',`remuxed_${base}.${target}`);
-    const res=await fetch(API+'/convert',{method:'POST',body:fd});
+    const res=await fetchMediaJob(fd);
     const payload=await res.json().catch(()=>({}));
     if(!res.ok){showPublicError(payload.error_code?payload:{error_code:'conversion_failed'},res.status,'',false);return;}
     if(!payload.download_url)throw new Error('Remuxed file was not prepared');
     await handoffPreparedDownload(payload,true);toast(t('remuxDone'),'#3bba64');
-  }catch(e){toast(t('errConversion'),'#ed4245');}
+  }catch(e){showPublicError({error_code:e.name==='AbortError'?'request_timeout':'conversion_failed'},0,'',false);}
   finally{remuxBusy=false;setTimeout(resetRemuxDrop,1200);}
 }
 function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;handleRemuxFile({files:[f]});}
 
 // ── CONVERT ───────────────────────────────────────────
-let convFile=null,convTargetFmt='mp3';
+let convFile=null,convTargetFmt='mp3',convBusy=false;
 function openConvert(){document.getElementById('convOverlay').classList.add('open');lockPageScroll();}
 function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
-function selectConvFile(f){if(!f)return;if(f.size<=0){convFile=null;toast(t('errConversion'),'#ed4245');_updateConvBtn();return;}convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
+function selectConvFile(f){if(!validateToolFile(f)){convFile=null;_updateConvBtn();return;}convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
 function handleConvFile(inp){selectConvFile(inp.files[0]);}
 function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');selectConvFile(e.dataTransfer.files[0]);}
 function _updateConvBtn(){const btn=document.getElementById('convBtn'),txt=document.getElementById('convBtnTxt');if(!btn||!txt)return;if(convFile){btn.disabled=false;txt.textContent=t('convBtnReady').replace('{fmt}',convTargetFmt.toUpperCase());}else{btn.disabled=true;txt.textContent=t('convBtnSel');}}
 function updateConvBtn(){_updateConvBtn();}// alias for legacy calls
 async function startConvert(){
-  if(!convFile)return;
-  const prog=document.getElementById('convProgress'),btn=document.getElementById('convBtn'),lbl=document.getElementById('convProgLabel'),pct=document.getElementById('convProgPct');
-  prog.classList.add('show');btn.disabled=true;lbl.textContent=t('uploading');pct.textContent='—';
+  if(!convFile||convBusy)return;
+  convBusy=true;
+  const prog=document.getElementById('convProgress'),btn=document.getElementById('convBtn'),lbl=document.getElementById('convProgLabel'),pct=document.getElementById('convProgPct'),sub=document.getElementById('convProgSub');
+  prog.classList.add('show');btn.disabled=true;lbl.textContent=t('uploading');pct.textContent='—';if(sub)sub.textContent='';
   try{
     const dot=convFile.name.lastIndexOf('.');
     const outputName=(dot>0?convFile.name.slice(0,dot):convFile.name)+'.'+convTargetFmt;
     const fd=new FormData();fd.append('file',convFile);fd.append('target_format',convTargetFmt);fd.append('mode','auto');fd.append('download_name',outputName);
     lbl.textContent=t('converting');
-    const res=await fetch(API+'/convert',{method:'POST',body:fd});
+    const res=await fetchMediaJob(fd);
     const payload=await res.json().catch(()=>({}));
     if(!res.ok){lbl.textContent=t('errConversion');btn.disabled=false;showPublicError(payload.error_code?payload:{error_code:'conversion_failed'},res.status,'',false);return;}
     if(!payload.download_url)throw new Error('Converted file was not prepared');
     lbl.textContent=t('downloading');pct.textContent='90%';
-    await handoffPreparedDownload(payload,true,(value,received,total)=>{pct.textContent=value+'%';const sub=document.getElementById('convProgSub');if(sub)sub.textContent=formatLocalFileSize(received)+' / '+formatLocalFileSize(total);});
+    await handoffPreparedDownload(payload,true,(value,received,total)=>{pct.textContent=value+'%';if(sub)sub.textContent=formatLocalFileSize(received)+' / '+formatLocalFileSize(total);});
     lbl.textContent=t('convDoneLabel');pct.textContent='✓';
     toast(t('convDone'),'#3bba64');
     setTimeout(()=>{prog.classList.remove('show');btn.disabled=false;_updateConvBtn();},1500);
-  }catch(e){lbl.textContent=t('errConversion');btn.disabled=false;toast(t('errConversion'),'#ed4245');}
+  }catch(e){lbl.textContent=e.name==='AbortError'?t('errTimeout'):t('errConversion');btn.disabled=false;showPublicError({error_code:e.name==='AbortError'?'request_timeout':'conversion_failed'},0,'',false);}
+  finally{convBusy=false;}
 }
 
 // ── OVERLAYS ─────────────────────────────────────────
