@@ -36,15 +36,18 @@ image.
 
 ## Maintenance operations
 
-Maintenance mode is coordinated with the Cloudflare Pages project through the same
-environment variables:
+Maintenance mode is normally coordinated by the manual GitHub Actions workflow. It
+commits identical backend/frontend JSON config files, then the existing Railway and
+Cloudflare Git integrations deploy that state. No platform API tokens are required.
 
-- `MAINTENANCE_MODE=1` rejects new `/info`, `/download`, `/thumbnail`, and `/convert`
-  work with HTTP 503.
+Environment variables remain available as emergency overrides:
+
+- `MAINTENANCE_MODE=workflow` (or unset) reads `maintenance-config.json`.
+- `MAINTENANCE_MODE=1` or `0` forces the local service on or off regardless of the
+  committed workflow state.
 - `MAINTENANCE_MESSAGE` and `MAINTENANCE_UNTIL` describe the maintenance window.
 - `MAINTENANCE_RETRY_AFTER` controls the retry hint in seconds (default 900).
 
-Enable the Cloudflare and Railway flags together. When returning to service, disable
-Railway maintenance first and verify `/health`, then disable the Cloudflare flag. Do
-not scale workers or replicas as part of maintenance; the single-process boundary
-still applies.
+After a workflow run, wait for both platform deployments and verify `/health` plus
+`/maintenance-status`. Do not scale workers or replicas as part of maintenance; the
+single-process boundary still applies.

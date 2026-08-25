@@ -4,6 +4,7 @@ monkey.patch_all()
 import logging
 import re
 import os
+import json
 import uuid
 import threading
 import time
@@ -123,17 +124,55 @@ def _bounded_env_int(name, default, minimum, maximum):
     return min(maximum, max(minimum, value))
 
 
-MAINTENANCE_MODE = _env_flag("MAINTENANCE_MODE")
-MAINTENANCE_MESSAGE = (
-    os.environ.get(
-        "MAINTENANCE_MESSAGE",
-        "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
+MAINTENANCE_DEFAULT_MESSAGE = (
+    "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız."
+)
+MAINTENANCE_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "maintenance-config.json")
+
+
+def _load_maintenance_config():
+    try:
+        with open(MAINTENANCE_CONFIG_PATH, "r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+        return config if isinstance(config, dict) else {}
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("[INIT] maintenance config could not be loaded: %s", exc)
+        return {}
+
+
+_MAINTENANCE_FILE_CONFIG = _load_maintenance_config()
+_MAINTENANCE_ENV_MODE = os.environ.get("MAINTENANCE_MODE", "workflow").strip().lower()
+_MAINTENANCE_ENABLED_VALUES = {"1", "true", "yes", "on"}
+_MAINTENANCE_DISABLED_VALUES = {"0", "false", "no", "off"}
+_MAINTENANCE_WORKFLOW_MANAGED = _MAINTENANCE_ENV_MODE not in (
+    _MAINTENANCE_ENABLED_VALUES | _MAINTENANCE_DISABLED_VALUES
+)
+
+if _MAINTENANCE_ENV_MODE in _MAINTENANCE_ENABLED_VALUES:
+    MAINTENANCE_MODE = True
+elif _MAINTENANCE_ENV_MODE in _MAINTENANCE_DISABLED_VALUES:
+    MAINTENANCE_MODE = False
+else:
+    MAINTENANCE_MODE = bool(_MAINTENANCE_FILE_CONFIG.get("active", False))
+
+if _MAINTENANCE_WORKFLOW_MANAGED:
+    MAINTENANCE_MESSAGE = str(
+        _MAINTENANCE_FILE_CONFIG.get("message", MAINTENANCE_DEFAULT_MESSAGE)
     ).strip()[:240]
-)
-MAINTENANCE_UNTIL = os.environ.get("MAINTENANCE_UNTIL", "").strip()[:64]
-MAINTENANCE_RETRY_AFTER = _bounded_env_int(
-    "MAINTENANCE_RETRY_AFTER", 900, 60, 86400
-)
+    MAINTENANCE_UNTIL = str(_MAINTENANCE_FILE_CONFIG.get("until", "")).strip()[:64]
+    try:
+        _maintenance_retry_candidate = int(_MAINTENANCE_FILE_CONFIG.get("retryAfter", 900))
+    except (TypeError, ValueError):
+        _maintenance_retry_candidate = 900
+    MAINTENANCE_RETRY_AFTER = min(86400, max(60, _maintenance_retry_candidate))
+else:
+    MAINTENANCE_MESSAGE = os.environ.get(
+        "MAINTENANCE_MESSAGE", MAINTENANCE_DEFAULT_MESSAGE
+    ).strip()[:240]
+    MAINTENANCE_UNTIL = os.environ.get("MAINTENANCE_UNTIL", "").strip()[:64]
+    MAINTENANCE_RETRY_AFTER = _bounded_env_int(
+        "MAINTENANCE_RETRY_AFTER", 900, 60, 86400
+    )
 MAINTENANCE_BLOCKED_PATHS = frozenset({
     "/info", "/download", "/thumbnail", "/convert",
 })

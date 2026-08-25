@@ -1,0 +1,116 @@
+name: Bakım modu
+run-name: "Bakım modu · ${{ inputs.mode == 'enable' && 'AÇ' || 'KAPAT' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Yapılacak işlem"
+        required: true
+        type: choice
+        options:
+          - enable
+          - disable
+      title:
+        description: "Bakım başlığı"
+        required: false
+        default: "Kısa bir pati molası"
+        type: string
+      message:
+        description: "Ziyaretçiye gösterilecek açıklama"
+        required: false
+        default: "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız."
+        type: string
+      until:
+        description: "Tahmini bitiş (isteğe bağlı ISO 8601)"
+        required: false
+        default: ""
+        type: string
+      retry_after:
+        description: "Tekrar deneme süresi, saniye"
+        required: false
+        default: "900"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zenithw-production-maintenance
+  cancel-in-progress: false
+
+jobs:
+  update-maintenance-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ana dalı al
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Bakım yapılandırmasını doğrula ve güncelle
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_TITLE: ${{ inputs.title }}
+          INPUT_MESSAGE: ${{ inputs.message }}
+          INPUT_UNTIL: ${{ inputs.until }}
+          INPUT_RETRY_AFTER: ${{ inputs.retry_after }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const active = process.env.INPUT_MODE === 'enable';
+          const title = (process.env.INPUT_TITLE || 'Kısa bir pati molası').trim().slice(0, 80);
+          const message = (process.env.INPUT_MESSAGE || '').trim().slice(0, 240);
+          const until = (process.env.INPUT_UNTIL || '').trim().slice(0, 64);
+          const retryAfter = Number.parseInt(process.env.INPUT_RETRY_AFTER || '900', 10);
+
+          if (!['enable', 'disable'].includes(process.env.INPUT_MODE)) {
+            throw new Error('Geçersiz bakım işlemi.');
+          }
+          if (!title || !message) {
+            throw new Error('Başlık ve açıklama boş olamaz.');
+          }
+          if (!Number.isInteger(retryAfter) || retryAfter < 60 || retryAfter > 86400) {
+            throw new Error('Tekrar deneme süresi 60-86400 saniye arasında olmalı.');
+          }
+          if (until && Number.isNaN(Date.parse(until))) {
+            throw new Error('Tahmini bitiş geçerli bir ISO 8601 tarihi olmalı.');
+          }
+
+          const config = { active, title, message, until, retryAfter };
+          const serialized = `${JSON.stringify(config, null, 2)}\n`;
+          for (const path of ['backend/maintenance-config.json', 'frontend/maintenance-config.json']) {
+            fs.writeFileSync(path, serialized, 'utf8');
+          }
+          NODE
+
+      - name: İki platform yapılandırmasının aynı olduğunu doğrula
+        run: cmp --silent backend/maintenance-config.json frontend/maintenance-config.json
+
+      - name: Değişikliği ana dala gönder
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/maintenance-config.json frontend/maintenance-config.json
+          if git diff --cached --quiet; then
+            echo "Yapılandırma zaten istenen durumda."
+            exit 0
+          fi
+          git commit -m "maintenance: ${INPUT_MODE} site"
+          git push origin HEAD:main
+
+      - name: Özet
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$INPUT_MODE" = "enable" ]; then
+            echo "### 🐈 ZenithW bakım modu açılıyor" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ✅ ZenithW bakım modu kapatılıyor" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Cloudflare Pages ve Railway yeni commit'i otomatik dağıtacak." >> "$GITHUB_STEP_SUMMARY"

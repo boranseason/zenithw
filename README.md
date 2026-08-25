@@ -168,7 +168,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `INFO_CACHE_MAX_SIZE` | No (default `256`) | Maximum number of sanitized metadata responses retained in memory |
 | `CONVERSION_RATE_LIMIT_WINDOW` | No (default `600`) | Per-IP conversion quota window in seconds |
 | `CONVERSION_RATE_LIMIT_MAX_REQUESTS` | No (default `2`) | Conversions allowed per IP during the conversion quota window |
-| `MAINTENANCE_MODE` | No (default disabled) | Set to `1` in both Cloudflare Pages and Railway to show the maintenance page and reject new jobs |
+| `MAINTENANCE_MODE` | No (default `workflow`) | `workflow` reads the committed config; `1`/`0` is an emergency environment override |
 | `MAINTENANCE_TITLE` | No (Cloudflare only) | Optional heading shown on the maintenance page |
 | `MAINTENANCE_MESSAGE` | No | Optional public maintenance explanation, limited to 240 characters |
 | `MAINTENANCE_UNTIL` | No | Optional ISO 8601 target time, for example `2026-08-25T23:30:00+03:00` |
@@ -185,16 +185,18 @@ The Cloudflare Pages middleware in `functions/_middleware.js` serves the cat-the
 when maintenance ends and reload automatically. The inactive design can be safely
 previewed at `/maintenance`.
 
-To enable maintenance, set `MAINTENANCE_MODE=1` in **both** Cloudflare Pages and
-Railway, then allow each platform to deploy/restart. Use the same optional message,
-until, and retry values on both platforms. Railway rejects new `/info`, `/download`,
-`/thumbnail`, and `/convert` work with JSON `503`, while `/cancel`, `/files/<token>`,
-and `/health` remain available so in-flight cleanup and prepared transfers are not
-stranded.
+The normal control surface is **GitHub → Actions → Bakım modu → Run workflow**.
+Choose `enable` or `disable`, optionally edit the public text/end time, and run it.
+The workflow updates the matching `backend/maintenance-config.json` and
+`frontend/maintenance-config.json` files in one commit. Existing GitHub integrations
+then deploy the same state to Railway and Cloudflare Pages, so no Cloudflare or
+Railway API tokens are stored in GitHub.
 
-To disable maintenance, set `MAINTENANCE_MODE=0` (or remove it) in Railway and
-Cloudflare Pages. Disable Railway first, then Cloudflare, so visitors never reach a
-frontend that accepts work while the API is still intentionally paused.
+Railway rejects new `/info`, `/download`, `/thumbnail`, and `/convert` work with JSON
+`503`, while `/cancel`, `/files/<token>`, and `/health` remain available so in-flight
+cleanup and prepared transfers are not stranded. `MAINTENANCE_MODE=1` or `0` may
+still be used as an emergency platform-specific override; use `workflow` (or leave it
+unset) for the one-button GitHub flow.
 
 ---
 

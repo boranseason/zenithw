@@ -1,25 +1,52 @@
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+const DISABLED_VALUES = new Set(["0", "false", "no", "off"]);
 const DEFAULT_MESSAGE = "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.";
 const MAINTENANCE_ASSET_PATH = "/maintenance";
+const CONFIG_ASSET_PATH = "/maintenance-config.json";
 
 function cleanText(value, fallback, maxLength) {
   const normalized = String(value || "").trim();
   return (normalized || fallback).slice(0, maxLength);
 }
 
-function maintenanceConfig(env) {
-  const retryCandidate = Number.parseInt(env.MAINTENANCE_RETRY_AFTER || "900", 10);
+function maintenanceConfig(env, fileConfig = {}) {
+  const rawMode = String(env.MAINTENANCE_MODE || "workflow").trim().toLowerCase();
+  const workflowManaged = !ENABLED_VALUES.has(rawMode) && !DISABLED_VALUES.has(rawMode);
+  const source = workflowManaged ? fileConfig : env;
+  const retryCandidate = Number.parseInt(
+    workflowManaged ? source.retryAfter || "900" : source.MAINTENANCE_RETRY_AFTER || "900",
+    10,
+  );
   const retryAfter = Number.isFinite(retryCandidate)
     ? Math.min(86400, Math.max(60, retryCandidate))
     : 900;
 
   return {
-    active: ENABLED_VALUES.has(String(env.MAINTENANCE_MODE || "").trim().toLowerCase()),
-    title: cleanText(env.MAINTENANCE_TITLE, "Kısa bir pati molası", 80),
-    message: cleanText(env.MAINTENANCE_MESSAGE, DEFAULT_MESSAGE, 240),
-    until: cleanText(env.MAINTENANCE_UNTIL, "", 64),
+    active: ENABLED_VALUES.has(rawMode) || (workflowManaged && fileConfig.active === true),
+    title: cleanText(
+      workflowManaged ? source.title : source.MAINTENANCE_TITLE,
+      "Kısa bir pati molası",
+      80,
+    ),
+    message: cleanText(
+      workflowManaged ? source.message : source.MAINTENANCE_MESSAGE,
+      DEFAULT_MESSAGE,
+      240,
+    ),
+    until: cleanText(workflowManaged ? source.until : source.MAINTENANCE_UNTIL, "", 64),
     retryAfter,
   };
+}
+
+async function loadFileConfig(context) {
+  try {
+    const response = await context.env.ASSETS.fetch(new URL(CONFIG_ASSET_PATH, context.request.url));
+    if (!response.ok) return {};
+    const config = await response.json();
+    return config && typeof config === "object" && !Array.isArray(config) ? config : {};
+  } catch (_) {
+    return {};
+  }
 }
 
 function statusResponse(config, method) {
@@ -60,7 +87,7 @@ async function maintenancePage(context, config, previewOnly = false) {
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const config = maintenanceConfig(context.env);
+  const config = maintenanceConfig(context.env, await loadFileConfig(context));
 
   if (url.pathname === "/maintenance-status") {
     if (context.request.method !== "GET" && context.request.method !== "HEAD") {

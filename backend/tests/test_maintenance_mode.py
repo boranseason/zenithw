@@ -1,4 +1,5 @@
 import ast
+import json
 import os
 import unittest
 from pathlib import Path
@@ -54,6 +55,19 @@ class MaintenanceConfigTests(unittest.TestCase):
             self.assertEqual(self.bounded_int("TEST_RETRY", 900, 60, 86400), 900)
         with patch.dict(os.environ, {"TEST_RETRY": "5"}, clear=False):
             self.assertEqual(self.bounded_int("TEST_RETRY", 900, 60, 86400), 60)
+
+    def test_frontend_and_backend_workflow_configs_match(self):
+        backend_config = json.loads(
+            (APP_PATH.parent / "maintenance-config.json").read_text(encoding="utf-8")
+        )
+        frontend_config = json.loads(
+            (APP_PATH.parents[1] / "frontend" / "maintenance-config.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(backend_config, frontend_config)
+        self.assertIs(backend_config["active"], False)
+        self.assertGreaterEqual(backend_config["retryAfter"], 60)
 
 
 class MaintenanceGateTests(unittest.TestCase):
