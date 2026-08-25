@@ -22,7 +22,7 @@ on:
         default: "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız."
         type: string
       until:
-        description: "Tahmini bitiş (isteğe bağlı ISO 8601)"
+        description: "Tahmini bitiş (İstanbul saati, örn. 13:35)"
         required: false
         default: ""
         type: string
@@ -64,8 +64,44 @@ jobs:
           const active = process.env.INPUT_MODE === 'enable';
           const title = (process.env.INPUT_TITLE || 'Kısa bir pati molası').trim().slice(0, 80);
           const message = (process.env.INPUT_MESSAGE || '').trim().slice(0, 240);
-          const until = (process.env.INPUT_UNTIL || '').trim().slice(0, 64);
+          const rawUntil = (process.env.INPUT_UNTIL || '').trim().slice(0, 64);
           const retryAfter = Number.parseInt(process.env.INPUT_RETRY_AFTER || '900', 10);
+
+          const istanbulParts = date => Object.fromEntries(
+            new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Europe/Istanbul',
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+            }).formatToParts(date).filter(part => part.type !== 'literal').map(part => [part.type, part.value]),
+          );
+
+          const normalizeUntil = value => {
+            if (!value) return '';
+            const clock = /^(\d{1,2}):(\d{2})$/.exec(value);
+            if (!clock) {
+              if (Number.isNaN(Date.parse(value))) {
+                throw new Error('Tahmini bitiş HH:MM veya geçerli bir ISO 8601 tarihi olmalı.');
+              }
+              return value;
+            }
+
+            const hour = Number(clock[1]);
+            const minute = Number(clock[2]);
+            if (hour > 23 || minute > 59) {
+              throw new Error('Saat 00:00 ile 23:59 arasında olmalı.');
+            }
+
+            const now = new Date();
+            const today = istanbulParts(now);
+            const hh = String(hour).padStart(2, '0');
+            const mm = String(minute).padStart(2, '0');
+            let target = new Date(`${today.year}-${today.month}-${today.day}T${hh}:${mm}:00+03:00`);
+            if (target <= now) target = new Date(target.getTime() + 24 * 60 * 60 * 1000);
+            const targetDay = istanbulParts(target);
+            return `${targetDay.year}-${targetDay.month}-${targetDay.day}T${hh}:${mm}:00+03:00`;
+          };
+
+          const until = normalizeUntil(rawUntil);
 
           if (!['enable', 'disable'].includes(process.env.INPUT_MODE)) {
             throw new Error('Geçersiz bakım işlemi.');
@@ -76,10 +112,6 @@ jobs:
           if (!Number.isInteger(retryAfter) || retryAfter < 60 || retryAfter > 86400) {
             throw new Error('Tekrar deneme süresi 60-86400 saniye arasında olmalı.');
           }
-          if (until && Number.isNaN(Date.parse(until))) {
-            throw new Error('Tahmini bitiş geçerli bir ISO 8601 tarihi olmalı.');
-          }
-
           const config = { active, title, message, until, retryAfter };
           const serialized = `${JSON.stringify(config, null, 2)}\n`;
           for (const path of ['backend/maintenance-config.json', 'frontend/maintenance-config.json']) {
