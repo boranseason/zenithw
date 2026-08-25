@@ -63,6 +63,11 @@ class SourceHealthTests(unittest.TestCase):
     def test_backend_source_compiles(self):
         compile(APP_SOURCE, str(APP_PATH), "exec")
 
+    def test_info_auth_errors_can_reach_cookie_fallback(self):
+        source = function_source("get_info_with_slot")
+        self.assertIn("future_cookie_profile", source)
+        self.assertIn("auth_required and not future_cookie_profile", source)
+
     def test_single_extraction_and_native_token_handoff_are_preserved(self):
         source = orchestration_source()
         self.assertEqual(source.count("extract_info(url, download=True)"), 1)
@@ -185,6 +190,48 @@ class DownloadOptionTests(unittest.TestCase):
         self.assertEqual(extractor["preferredquality"], "320")
         self.assertNotIn("writesubtitles", extra)
         self.assertFalse(result["youtube_video_fallback"])
+
+
+class YouTubeClientLadderTests(unittest.TestCase):
+    def _load(self, *, cookie_exists=True):
+        namespace = {
+            "POT_PROVIDER_URL": "http://pot-provider:4416",
+            "is_youtube": lambda url: "youtube.com" in url or "youtu.be" in url,
+            "get_base_opts": lambda url, use_cookies=True, youtube_player_clients=None: {
+                "extractor_args": {
+                    "youtube": {"player_client": youtube_player_clients or ["mweb"]},
+                },
+                **({"cookiefile": "/tmp/cookies.txt"} if use_cookies and cookie_exists else {}),
+            },
+        }
+        return load_function("get_opts_list", namespace)
+
+    def test_youtube_uses_distinct_cookieless_clients_before_cookie_fallback(self):
+        opts_list = self._load()(
+            "https://youtube.com/watch?v=abcdefghijk",
+            extra={"format": "selected-format"},
+            youtube_video_fallback=True,
+        )
+        self.assertEqual(
+            [opts["extractor_args"]["youtube"]["player_client"] for opts in opts_list],
+            [["default"], ["mweb"], ["default"]],
+        )
+        self.assertEqual(
+            ["cookiefile" in opts for opts in opts_list],
+            [False, False, True],
+        )
+        self.assertTrue(all(opts["format"] == "selected-format" for opts in opts_list))
+
+    def test_missing_cookie_does_not_duplicate_the_default_profile(self):
+        opts_list = self._load(cookie_exists=False)(
+            "https://youtu.be/abcdefghijk",
+            youtube_video_fallback=False,
+        )
+        self.assertEqual(len(opts_list), 2)
+        self.assertEqual(
+            [opts["extractor_args"]["youtube"]["player_client"] for opts in opts_list],
+            [["default"], ["mweb"]],
+        )
 
 
 class DownloadLimitTests(unittest.TestCase):
@@ -362,7 +409,7 @@ class AttemptExecutionTests(unittest.TestCase):
     a real extractor.
     """
 
-    def _load(self, behaviors):
+    def _load(self, behaviors, *, youtube=False):
         reap_calls = []
         fake_yt_dlp = _FakeYtDlpModule(behaviors)
 
@@ -378,7 +425,7 @@ class AttemptExecutionTests(unittest.TestCase):
 
         namespace = {
             "DownloadAttemptResult": _DownloadAttemptResult,
-            "is_youtube": lambda url: False,
+            "is_youtube": lambda url: youtube,
             "logger": _Logger(),
             "_snapshot_child_pids": lambda: set(),
             "_reap_new_children": lambda before, download_id, filename: reap_calls.append(1),
@@ -440,6 +487,87 @@ class AttemptExecutionTests(unittest.TestCase):
         )
         self.assertTrue(result.timed_out)
         self.assertFalse(result.success)
+
+    def test_youtube_403_switches_from_default_to_mweb_once(self):
+        def first():
+            raise ValueError("unable to download video data: HTTP Error 403: Forbidden")
+
+        def second():
+            return {"_path": "/tmp/final.mp4", "title": "mweb fallback"}
+
+        fn, _ = self._load([first, second], youtube=True)
+        opts_list = [
+            {"extractor_args": {"youtube": {"player_client": ["default"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+        ]
+        result = fn(
+            "https://youtube.com/watch?v=abcdefghijk", opts_list,
+            download_id="d1", filename="f1", video_title=None,
+            request_deadline=time.monotonic() + 30,
+            cancel_event=threading.Event(),
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.video_title, "mweb fallback")
+
+    def test_mweb_403_does_not_spend_account_cookie_fallback(self):
+        def default_403():
+            raise ValueError("unable to download video data: HTTP Error 403: Forbidden")
+
+        def mweb_403():
+            raise ValueError("unable to download video data: HTTP Error 403: Forbidden")
+
+        def unreachable_cookie_attempt():
+            raise AssertionError("403 must not be retried with account cookies")
+
+        fn, reap_calls = self._load(
+            [default_403, mweb_403, unreachable_cookie_attempt],
+            youtube=True,
+        )
+        opts_list = [
+            {"extractor_args": {"youtube": {"player_client": ["default"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+            {
+                "cookiefile": "/tmp/cookies.txt",
+                "extractor_args": {"youtube": {"player_client": ["default"]}},
+            },
+        ]
+        result = fn(
+            "https://youtube.com/watch?v=abcdefghijk", opts_list,
+            download_id="d1", filename="f1", video_title=None,
+            request_deadline=time.monotonic() + 30,
+            cancel_event=threading.Event(),
+        )
+        self.assertFalse(result.success)
+        self.assertIn("403", str(result.primary_err))
+        self.assertEqual(len(reap_calls), 2)
+
+    def test_login_error_can_reach_the_cookie_only_profile(self):
+        def default_login():
+            raise ValueError("Sign in to confirm you are not a bot")
+
+        def mweb_login():
+            raise ValueError("Login required")
+
+        def cookie_success():
+            return {"_path": "/tmp/private.mp4", "title": "cookie fallback"}
+
+        fn, _ = self._load([default_login, mweb_login, cookie_success], youtube=True)
+        opts_list = [
+            {"extractor_args": {"youtube": {"player_client": ["default"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+            {
+                "cookiefile": "/tmp/cookies.txt",
+                "extractor_args": {"youtube": {"player_client": ["default"]}},
+            },
+        ]
+        result = fn(
+            "https://youtube.com/watch?v=abcdefghijk", opts_list,
+            download_id="d1", filename="f1", video_title=None,
+            request_deadline=time.monotonic() + 30,
+            cancel_event=threading.Event(),
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.video_title, "cookie fallback")
 
     def test_cancel_event_set_before_any_attempt_is_re_raised(self):
         fn, _ = self._load([lambda: {"_path": "/tmp/x.mp4"}])

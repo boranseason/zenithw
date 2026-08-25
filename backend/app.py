@@ -761,7 +761,7 @@ if POT_PROVIDER_URL:
     logger.info(
         f"[INIT] YouTube PO Token provider configured "
         f"(host={POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}, plugin={_POT_PLUGIN_VERSION}, "
-        "client=mweb, video_fallback=default)"
+        "client_order=default-cookieless,mweb-pot,default-cookies)"
     )
 else:
     logger.info("[INIT] YouTube PO Token provider disabled (YOUTUBE_POT_PROVIDER_URL not set)")
@@ -1574,31 +1574,50 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
 
 def get_opts_list(url, extra=None, youtube_video_fallback=False):
     opts_list = []
-    o = get_base_opts(url, use_cookies=True)
-    if extra:
-        o.update(extra)
-    opts_list.append(o)
-    # Cookie gerçekten kullanılıyorsa ikinci denemeyi cookie'siz fallback olarak
-    # ekle. Cookie dosyası yokken veya Instagram'da iki özdeş upstream isteği
-    # çalıştırmak yalnızca hata/latency yükünü ikiye katlıyordu.
-    if "cookiefile" in o:
-        o = get_base_opts(url, use_cookies=False)
-        if extra:
-            o.update(extra)
-        opts_list.append(o)
-    # mweb + PO Token ana YouTube yoludur. Bazı videolarda yalnızca ses
-    # formatları dönerken video formatları mweb yanıtında eksik kalabiliyor.
-    # Bu durumda yalnızca video indirmelerinde yt-dlp'nin güncel varsayılan
-    # istemci grubunu bir kez dene; çalışan MP3 yolunu ek istekle yavaşlatma.
-    if youtube_video_fallback and POT_PROVIDER_URL and is_youtube(url):
+    def add_opts(*, use_cookies, youtube_player_clients=None):
         o = get_base_opts(
             url,
-            use_cookies=False,
-            youtube_player_clients=["default"],
+            use_cookies=use_cookies,
+            youtube_player_clients=youtube_player_clients,
         )
         if extra:
             o.update(extra)
         opts_list.append(o)
+
+    if POT_PROVIDER_URL and is_youtube(url):
+        # yt-dlp's current default client group deliberately prefers clients
+        # that do not depend on a GVS PO Token. Keep this cookieless path first:
+        # stale/rotated account cookies and a datacenter IP can otherwise turn
+        # an otherwise public video into a repeatable HTTP 403.
+        add_opts(use_cookies=False, youtube_player_clients=["default"])
+
+        # mweb + PO Token remains the bounded second path. It can expose formats
+        # unavailable through the defaults, but YouTube occasionally rejects a
+        # valid-looking mweb token during GVS media/fragment requests. Do not
+        # retry the identical mweb profile with and without cookies.
+        add_opts(use_cookies=False, youtube_player_clients=["mweb"])
+
+        # Account cookies are only a last-resort profile for login/age/private
+        # content. run_download_attempts() will not reach this profile for an
+        # ordinary mweb 403; it is kept in the ladder so explicit auth errors
+        # can fall through to it.
+        cookie_opts = get_base_opts(
+            url,
+            use_cookies=True,
+            youtube_player_clients=["default"],
+        )
+        if "cookiefile" in cookie_opts:
+            if extra:
+                cookie_opts.update(extra)
+            opts_list.append(cookie_opts)
+        return opts_list
+
+    add_opts(use_cookies=True)
+    # Cookie gerçekten kullanılıyorsa ikinci denemeyi cookie'siz fallback olarak
+    # ekle. Cookie dosyası yokken veya Instagram'da iki özdeş upstream isteği
+    # çalıştırmak yalnızca hata/latency yükünü ikiye katlıyordu.
+    if "cookiefile" in opts_list[0]:
+        add_opts(use_cookies=False)
     return opts_list
 
 # ── Format string builder ─────────────────────────────
@@ -2254,7 +2273,12 @@ def get_info_with_slot(url):
                 # A second cookie-less attempt hits the same Railway egress IP
                 # immediately and only extends YouTube's upstream cooldown.
                 break
-            if "login" in es or "private" in es:
+            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            future_cookie_profile = any(
+                candidate.get("cookiefile")
+                for candidate in opts_list[attempt_index + 1:]
+            )
+            if auth_required and not future_cookie_profile:
                 break
             continue
 
@@ -2448,9 +2472,10 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
         if is_youtube(url):
             youtube_args = opts.get("extractor_args", {}).get("youtube", {})
             player_clients = ",".join(youtube_args.get("player_client") or ()) or "auto"
+            auth_profile = "cookies" if opts.get("cookiefile") else "cookieless"
             logger.info(
                 f"[DL] YouTube attempt {attempt_index + 1}/{len(opts_list)} "
-                f"client={player_clients}"
+                f"client={player_clients} auth={auth_profile}"
             )
         before_pids = _snapshot_child_pids()
         try:
@@ -2511,7 +2536,13 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
                 # Do not double-hit the same rate-limited YouTube endpoint
                 # with the immediate cookie-less fallback.
                 break
-            if ("login" in es or "private" in es or "video too long" in es
+            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            future_cookie_profile = any(
+                candidate.get("cookiefile")
+                for candidate in opts_list[attempt_index + 1:]
+            )
+            if (auth_required and not future_cookie_profile) or (
+                    "video too long" in es
                     or "playlist downloads are not supported" in es
                     or "downloaded media file path not found" in es):
                 break
@@ -2523,11 +2554,13 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
                 )
                 next_clients = next_youtube_args.get("player_client") or ()
                 next_is_video_fallback = list(next_clients) == ["default"]
+                next_has_cookies = bool(opts_list[attempt_index + 1].get("cookiefile"))
                 format_missing = any(token in es for token in (
                     "requested format", "no video formats", "only images",
                     "format is not available", "format unavailable",
                 ))
-                if next_is_video_fallback and not format_missing:
+                if (next_is_video_fallback and not format_missing
+                        and not (auth_required and next_has_cookies)):
                     break
             continue
 
@@ -2946,8 +2979,7 @@ def download_thumbnail_with_slot(url):
     opts_list = get_opts_list(
         url,
         extra=extra,
-        # /download ile aynı bot-detection kurtarma zinciri: mweb bot
-        # korumasına takılırsa "default" player client ile son bir kez dene.
+        # /download ile aynı sınırlı istemci zincirini kullan.
         youtube_video_fallback=is_youtube(url),
     )
     last_err = None
