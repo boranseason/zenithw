@@ -1,7 +1,7 @@
 {
-  "active": false,
-  "title": "Kısa bir pati molası",
-  "message": "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
-  "until": "",
+  "active": true,
+  "title": "Kısa bir sunucu bakımı",
+  "message": "Sunucumuzda açıklar tespit edildi",
+  "until": "2026-08-26T01:15:00+03:00",
   "retryAfter": 900
 }
