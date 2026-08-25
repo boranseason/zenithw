@@ -1,7 +1,7 @@
 {
-  "active": false,
-  "title": "Kısa bir pati molası",
-  "message": "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
-  "until": "",
+  "active": true,
+  "title": "Mobil tasarım için çalışmalar yapılıyor",
+  "message": "Geliştirici şuanda tasarım için çalışıyor yakında açılacak",
+  "until": "2026-08-25T19:05:00+03:00",
   "retryAfter": 900
 }
