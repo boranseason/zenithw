@@ -2205,9 +2205,12 @@ def make_download_progress_hook(sid, cancel_event, size_exceeded, spool_exceeded
                 percent = max(5, int(data["fragment_index"] / data["fragment_count"] * 82))
             else:
                 percent = min(80, 5 + int(time.time() - dl_start_time) * 2)
+            speed = data.get("_speed_str", "").strip()
+            if "unknown" in speed.lower():
+                speed = ""
             emit_progress({
                 "percent": percent,
-                "speed": data.get("_speed_str", "").strip(),
+                "speed": speed,
                 "eta": data.get("_eta_str", "").strip(),
                 "status": "downloading",
             })
@@ -2511,10 +2514,6 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
             state["completed"] = True
             return state["result"]
 
-        if sid and not state.get("done_emitted"):
-            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
-            state["done_emitted"] = True
-
         if not state.get("slot_released"):
             release_slot()
             state["slot_released"] = True
@@ -2527,6 +2526,12 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
                 full_path, download_name, ip, spool_reservation_id
             )
         token = state["token"]
+        # "done" means that the client can actually start the handoff.  Emitting
+        # it before native-download preparation made the UI show 100% while the
+        # response/token preparation could still fail or remain pending.
+        if sid and not state.get("done_emitted"):
+            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+            state["done_emitted"] = True
         if not state.get("cancel_discarded"):
             discard_cancel_event(download_id)
             state["cancel_discarded"] = True
@@ -2937,6 +2942,17 @@ def convert_file_with_slot(ip, spool_reservation):
             input_path = input_temp.name
             file.save(input_path)
             _register_cleanup(input_path)
+
+        try:
+            input_size = os.path.getsize(input_path)
+        except OSError:
+            input_size = 0
+        if input_size <= 0:
+            _force_cleanup(input_path)
+            return jsonify({
+                "error": "The uploaded file is empty or could not be read.",
+                "error_code": "invalid_file",
+            }), 400
 
         base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(

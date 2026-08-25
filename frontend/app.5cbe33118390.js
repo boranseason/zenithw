@@ -458,7 +458,9 @@ socket.on('progress',d=>{
   if(d.status==='downloading')setProgress(d.percent,t('downloading'),d.speed,false);
   else if(d.status==='merging')setProgress(88,t('merging'),'',false);
   else if(d.status==='queued')setProgress(3,d.message||t('queued'),'',false);
-  else if(d.status==='done')setProgress(100,t('done'),'',true);
+  // Backend processing is ready, but a small file may still be transferring
+  // into the save modal. Keep 100% for the actual client handoff completion.
+  else if(d.status==='done')setProgress(90,t('downloading'),'',false);
   else if(d.status==='error')toast(publicErrorMessage(d,0,videoInfo.url||document.getElementById('urlInput')?.value||''),'#ed4245');
 });
 
@@ -939,12 +941,28 @@ function triggerNativeDownload(path){
   document.body.removeChild(a);
 }
 const BLOB_SAVE_LIMIT=32*1024*1024;
-async function handoffPreparedDownload(payload,allowSaveModal){
+async function handoffPreparedDownload(payload,allowSaveModal,onProgress){
   if(!payload||!payload.download_url)throw new Error('Download file was not prepared');
   if(allowSaveModal&&Number(payload.size)>0&&Number(payload.size)<=BLOB_SAVE_LIMIT){
     const transfer=await fetch(payload.download_url.startsWith('http')?payload.download_url:API+payload.download_url);
     if(!transfer.ok)throw new Error('Prepared download expired');
-    openSaveModal(await transfer.blob(),payload.filename||'download');
+    const total=Number(transfer.headers.get('Content-Length'))||Number(payload.size)||0;
+    let blob;
+    if(transfer.body&&transfer.body.getReader){
+      const reader=transfer.body.getReader(),chunks=[];
+      let received=0;
+      while(true){
+        const part=await reader.read();
+        if(part.done)break;
+        chunks.push(part.value);received+=part.value.byteLength;
+        if(onProgress&&total>0)onProgress(Math.min(99,90+Math.floor(received/total*9)),received,total);
+      }
+      blob=new Blob(chunks,{type:transfer.headers.get('Content-Type')||'application/octet-stream'});
+    }else{
+      blob=await transfer.blob();
+    }
+    if(!blob.size)throw new Error('Prepared download is empty');
+    openSaveModal(blob,payload.filename||'download');
     return 'save-modal';
   }
   triggerNativeDownload(payload.download_url);
@@ -1044,7 +1062,10 @@ async function startDownload(options={}){
     }
     // Batch items always use native handoff; a later item cannot replace a
     // small-file Blob waiting in the save modal.
-    const handoff=await handoffPreparedDownload(payload,!bulk);
+    const handoff=await handoffPreparedDownload(payload,!bulk,bulk?null:(pct,received,total)=>{
+      const mb=n=>(n/1024/1024).toFixed(n<1024*1024?2:1)+' MB';
+      setProgress(pct,t('downloading'),mb(received)+' / '+mb(total),false);
+    });
     addToLocalHistory({url:sourceInfo.url,title:sourceInfo.title||payload.filename||'video',platform:getPlatformName(sourceInfo.url||''),format:fmt});
     if(!bulk){
       resetProgress();closeOverlay('dlOverlay');
@@ -1126,7 +1147,8 @@ function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+ke
 
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){document.getElementById('remuxOverlay').classList.add('open');lockPageScroll();}
-function showSelectedToolFile(dropId,f){const drop=document.getElementById(dropId);if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.add('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6"/></svg>';}if(title)title.textContent=f.name;if(sub)sub.textContent=(f.size/1024/1024).toFixed(1)+' MB';}
+function formatLocalFileSize(bytes){if(bytes<=0)return'0 bayt';if(bytes<1024)return bytes+' bayt';if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';return(bytes/1024/1024).toFixed(2)+' MB';}
+function showSelectedToolFile(dropId,f){const drop=document.getElementById(dropId);if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.add('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6"/></svg>';}if(title)title.textContent=f.name;if(sub)sub.textContent=formatLocalFileSize(f.size);}
 function resetRemuxDrop(){const drop=document.getElementById('remuxDrop');if(!drop)return;const icon=drop.querySelector('.tool-drop-icon'),title=drop.querySelector('.drop-title'),sub=drop.querySelector('.drop-sub');if(icon){icon.classList.remove('selected');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>';}if(title)title.textContent=t('remuxDropTitle');if(sub)sub.textContent=t('remuxDropSub');const input=document.getElementById('remuxFileInput');if(input)input.value='';}
 let remuxBusy=false;
 async function handleRemuxFile(inp){
@@ -1155,8 +1177,9 @@ function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDro
 let convFile=null,convTargetFmt='mp3';
 function openConvert(){document.getElementById('convOverlay').classList.add('open');lockPageScroll();}
 function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
-function handleConvFile(inp){const f=inp.files[0];if(!f)return;convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
-function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
+function selectConvFile(f){if(!f)return;if(f.size<=0){convFile=null;toast(t('errConversion'),'#ed4245');_updateConvBtn();return;}convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
+function handleConvFile(inp){selectConvFile(inp.files[0]);}
+function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');selectConvFile(e.dataTransfer.files[0]);}
 function _updateConvBtn(){const btn=document.getElementById('convBtn'),txt=document.getElementById('convBtnTxt');if(!btn||!txt)return;if(convFile){btn.disabled=false;txt.textContent=t('convBtnReady').replace('{fmt}',convTargetFmt.toUpperCase());}else{btn.disabled=true;txt.textContent=t('convBtnSel');}}
 function updateConvBtn(){_updateConvBtn();}// alias for legacy calls
 async function startConvert(){
@@ -1172,8 +1195,9 @@ async function startConvert(){
     const payload=await res.json().catch(()=>({}));
     if(!res.ok){lbl.textContent=t('errConversion');btn.disabled=false;showPublicError(payload.error_code?payload:{error_code:'conversion_failed'},res.status,'',false);return;}
     if(!payload.download_url)throw new Error('Converted file was not prepared');
+    lbl.textContent=t('downloading');pct.textContent='90%';
+    await handoffPreparedDownload(payload,true,(value,received,total)=>{pct.textContent=value+'%';const sub=document.getElementById('convProgSub');if(sub)sub.textContent=formatLocalFileSize(received)+' / '+formatLocalFileSize(total);});
     lbl.textContent=t('convDoneLabel');pct.textContent='✓';
-    await handoffPreparedDownload(payload,true);
     toast(t('convDone'),'#3bba64');
     setTimeout(()=>{prog.classList.remove('show');btn.disabled=false;_updateConvBtn();},1500);
   }catch(e){lbl.textContent=t('errConversion');btn.disabled=false;toast(t('errConversion'),'#ed4245');}

@@ -630,6 +630,27 @@ class JobFinalizerTests(unittest.TestCase):
             self.assertEqual(len(attempts), 2)
             self.assertEqual(calls["discard"], 1)
 
+    def test_done_progress_is_emitted_only_after_handoff_is_prepared(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            full_path = str(Path(temp_dir, "clip.mp4"))
+            Path(full_path).write_bytes(b"x" * 10)
+            fn, calls = self._load(max_size=1000)
+            events = []
+
+            fn.__globals__["prepare_native_download"] = (
+                lambda path, name, ip, reservation_id: events.append("prepared") or "TOKEN123"
+            )
+            fn.__globals__["safe_emit"] = (
+                lambda event, data, room=None: events.append(data.get("status"))
+            )
+            fn(
+                full_path, fmt="mp4", video_title="T", requested_download_name=None,
+                ip="1.2.3.4", spool_reservation_id="res1", sid="sid1", download_id="d1",
+                release_slot=lambda: None, state={"lock": threading.Lock()},
+            )
+
+            self.assertEqual(events, ["prepared", "done"])
+
 
 if __name__ == "__main__":
     unittest.main()
