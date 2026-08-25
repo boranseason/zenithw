@@ -91,7 +91,7 @@ const TX={
     convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',convBtnReady:'{fmt} olarak dönüştür',
     remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a · en fazla 95 MB',
     updTitle:'güncellemeler',
-    servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',servicesModalSub:'22 platform · tek bağlantı',
+    servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',servicesModalSub:'500+ platform · tek bağlantı',
     servicesNoteTxt:'bir platformu desteklemek, teknik uyumluluk dışında ilişki anlamına gelmez. tüm sorumluluk kullanıcıdadır.',
     clipHintTxt:'panonda bir link var, yapıştırmak ister misin?',
     ytWarn:'youtube desteği aktif — bazı videolar youtube erişim kısıtlamalarından etkilenebilir.',
@@ -155,7 +155,7 @@ const TX={
     convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',convBtnReady:'convert to {fmt}',
     remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a · up to 95 MB',
     updTitle:'updates',
-    servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',servicesModalSub:'22 platforms · one link',
+    servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',servicesModalSub:'500+ platforms · one link',
     servicesNoteTxt:'supporting a service does not imply affiliation beyond technical compatibility.',
     clipHintTxt:'found a link in your clipboard — want to paste it?',
     ytWarn:'youtube support is active — some videos may be affected by youtube access restrictions.',
@@ -221,7 +221,7 @@ const TX={
     convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',convBtnReady:'convertir en {fmt}',
     remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a · 95 Mo maximum',
     updTitle:'nouveautés',
-    servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',servicesModalSub:'22 plateformes · un seul lien',
+    servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',servicesModalSub:'500+ plateformes · un seul lien',
     servicesNoteTxt:'la prise en charge d\'une plateforme n\'implique aucune affiliation au-delà de la compatibilité technique.',
     clipHintTxt:'un lien a été trouvé dans votre presse-papiers — voulez-vous le coller ?',
     ytWarn:'le support youtube est actif — certaines vidéos peuvent être affectées par les restrictions d’accès de youtube.',
@@ -287,7 +287,7 @@ const TX={
     convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',convBtnReady:'in {fmt} konvertieren',
     remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a · maximal 95 MB',
     updTitle:'neuigkeiten',
-    servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',servicesModalSub:'22 plattformen · ein link',
+    servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',servicesModalSub:'500+ plattformen · ein link',
     servicesNoteTxt:'die unterstützung einer plattform bedeutet keine zusammenarbeit über die technische kompatibilität hinaus.',
     clipHintTxt:'ein link wurde in deiner zwischenablage gefunden — möchtest du ihn einfügen?',
     ytWarn:'youtube-unterstützung ist aktiv — einige videos können von youtube-zugriffsbeschränkungen betroffen sein.',
@@ -426,30 +426,19 @@ function syncBrowserThemeColor(isLight){
   if(meta)meta.setAttribute('content',color);
 }
 
-// ── MOBILE KEYBOARD FIX (Chrome/Android) ──
-// Android Chrome, klavye acilip kapanirken layout viewport'u gec/yanlis
-// hesaplayabiliyor; bu da position:fixed;bottom:0 olan .bottom-bar'in
-// bir anlik yanlis konumda gorunmesine ("kayma") sebep oluyor.
-// visualViewport API ile klavyenin kapladigi alani olcup navbar'i
-// translateY ile manuel pinliyoruz. Bu, interactive-widget=resizes-content
-// destekleyen yeni Chrome'larda no-op'a yakin calisir (offset ~0),
-// eski Chrome'larda ise gercek duzeltmeyi saglar.
+// ── MOBILE URL EDITING PERFORMANCE ──
+// visualViewport'un resize/scroll olaylarında alt menüyü her karede taşımak,
+// Android tarayıcının klavye ve adres çubuğu animasyonuyla yarışıyordu. URL
+// alanı düzenlenirken sabit menüyü geçici olarak kompozisyondan çıkarıyoruz;
+// klavye kapanınca tek bir durum değişikliğiyle geri geliyor.
 (function(){
-  const bar=document.querySelector('.bottom-bar');
-  if(!bar||!window.visualViewport)return;
-  const vv=window.visualViewport;
-  let raf=null;
-  function apply(){
-    raf=null;
-    const covered=Math.max(0,(window.innerHeight-vv.height-vv.offsetTop));
-    bar.style.transform=covered>2?`translateY(-${covered}px)`:'';
+  const touchDevice=window.matchMedia('(hover:none) and (pointer:coarse)');
+  const isUrlEditor=el=>el?.id==='urlInput'||el?.id==='urlTextarea';
+  function syncUrlEditingState(){
+    document.body.classList.toggle('url-editing',touchDevice.matches&&isUrlEditor(document.activeElement));
   }
-  function onVVChange(){
-    if(raf)cancelAnimationFrame(raf);
-    raf=requestAnimationFrame(apply);
-  }
-  vv.addEventListener('resize',onVVChange);
-  vv.addEventListener('scroll',onVVChange);
+  document.addEventListener('focusin',syncUrlEditingState);
+  document.addEventListener('focusout',()=>setTimeout(syncUrlEditingState,0));
 })();
 
 socket.on('connect',()=>{socketId=socket.id;});
