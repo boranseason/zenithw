@@ -1,10 +1,18 @@
-/app.38a2e2a6b4f9.js
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob:; connect-src 'self' https://api.zenithw.space wss://api.zenithw.space; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+/app.d4596317c4a7.js
   Cache-Control: public, max-age=31536000, immutable
-/style.0f46294b97e0.css
+/style.487d49f0164d.css
   Cache-Control: public, max-age=31536000, immutable
-/updates-core.fb2251e384c2.js
+/updates-core.b22e1acfa672.js
   Cache-Control: public, max-age=31536000, immutable
-/updates-archive.243ec67d3c2e.js
+/updates-archive.34f41abc8e85.js
   Cache-Control: public, max-age=31536000, immutable
 /updates.4afebabda436.css
   Cache-Control: public, max-age=31536000, immutable

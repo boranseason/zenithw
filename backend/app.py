@@ -17,6 +17,7 @@ import socket
 import ipaddress
 import tempfile
 import contextvars
+import math
 from collections import defaultdict, OrderedDict, deque
 from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version as package_version
@@ -70,39 +71,67 @@ MAX_UPLOAD_SIZE_BYTES = 95 * 1024 * 1024
 app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE_BYTES
 
 # ── Constants ──────────────────────────────────────────
-FFMPEG_TIMEOUT = int(os.environ.get("FFMPEG_TIMEOUT_SECONDS", 120))
-DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("DOWNLOAD_TIMEOUT_SECONDS", 600))
-MAX_CONCURRENT_PER_IP = int(os.environ.get("MAX_CONCURRENT_PER_IP", 5))
-MAX_CONCURRENT_DOWNLOADS = int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", 2))
-MAX_CONCURRENT_CONVERSIONS = int(os.environ.get("MAX_CONCURRENT_CONVERSIONS", 1))
-MAX_CONCURRENT_INFO = int(os.environ.get("MAX_CONCURRENT_INFO", 4))
-MAX_CONCURRENT_THUMBNAILS = int(os.environ.get("MAX_CONCURRENT_THUMBNAILS", 2))
-MAX_DOWNLOAD_QUEUE = int(os.environ.get("MAX_DOWNLOAD_QUEUE", 12))
-MAX_QUEUE_WAIT_SECONDS = int(os.environ.get("MAX_QUEUE_WAIT_SECONDS", 120))
-INFO_TIMEOUT_SECONDS = int(os.environ.get("INFO_TIMEOUT_SECONDS", 45))
-INFO_CACHE_TTL_SECONDS = int(os.environ.get("INFO_CACHE_TTL_SECONDS", 45))
-INFO_CACHE_MAX_SIZE = int(os.environ.get("INFO_CACHE_MAX_SIZE", 256))
-THUMBNAIL_TIMEOUT_SECONDS = int(os.environ.get("THUMBNAIL_TIMEOUT_SECONDS", 60))
-MAX_VIDEO_DURATION_SECONDS = int(os.environ.get("MAX_VIDEO_DURATION_SECONDS", 90 * 60))
-MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 1536)) * 1024 * 1024
-MAX_CONVERT_OUTPUT_SIZE_BYTES = int(os.environ.get("MAX_CONVERT_OUTPUT_SIZE_MB", 1024)) * 1024 * 1024
-MAX_SPOOL_SIZE_BYTES = int(os.environ.get("MAX_SPOOL_SIZE_MB", 4096)) * 1024 * 1024
-MIN_FREE_DISK_BYTES = int(os.environ.get("MIN_FREE_DISK_MB", 512)) * 1024 * 1024
-DOWNLOAD_SPOOL_RESERVATION_BYTES = int(
-    os.environ.get("DOWNLOAD_SPOOL_RESERVATION_MB", 2048)
+def _bounded_env_int(name, default, minimum, maximum):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return min(maximum, max(minimum, value))
+
+
+def _bounded_env_float(name, default, minimum, maximum):
+    try:
+        value = float(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    if not math.isfinite(value):
+        value = default
+    return min(maximum, max(minimum, value))
+
+
+FFMPEG_TIMEOUT = _bounded_env_int("FFMPEG_TIMEOUT_SECONDS", 120, 30, 3600)
+DOWNLOAD_TIMEOUT_SECONDS = _bounded_env_int("DOWNLOAD_TIMEOUT_SECONDS", 600, 60, 3600)
+MAX_CONCURRENT_PER_IP = _bounded_env_int("MAX_CONCURRENT_PER_IP", 5, 1, 20)
+MAX_CONCURRENT_DOWNLOADS = _bounded_env_int("MAX_CONCURRENT_DOWNLOADS", 2, 1, 32)
+MAX_CONCURRENT_CONVERSIONS = _bounded_env_int("MAX_CONCURRENT_CONVERSIONS", 1, 1, 16)
+MAX_CONCURRENT_INFO = _bounded_env_int("MAX_CONCURRENT_INFO", 4, 1, 64)
+MAX_CONCURRENT_THUMBNAILS = _bounded_env_int("MAX_CONCURRENT_THUMBNAILS", 2, 1, 32)
+MAX_DOWNLOAD_QUEUE = _bounded_env_int("MAX_DOWNLOAD_QUEUE", 12, 1, 100)
+MAX_QUEUE_WAIT_SECONDS = _bounded_env_int("MAX_QUEUE_WAIT_SECONDS", 120, 5, 900)
+INFO_TIMEOUT_SECONDS = _bounded_env_int("INFO_TIMEOUT_SECONDS", 45, 5, 300)
+INFO_CACHE_TTL_SECONDS = _bounded_env_int("INFO_CACHE_TTL_SECONDS", 45, 5, 3600)
+INFO_CACHE_MAX_SIZE = _bounded_env_int("INFO_CACHE_MAX_SIZE", 256, 16, 4096)
+THUMBNAIL_TIMEOUT_SECONDS = _bounded_env_int("THUMBNAIL_TIMEOUT_SECONDS", 60, 5, 300)
+MAX_VIDEO_DURATION_SECONDS = _bounded_env_int("MAX_VIDEO_DURATION_SECONDS", 90 * 60, 60, 6 * 3600)
+MAX_TRANSCODE_DURATION_SECONDS = _bounded_env_int("MAX_TRANSCODE_DURATION_SECONDS", 10 * 60, 30, 3600)
+MAX_DOWNLOAD_SIZE_BYTES = _bounded_env_int("MAX_DOWNLOAD_SIZE_MB", 1536, 16, 10240) * 1024 * 1024
+MAX_CONVERT_OUTPUT_SIZE_BYTES = _bounded_env_int("MAX_CONVERT_OUTPUT_SIZE_MB", 1024, 16, 4096) * 1024 * 1024
+MAX_SPOOL_SIZE_BYTES = _bounded_env_int("MAX_SPOOL_SIZE_MB", 4096, 128, 32768) * 1024 * 1024
+MIN_FREE_DISK_BYTES = _bounded_env_int("MIN_FREE_DISK_MB", 512, 64, 8192) * 1024 * 1024
+DOWNLOAD_SPOOL_RESERVATION_BYTES = _bounded_env_int(
+    "DOWNLOAD_SPOOL_RESERVATION_MB", 2048, 16, 16384
 ) * 1024 * 1024
 CONVERT_SPOOL_RESERVATION_BYTES = (
     app.config['MAX_CONTENT_LENGTH'] + MAX_CONVERT_OUTPUT_SIZE_BYTES
 )
-MAX_CONCURRENT_TRANSFERS = int(os.environ.get("MAX_CONCURRENT_TRANSFERS", 2))
-MAX_CONCURRENT_TRANSFERS_PER_IP = int(os.environ.get("MAX_CONCURRENT_TRANSFERS_PER_IP", 2))
-TRANSFER_QUEUE_WAIT_SECONDS = int(os.environ.get("TRANSFER_QUEUE_WAIT_SECONDS", 120))
-PREPARED_FILE_TTL = int(os.environ.get("PREPARED_FILE_TTL", 10 * 60))
-PROGRESS_EMIT_INTERVAL = float(os.environ.get("PROGRESS_EMIT_INTERVAL", "0.2"))
+if DOWNLOAD_SPOOL_RESERVATION_BYTES > MAX_SPOOL_SIZE_BYTES:
+    raise RuntimeError("DOWNLOAD_SPOOL_RESERVATION_MB cannot exceed MAX_SPOOL_SIZE_MB")
+if CONVERT_SPOOL_RESERVATION_BYTES > MAX_SPOOL_SIZE_BYTES:
+    raise RuntimeError("MAX_SPOOL_SIZE_MB is too small for one conversion reservation")
+MAX_CONCURRENT_TRANSFERS = _bounded_env_int("MAX_CONCURRENT_TRANSFERS", 2, 1, 64)
+MAX_CONCURRENT_TRANSFERS_PER_IP = min(
+    MAX_CONCURRENT_TRANSFERS,
+    _bounded_env_int("MAX_CONCURRENT_TRANSFERS_PER_IP", 2, 1, 32),
+)
+TRANSFER_QUEUE_WAIT_SECONDS = _bounded_env_int("TRANSFER_QUEUE_WAIT_SECONDS", 120, 5, 900)
+PREPARED_FILE_TTL = _bounded_env_int("PREPARED_FILE_TTL", 10 * 60, 60, 3600)
+PROGRESS_EMIT_INTERVAL = _bounded_env_float("PROGRESS_EMIT_INTERVAL", 0.2, 0.05, 5.0)
 RATE_LIMIT_WINDOW = 60  # saniye
 RATE_LIMIT_MAX_REQUESTS = 10  # istek/dakika
-CONVERSION_RATE_LIMIT_WINDOW = int(os.environ.get("CONVERSION_RATE_LIMIT_WINDOW", 600))
-CONVERSION_RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("CONVERSION_RATE_LIMIT_MAX_REQUESTS", 2))
+CONVERSION_RATE_LIMIT_WINDOW = _bounded_env_int("CONVERSION_RATE_LIMIT_WINDOW", 600, 60, 86400)
+CONVERSION_RATE_LIMIT_MAX_REQUESTS = _bounded_env_int("CONVERSION_RATE_LIMIT_MAX_REQUESTS", 2, 1, 100)
+CANCEL_RATE_LIMIT_WINDOW = _bounded_env_int("CANCEL_RATE_LIMIT_WINDOW", 60, 10, 600)
+CANCEL_RATE_LIMIT_MAX_REQUESTS = _bounded_env_int("CANCEL_RATE_LIMIT_MAX_REQUESTS", 30, 5, 300)
 RATE_LIMIT_CLEANUP_INTERVAL = 60  # saniye
 FILE_CLEANUP_INTERVAL = 900  # 15 dakika
 FILE_MAX_AGE = 1800  # 30 dakika
@@ -114,14 +143,6 @@ def _env_flag(name, default=False):
     if raw_value is None:
         return default
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _bounded_env_int(name, default, minimum, maximum):
-    try:
-        value = int(os.environ.get(name, str(default)))
-    except (TypeError, ValueError):
-        value = default
-    return min(maximum, max(minimum, value))
 
 
 MAINTENANCE_DEFAULT_MESSAGE = (
@@ -410,6 +431,11 @@ conversion_rate_limiter = TTLCache(
     max_size=10000,
     max_requests=CONVERSION_RATE_LIMIT_MAX_REQUESTS,
 )
+cancel_rate_limiter = TTLCache(
+    ttl=CANCEL_RATE_LIMIT_WINDOW,
+    max_size=10000,
+    max_requests=CANCEL_RATE_LIMIT_MAX_REQUESTS,
+)
 
 # ── Client IP tespiti ─────────────────────────────────
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
@@ -485,7 +511,7 @@ def _is_cloudflare_ip(ip_str):
 def _enforce_cloudflare_origin():
     if not ENABLE_ORIGIN_LOCK:
         return None
-    if request.path == "/health":
+    if request.path in {"/health", "/ready"}:
         return None
     if os.environ.get("FLASK_ENV") == "development" and request.path == "/debug-headers":
         return None
@@ -652,7 +678,7 @@ def _release_download_slot():
         active_downloads_count = max(0, active_downloads_count - 1)
 
 
-def acquire_download_slot(sid, cancel_event):
+def acquire_download_slot(sid, cancel_event, download_id):
     """Slot boşalana kadar bekler; iptal edilirse DownloadCancelled fırlatır."""
     global queue_waiting, active_downloads_count
     with queue_lock:
@@ -680,6 +706,7 @@ def acquire_download_slot(sid, cancel_event):
                 if ahead != last_ahead or now - last_queue_emit >= 5:
                     try:
                         socketio.emit('progress', {
+                            'download_id': download_id,
                             'status': 'queued',
                             'message': f"Server is busy, waiting in queue... ({ahead} ahead)"
                         }, room=sid)
@@ -702,7 +729,130 @@ def find_ffmpeg():
 
 FFMPEG_DIR = find_ffmpeg()
 FFMPEG_PATH = shutil.which('ffmpeg')  # Doğrudan tam path
-logger.info(f"[INIT] ffmpeg={FFMPEG_DIR}")
+FFPROBE_PATH = shutil.which('ffprobe')
+if not FFPROBE_PATH and FFMPEG_DIR:
+    _ffprobe_name = "ffprobe.exe" if os.name == "nt" else "ffprobe"
+    _ffprobe_candidate = os.path.join(FFMPEG_DIR, _ffprobe_name)
+    if os.path.isfile(_ffprobe_candidate):
+        FFPROBE_PATH = _ffprobe_candidate
+logger.info(f"[INIT] ffmpeg={FFMPEG_DIR} ffprobe={FFPROBE_PATH or 'MISSING'}")
+
+
+def probe_media_duration(input_path):
+    """Return the longest declared stream/container duration, when available."""
+    if FFPROBE_PATH:
+        try:
+            result = subprocess.run(
+                [
+                    FFPROBE_PATH,
+                    '-v', 'error',
+                    '-protocol_whitelist', FFMPEG_LOCAL_PROTOCOLS,
+                    '-show_entries', 'format=duration:stream=duration',
+                    '-of', 'default=noprint_wrappers=1:nokey=1',
+                    input_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=min(30, max(1, FFMPEG_TIMEOUT)),
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            result = None
+        if result is not None and result.returncode == 0:
+            durations = []
+            for value in (result.stdout or '').splitlines():
+                try:
+                    duration = float(value.strip())
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(duration) and duration >= 0:
+                    durations.append(duration)
+            if durations:
+                return max(durations)
+
+    # Some local FFmpeg bundles omit ffprobe. Reading the input header with
+    # FFmpeg keeps conversion usable while still failing closed when no finite
+    # duration can be established.
+    ffmpeg_cmd = FFMPEG_PATH or (os.path.join(FFMPEG_DIR, 'ffmpeg') if FFMPEG_DIR else None)
+    if not ffmpeg_cmd:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                ffmpeg_cmd,
+                '-hide_banner', '-nostdin',
+                '-protocol_whitelist', FFMPEG_LOCAL_PROTOCOLS,
+                '-i', input_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=min(30, max(1, FFMPEG_TIMEOUT)),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(
+        r'Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)',
+        result.stderr or '',
+    )
+    if not match:
+        return None
+    hours, minutes, seconds = match.groups()
+    duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    return duration if math.isfinite(duration) and duration >= 0 else None
+
+
+def run_ffmpeg_with_output_limit(command, output_path, timeout_seconds=FFMPEG_TIMEOUT):
+    """Run FFmpeg while enforcing size without turning a partial file into success."""
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    deadline = time.monotonic() + timeout_seconds
+    output_limit_exceeded = False
+    try:
+        while process.poll() is None:
+            try:
+                output_limit_exceeded = (
+                    os.path.getsize(output_path) >= MAX_CONVERT_OUTPUT_SIZE_BYTES
+                )
+            except OSError:
+                output_limit_exceeded = False
+            if output_limit_exceeded:
+                process.kill()
+                break
+            if time.monotonic() >= deadline:
+                process.kill()
+                _, stderr = process.communicate()
+                raise subprocess.TimeoutExpired(
+                    command,
+                    timeout_seconds,
+                    stderr=stderr,
+                )
+            time.sleep(0.1)
+
+        _, stderr = process.communicate()
+        if not output_limit_exceeded:
+            try:
+                output_limit_exceeded = (
+                    os.path.getsize(output_path) >= MAX_CONVERT_OUTPUT_SIZE_BYTES
+                )
+            except OSError:
+                output_limit_exceeded = False
+        return subprocess.CompletedProcess(
+            command,
+            process.returncode,
+            stdout='',
+            stderr=stderr or '',
+        ), output_limit_exceeded
+    except BaseException:
+        if process.poll() is None:
+            process.kill()
+            process.communicate()
+        raise
+
 
 # yt-dlp n-challenge çözücüsü için Deno (veya Node/PhantomJS) JS runtime'ı ve
 # yt-dlp-ejs paketi gerekiyor. Bunlardan biri eksikse yt-dlp sessizce yavaş/
@@ -776,10 +926,13 @@ logger.info("[INIT] aria2c disabled (SSRF protection)")
 _pending_cleanups = {}
 _pending_cleanups_lock = threading.Lock()
 _prepared_files = {}
+_transfer_states = {}
 _prepared_files_lock = threading.Lock()
 _spool_lock = threading.Lock()
 _spool_reservations = {}
 _spool_paths = {}
+_active_transfer_paths_lock = threading.Lock()
+_active_transfer_paths = defaultdict(int)
 # Bir dosya bu süreden uzun süredir pending_cleanups'ta kalıyorsa (yani normal
 # akış -- send_file/call_on_close -- onu hiç kapatmamış demektir; muhtemelen
 # terk edilmiş bir download/convert), periyodik cleanup tarafından zorla
@@ -804,6 +957,42 @@ def _unregister_cleanup(path):
 
 def _spool_path_key(path):
     return os.path.normcase(os.path.realpath(os.path.abspath(path)))
+
+
+def acquire_transfer_path_lease(path):
+    """Keep age-based cleanup away from a file while send_file is streaming it."""
+    path_key = _spool_path_key(path)
+    with _active_transfer_paths_lock:
+        _active_transfer_paths[path_key] += 1
+
+
+def release_transfer_path_lease(path):
+    if not path:
+        return
+    path_key = _spool_path_key(path)
+    with _active_transfer_paths_lock:
+        if _active_transfer_paths.get(path_key, 0) <= 1:
+            _active_transfer_paths.pop(path_key, None)
+        else:
+            _active_transfer_paths[path_key] -= 1
+
+
+def is_transfer_path_leased(path):
+    if not path:
+        return False
+    path_key = _spool_path_key(path)
+    with _active_transfer_paths_lock:
+        return _active_transfer_paths.get(path_key, 0) > 0
+
+
+def cleanup_path_if_not_leased(path):
+    """Atomically skip cleanup when a transfer owns the file path."""
+    path_key = _spool_path_key(path)
+    with _active_transfer_paths_lock:
+        if _active_transfer_paths.get(path_key, 0) > 0:
+            return False
+        _force_cleanup(path)
+        return True
 
 
 def reserve_spool(byte_count, purpose):
@@ -923,7 +1112,7 @@ def _force_cleanup(path):
         pass
 
 
-def cleanup_download_artifacts(file_token):
+def cleanup_download_artifacts(file_token, keep_paths=None):
     """Remove only files belonging to one internal download token.
 
     yt-dlp may leave .part, subtitle, thumbnail or post-processing files behind
@@ -932,6 +1121,11 @@ def cleanup_download_artifacts(file_token):
     """
     if not isinstance(file_token, str) or not DOWNLOAD_ID_RE.fullmatch(file_token):
         return 0
+    keep_keys = {
+        _spool_path_key(path)
+        for path in (keep_paths or ())
+        if path
+    }
     try:
         names = os.listdir(DOWNLOAD_DIR)
     except OSError:
@@ -942,6 +1136,8 @@ def cleanup_download_artifacts(file_token):
             continue
         path = os.path.join(DOWNLOAD_DIR, name)
         if not os.path.isfile(path):
+            continue
+        if _spool_path_key(path) in keep_keys:
             continue
         existed = os.path.exists(path)
         _force_cleanup(path)
@@ -970,6 +1166,13 @@ def prepare_native_download(path, download_name, owner_ip, reservation_id):
                     "expires_at": expires_at,
                     "reservation_id": reservation_id,
                 }
+                _transfer_states[token] = {
+                    "state": "prepared",
+                    "owner_ip": owner_ip,
+                    "expected_bytes": actual_bytes,
+                    "transferred_bytes": 0,
+                    "expires_at": expires_at,
+                }
                 return token
 
 
@@ -981,6 +1184,12 @@ def cleanup_expired_prepared_files():
             if now >= entry["expires_at"]:
                 expired_paths.append(entry["path"])
                 del _prepared_files[token]
+                state = _transfer_states.get(token)
+                if state:
+                    state.update(state="expired", expires_at=now + PREPARED_FILE_TTL)
+        for token, state in list(_transfer_states.items()):
+            if token not in _prepared_files and now >= state["expires_at"]:
+                del _transfer_states[token]
     for path in expired_paths:
         _force_cleanup(path)
 
@@ -991,7 +1200,7 @@ def cleanup_old_files():
         for f in os.listdir(DOWNLOAD_DIR):
             fpath = os.path.join(DOWNLOAD_DIR, f)
             if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > FILE_MAX_AGE:
-                _force_cleanup(fpath)
+                cleanup_path_if_not_leased(fpath)
         # YENİ: pending_cleanups'ta uzun süredir (PENDING_CLEANUP_MAX_AGE'den
         # fazla) bekleyen, yani normal akışta hiç kapanmamış/unutulmuş
         # kayıtları zorla temizle. Lock'u sadece snapshot almak için tutuyoruz;
@@ -1001,7 +1210,7 @@ def cleanup_old_files():
             stale_paths = [p for p, ts in _pending_cleanups.items()
                            if now - ts > PENDING_CLEANUP_MAX_AGE]
         for path in stale_paths:
-            _force_cleanup(path)
+            cleanup_path_if_not_leased(path)
     except Exception as e:
         logger.error(f"[CLEANUP] Failed to clean old files: {e}")
 
@@ -1021,6 +1230,7 @@ def periodic_rate_limiter_cleanup():
         time.sleep(RATE_LIMIT_CLEANUP_INTERVAL)
         rate_limiter._cleanup_all()
         conversion_rate_limiter._cleanup_all()
+        cancel_rate_limiter._cleanup_all()
 
 
 def periodic_prepared_file_cleanup():
@@ -1117,6 +1327,15 @@ def safe_emit(event, data, room=None):
         socketio.emit(event, data, room=room)
     except Exception as e:
         logger.warning(f"[SOCKET] Emit failed for room {room}: {e}")
+
+
+def emit_job_progress(sid, download_id, payload):
+    """Scope every progress event to the immutable client job identifier."""
+    if not sid:
+        return
+    scoped_payload = dict(payload)
+    scoped_payload["download_id"] = download_id
+    safe_emit("progress", scoped_payload, room=sid)
 
 # ── Platform helpers ──────────────────────────────────
 # NOT: Önceden "domain in url" substring kontrolü yapılıyordu (ör. "youtube.com" in u).
@@ -1881,6 +2100,19 @@ def parse_download_request(data):
 PREPARED_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{40,64}$")
 
 
+def update_transfer_state(token, state, transferred_bytes=None, *, terminal=False):
+    with _prepared_files_lock:
+        entry = _transfer_states.get(token)
+        if not entry:
+            return
+        entry["state"] = state
+        if transferred_bytes is not None:
+            entry["transferred_bytes"] = max(0, int(transferred_bytes))
+        entry["expires_at"] = time.time() + (
+            PREPARED_FILE_TTL if terminal else PENDING_CLEANUP_MAX_AGE
+        )
+
+
 @app.route("/files/<token>")
 def download_prepared_file(token):
     if not PREPARED_TOKEN_RE.fullmatch(token):
@@ -1895,6 +2127,9 @@ def download_prepared_file(token):
         if time.time() >= preliminary["expires_at"]:
             preliminary_expired_path = preliminary["path"]
             del _prepared_files[token]
+            state = _transfer_states.get(token)
+            if state:
+                state.update(state="expired", expires_at=time.time() + PREPARED_FILE_TTL)
         elif not hmac.compare_digest(preliminary["owner_ip"], owner_ip):
             return jsonify({"error": "Not Found"}), 404
     if preliminary_expired_path is not None:
@@ -1902,6 +2137,8 @@ def download_prepared_file(token):
         return jsonify({"error": "Download expired"}), 410
 
     transfer_acquired = False
+    transfer_path_leased = False
+    path = None
     if request.method != "HEAD":
         if not acquire_transfer_slot(owner_ip):
             return service_busy(
@@ -1930,36 +2167,126 @@ def download_prepared_file(token):
                 del _prepared_files[token]
 
         if expired_path is not None:
+            update_transfer_state(token, "expired", 0, terminal=True)
             _force_cleanup(expired_path)
             return jsonify({"error": "Download expired"}), 410
+
+        if request.method != "HEAD":
+            # Take the lease before checking/opening the file. The age sweeper
+            # uses the same lock for its cleanup decision, so it either finishes
+            # first (and this request returns 410) or waits until transfer close.
+            acquire_transfer_path_lease(path)
+            transfer_path_leased = True
+            update_transfer_state(token, "transferring", 0)
+
         if not os.path.isfile(path):
+            update_transfer_state(token, "failed", 0, terminal=True)
             _force_cleanup(path)
             return jsonify({"error": "Download no longer available"}), 410
 
         try:
             response = send_file(path, as_attachment=True, download_name=download_name)
         except Exception:
+            update_transfer_state(token, "failed", 0, terminal=True)
+            if transfer_path_leased:
+                release_transfer_path_lease(path)
+                transfer_path_leased = False
             _force_cleanup(path)
             raise
 
         if request.method != "HEAD":
+            original_iterable = response.response
+            expected_bytes = os.path.getsize(path)
+
+            def _tracked_transfer():
+                transferred = 0
+                last_reported = 0
+                try:
+                    for chunk in original_iterable:
+                        transferred += len(chunk)
+                        if transferred - last_reported >= 1024 * 1024:
+                            update_transfer_state(token, "transferring", transferred)
+                            last_reported = transferred
+                        yield chunk
+                    terminal_state = "completed" if transferred >= expected_bytes else "interrupted"
+                    update_transfer_state(token, terminal_state, transferred, terminal=True)
+                except BaseException:
+                    update_transfer_state(token, "interrupted", transferred, terminal=True)
+                    raise
+                finally:
+                    close_iterable = getattr(original_iterable, "close", None)
+                    if close_iterable:
+                        close_iterable()
+
+            response.response = _tracked_transfer()
+
             @response.call_on_close
             def _cleanup_prepared_file():
                 try:
                     _force_cleanup(path)
                 finally:
+                    release_transfer_path_lease(path)
                     release_transfer_slot(owner_ip)
 
             transfer_acquired = False
+            transfer_path_leased = False
 
         return response
     finally:
+        if transfer_path_leased:
+            release_transfer_path_lease(path)
         if transfer_acquired:
             release_transfer_slot(owner_ip)
 
 
+@app.route("/files/<token>/status")
+def prepared_transfer_status(token):
+    if not PREPARED_TOKEN_RE.fullmatch(token):
+        return jsonify({"error": "Not Found"}), 404
+    owner_ip = get_client_ip()
+    with _prepared_files_lock:
+        state = _transfer_states.get(token)
+        if not state or not hmac.compare_digest(state["owner_ip"], owner_ip):
+            return jsonify({"error": "Not Found"}), 404
+        if state["state"] == "transferring":
+            # An actively polled native transfer may be slow. Keep its status
+            # record alive while the owning browser is still following it.
+            state["expires_at"] = time.time() + PENDING_CLEANUP_MAX_AGE
+        payload = {
+            "state": state["state"],
+            "expected_bytes": state["expected_bytes"],
+            "transferred_bytes": state["transferred_bytes"],
+        }
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response, 200
+
+
 @app.route("/health")
 def health():
+    response = jsonify({"status": "ok"})
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response, 200
+
+
+@app.route("/ready")
+def readiness():
+    spool = spool_snapshot()
+    logical_spool = spool["reserved_bytes"] + spool["prepared_bytes"]
+    ready = bool(
+        FFMPEG_DIR
+        and _DENO_PATH
+        and _EJS_AVAILABLE
+        and has_minimum_free_disk()
+        and logical_spool < MAX_SPOOL_SIZE_BYTES
+    )
+    response = jsonify({"status": "ready" if ready else "unavailable"})
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response, 200 if ready else 503
+
+
+@app.route("/diagnostics")
+def diagnostics():
     # YENİ: queue_lock ile korundu, race condition önlendi
     with queue_lock:
         _active = active_downloads_count
@@ -2037,7 +2364,7 @@ def robots():
 @app.route("/cancel", methods=["POST"])
 def cancel_route():
     ip = get_client_ip()
-    if not check_rate_limit(ip):
+    if not cancel_rate_limiter.add(ip):
         return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
     data = request.json or {}
     download_id = data.get("download_id", "")
@@ -2296,8 +2623,8 @@ def get_info_with_slot(url):
     return payload, 400
 
 
-def make_download_progress_hook(sid, cancel_event, size_exceeded, spool_exceeded,
-                                dl_start_time):
+def make_download_progress_hook(sid, download_id, cancel_event, size_exceeded,
+                                spool_exceeded, dl_start_time):
     """Create the throttled yt-dlp progress hook used by one download job."""
     last_progress = {"time": 0.0, "percent": None, "status": None}
     last_disk_check = {"time": 0.0}
@@ -2313,7 +2640,7 @@ def make_download_progress_hook(sid, cancel_event, size_exceeded, spool_exceeded
         if not force and (same_value or too_soon):
             return
         last_progress.update(time=now, percent=percent, status=status)
-        safe_emit("progress", payload, room=sid)
+        emit_job_progress(sid, download_id, payload)
 
     def progress_hook(data):
         if cancel_event.is_set():
@@ -2332,10 +2659,10 @@ def make_download_progress_hook(sid, cancel_event, size_exceeded, spool_exceeded
                 size_exceeded["flag"] = True
                 cancel_event.set()
                 if sid:
-                    safe_emit("progress", {
+                    emit_job_progress(sid, download_id, {
                         "status": "error",
                         "message": f"File size limit exceeded (maximum {MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)} MB).",
-                    }, room=sid)
+                    })
                 raise yt_dlp.utils.DownloadCancelled("Size limit exceeded")
             if total > 0:
                 percent = max(5, int(downloaded / total * 82))
@@ -2507,12 +2834,18 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
                         full_path = resolve_downloaded_media_path(download_info, filename)
                         if not full_path:
                             raise FileNotFoundError("Downloaded media file path not found")
+                        # A failed earlier client/profile can leave token-scoped
+                        # .part, subtitle or separate stream files behind. Keep
+                        # only the authoritative final path before the prepared
+                        # file reservation takes ownership of it.
+                        cleanup_download_artifacts(filename, keep_paths=(full_path,))
                         result.full_path = full_path
                         result.video_title = download_info.get("title") or result.video_title
                         result.success = True
                         break
         except yt_dlp.utils.DownloadCancelled:
             _reap_new_children(before_pids, download_id, filename)
+            cleanup_download_artifacts(filename)
             raise
         except TimeoutError as e:
             result.timed_out = True
@@ -2520,9 +2853,11 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
             primary_err = e
             logger.error(f"[DL TIMEOUT] {DOWNLOAD_TIMEOUT_SECONDS}s exceeded")
             _reap_new_children(before_pids, download_id, filename)
+            cleanup_download_artifacts(filename)
             break
         except (MemoryError, SystemError, KeyboardInterrupt, SystemExit):
             _reap_new_children(before_pids, download_id, filename)
+            cleanup_download_artifacts(filename)
             raise
         except Exception as e:
             last_err = e
@@ -2530,6 +2865,7 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
             es = str(e).lower()
             logger.error(f"[DL FAIL] {es[:100]}")
             _reap_new_children(before_pids, download_id, filename)
+            cleanup_download_artifacts(filename)
             if "cookie" in es and attempt_index + 1 < len(opts_list):
                 continue
             if "429" in es or "too many requests" in es:
@@ -2652,7 +2988,7 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
                 pass
             discard_cancel_event(download_id)
             if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'request_failed'}, room=sid)
+                emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'request_failed'})
             state["result"] = ((
                 jsonify({
                     "error": "The prepared download is empty or could not be read.",
@@ -2671,7 +3007,7 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
                 pass
             discard_cancel_event(download_id)
             if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
+                emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'file_too_large'})
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
             state["result"] = ((
                 jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}),
@@ -2696,7 +3032,7 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
         # it before native-download preparation made the UI show 100% while the
         # response/token preparation could still fail or remain pending.
         if sid and not state.get("done_emitted"):
-            safe_emit('progress', {'percent': 100, 'status': 'done'}, room=sid)
+            emit_job_progress(sid, download_id, {'percent': 100, 'status': 'done'})
             state["done_emitted"] = True
         if not state.get("cancel_discarded"):
             discard_cancel_event(download_id)
@@ -2707,6 +3043,7 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
                 "ok": True,
                 "download_id": download_id,
                 "download_url": f"/files/{token}",
+                "transfer_status_url": f"/files/{token}/status",
                 "filename": download_name,
                 "size": final_size,
                 "expires_in": PREPARED_FILE_TTL,
@@ -2773,6 +3110,7 @@ def download():
     finalization_state = {"lock": threading.Lock()}
     progress_hook = make_download_progress_hook(
         sid,
+        download_id,
         cancel_event,
         size_exceeded,
         spool_exceeded,
@@ -2781,7 +3119,7 @@ def download():
 
     slot_acquired = False
     try:
-        acquire_download_slot(sid, cancel_event)
+        acquire_download_slot(sid, cancel_event, download_id)
         slot_acquired = True
 
         reservation_bytes = DOWNLOAD_SPOOL_RESERVATION_BYTES
@@ -2842,7 +3180,7 @@ def download():
             discard_cancel_event(download_id)
             cleanup_download_artifacts(filename)
             if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'request_timeout'}, room=sid)
+                emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'request_timeout'})
             return jsonify({"error": "The download took too long. Please try again.", "error_code": "request_timeout"}), 504
 
         if not success:
@@ -2885,19 +3223,19 @@ def download():
     except DownloadQueueFull:
         discard_cancel_event(download_id)
         if sid:
-            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+            emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'server_busy'})
         return service_busy("Download queue is full. Please try again shortly.", retry_after=10)
     except DownloadQueueTimeout:
         discard_cancel_event(download_id)
         if sid:
-            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+            emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'server_busy'})
         return service_busy("Download queue wait timed out. Please try again.", retry_after=10)
     except SpoolBudgetExceeded:
         discard_cancel_event(download_id)
         if full_path:
             _force_cleanup(full_path)
         if sid:
-            safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+            emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'server_busy'})
         return service_busy(
             "Temporary file capacity is full. Please try again after active transfers finish.",
             retry_after=10,
@@ -2907,7 +3245,7 @@ def download():
         discard_cancel_event(download_id)
         if spool_exceeded["flag"]:
             if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'server_busy'}, room=sid)
+                emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'server_busy'})
             return service_busy(
                 "Temporary disk capacity is low. Please try again later.",
                 retry_after=15,
@@ -2915,10 +3253,10 @@ def download():
         if size_exceeded["flag"]:
             max_mb = MAX_DOWNLOAD_SIZE_BYTES // (1024 * 1024)
             if sid:
-                safe_emit('progress', {'status': 'error', 'error_code': 'file_too_large'}, room=sid)
+                emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'file_too_large'})
             return jsonify({"error": f"File size limit exceeded (maximum {max_mb} MB).", "error_code": "file_too_large"}), 400
         if sid:
-            safe_emit('progress', {'percent': 0, 'status': 'cancelled'}, room=sid)
+            emit_job_progress(sid, download_id, {'percent': 0, 'status': 'cancelled'})
         return jsonify({"error": "cancelled"}), 409
     except Exception as e:
         error_msg = str(e)
@@ -2927,7 +3265,7 @@ def download():
         cleanup_download_artifacts(filename)
         payload = public_error_payload(error_msg, url)
         if sid:
-            safe_emit('progress', {'status': 'error', 'error_code': payload['error_code']}, room=sid)
+            emit_job_progress(sid, download_id, {'status': 'error', 'error_code': payload['error_code']})
         if payload["error_code"] == "instagram_ratelimit":
             payload["error"] = "instagram_ratelimit"  # Legacy frontend compatibility.
         return jsonify(payload), 400
@@ -3119,6 +3457,21 @@ def convert_file_with_slot(ip, spool_reservation):
                 "error_code": "invalid_file",
             }), 400
 
+        input_duration = probe_media_duration(input_path)
+        if input_duration is None:
+            _force_cleanup(input_path)
+            return jsonify({
+                "error": "The uploaded media duration could not be validated.",
+                "error_code": "media_probe_failed",
+            }), 400
+        if input_duration > MAX_VIDEO_DURATION_SECONDS:
+            _force_cleanup(input_path)
+            max_min = MAX_VIDEO_DURATION_SECONDS // 60
+            return jsonify({
+                "error": f"The uploaded media exceeds the {max_min}-minute limit.",
+                "error_code": "video_too_long",
+            }), 400
+
         base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(
             os.path.dirname(input_path),
@@ -3136,10 +3489,6 @@ def convert_file_with_slot(ip, spool_reservation):
         ]
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}
-        limit_args = [
-            '-t', str(MAX_VIDEO_DURATION_SECONDS),
-            '-fs', str(MAX_CONVERT_OUTPUT_SIZE_BYTES),
-        ]
         copy_args = (
             ['-map', '0:a:0', '-vn', '-c:a', 'copy']
             if target_format in audio_formats
@@ -3149,13 +3498,17 @@ def convert_file_with_slot(ip, spool_reservation):
         completed_mode = None
         result = None
         if conversion_mode in {'auto', 'remux'}:
-            copy_cmd = base_cmd + copy_args + limit_args + [output_path]
-            result = subprocess.run(
-                copy_cmd,
-                capture_output=True,
-                text=True,
-                timeout=FFMPEG_TIMEOUT,
+            copy_cmd = base_cmd + copy_args + [output_path]
+            result, output_limit_exceeded = run_ffmpeg_with_output_limit(
+                copy_cmd, output_path,
             )
+            if output_limit_exceeded:
+                _force_cleanup(output_path)
+                max_mb = MAX_CONVERT_OUTPUT_SIZE_BYTES // (1024 * 1024)
+                return jsonify({
+                    "error": f"Converted file exceeds the {max_mb} MB limit.",
+                    "error_code": "file_too_large",
+                }), 413
             if result.returncode == 0 and os.path.isfile(output_path):
                 completed_mode = 'remux'
             elif conversion_mode == 'remux':
@@ -3171,6 +3524,13 @@ def convert_file_with_slot(ip, spool_reservation):
                 _register_cleanup(output_path)
 
         if completed_mode is None:
+            if input_duration > MAX_TRANSCODE_DURATION_SECONDS:
+                _force_cleanup(output_path)
+                max_min = MAX_TRANSCODE_DURATION_SECONDS // 60
+                return jsonify({
+                    "error": f"Transcoding is limited to {max_min} minutes on this service.",
+                    "error_code": "conversion_too_long",
+                }), 400
             transcode_args = []
             if target_format in audio_formats:
                 transcode_args.extend(['-vn'])
@@ -3198,14 +3558,17 @@ def convert_file_with_slot(ip, spool_reservation):
             elif target_format == 'mov':
                 transcode_args.extend(['-c:v', 'libx264', '-c:a', 'aac'])
 
-            # -fs is an early-stop guard; the exact output size is checked below.
-            transcode_cmd = base_cmd + transcode_args + limit_args + [output_path]
-            result = subprocess.run(
-                transcode_cmd,
-                capture_output=True,
-                text=True,
-                timeout=FFMPEG_TIMEOUT,
+            transcode_cmd = base_cmd + transcode_args + [output_path]
+            result, output_limit_exceeded = run_ffmpeg_with_output_limit(
+                transcode_cmd, output_path,
             )
+            if output_limit_exceeded:
+                _force_cleanup(output_path)
+                max_mb = MAX_CONVERT_OUTPUT_SIZE_BYTES // (1024 * 1024)
+                return jsonify({
+                    "error": f"Converted file exceeds the {max_mb} MB limit.",
+                    "error_code": "file_too_large",
+                }), 413
             if result.returncode != 0:
                 logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
                 _force_cleanup(output_path)
@@ -3251,6 +3614,7 @@ def convert_file_with_slot(ip, spool_reservation):
         return jsonify({
             "ok": True,
             "download_url": f"/files/{token}",
+            "transfer_status_url": f"/files/{token}/status",
             "filename": download_name,
             "size": output_size,
             "expires_in": PREPARED_FILE_TTL,
@@ -3314,5 +3678,5 @@ def on_disconnect():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = _bounded_env_int("PORT", 5000, 1, 65535)
     socketio.run(app, host="0.0.0.0", debug=False, port=port)

@@ -31,8 +31,14 @@ function safeThumbHtml(url,fallback){
   }catch(e){return fallback;}
   return `<img src="${escapeHtml(url)}" loading="lazy" decoding="async" width="160" height="90" referrerpolicy="no-referrer">`;
 }
-const socket=io(API,{autoConnect:false,reconnection:true});
-let socketId=null,videoInfo={},dlId=null,dlAbort=null,ytErrTimer=null,pendingBlob=null,pendingFilename=null,pendingObjectUrl=null;
+function createSocketClient(){
+  if(typeof window.io==='function')return window.io(API,{autoConnect:false,reconnection:true});
+  console.warn('Socket.IO unavailable; downloads continue without live progress.');
+  const noop=()=>{};
+  return {connected:false,id:null,on:noop,off:noop,once:noop,connect:noop,disconnect:noop};
+}
+const socket=createSocketClient();
+let socketId=null,videoInfo={},dlId=null,dlAbort=null,activeProgressJobId=null,activeTransferAbort=null,ytErrTimer=null,pendingBlob=null,pendingFilename=null,pendingObjectUrl=null;
 let socketDisconnectTimer=null;
 let infoController=null,infoSequence=0;
 
@@ -444,6 +450,7 @@ function syncBrowserThemeColor(isLight){
 socket.on('connect',()=>{socketId=socket.id;});
 socket.on('disconnect',()=>{socketId=null;});
 socket.on('progress',d=>{
+  if(!d||!d.download_id||d.download_id!==activeProgressJobId)return;
   if(d.status==='downloading')setProgress(d.percent,t('downloading'),d.speed,false);
   else if(d.status==='merging')setProgress(88,t('merging'),'',false);
   else if(d.status==='queued')setProgress(3,d.message||t('queued'),'',false);
@@ -478,8 +485,8 @@ function toggleServices(){
   const o=document.getElementById('servicesOverlay');
   const isOpen=o.classList.contains('open');
   const c=document.getElementById('servicesChip');
-  if(isOpen){closeOverlay('servicesOverlay');c.classList.remove('open');}
-  else{o.classList.add('open');lockPageScroll();c.classList.add('open');}
+  if(isOpen){closeOverlay('servicesOverlay');c.classList.remove('open');c.setAttribute('aria-expanded','false');}
+  else{openOverlay('servicesOverlay',c);c.classList.add('open');c.setAttribute('aria-expanded','true');}
 }
 
 // ── MORE MENU ─────────────────────────────────────────
@@ -573,8 +580,23 @@ function onInput(){
 }
 function clearUrl(){document.getElementById('urlInput').value='';document.getElementById('urlTextarea').value='';onInput();document.getElementById('urlInput').focus();}
 
+async function cancelBackendJob(job){
+  if(!job)return false;
+  if(job.controller)job.controller.abort();
+  if(!job.downloadId)return true;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  try{
+    const res=await fetch(API+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({download_id:job.downloadId,sid:socketId}),signal:controller.signal});
+    return res.ok;
+  }catch(e){return false;}
+  finally{clearTimeout(timeout);}
+}
+
 // ── BULK DOWNLOAD ───────────────────────────────────
+let bulkRunning=false,bulkStopRequested=false,activeBulkJob=null;
 async function fetchBulkVideos(){
+  if(bulkRunning){await cancelBulkDownloads();return;}
   const textarea=document.getElementById('urlTextarea');
   const urls=textarea.value.split('\n').map(u=>u.trim()).filter(u=>u&&u.startsWith('http'));
   if(urls.length===0){toast(t('bulkNeedLink'),'#ed4245');return;}
@@ -582,14 +604,19 @@ async function fetchBulkVideos(){
   
   const successCount=[];
   const failCount=[];
+  const goBtn=document.querySelector('.url-go-btn');
+  bulkRunning=true;bulkStopRequested=false;
+  if(goBtn){goBtn.onclick=cancelBulkDownloads;goBtn.setAttribute('aria-label',t('dlCancel'));goBtn.innerHTML='✕';}
   
   for(let i=0;i<urls.length;i++){
+    if(bulkStopRequested)break;
     const url=urls[i];
     document.getElementById('urlSpinWrap').innerHTML=`<div style="font-size:10px;color:var(--text2)">${i+1}/${urls.length}</div>`;
     try{
       // Bulk deliberately skips /info: /download already extracts the title and
       // prepares the file, so each item costs one backend/upstream job.
-      const result=await startDownload({bulk:true,url});
+      const result=await startDownload({bulk:true,url,onJobStart:job=>{activeBulkJob=job;}});
+      activeBulkJob=null;
       if(result.ok)successCount.push(url);
       else failCount.push(url);
     }catch(e){
@@ -597,18 +624,24 @@ async function fetchBulkVideos(){
     }
     await new Promise(r=>setTimeout(r,1000));
   }
-  
+  activeBulkJob=null;bulkRunning=false;
   document.getElementById('urlSpinWrap').innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text3)"><circle cx="12" cy="12" r="10"/></svg>';
   toast(`${successCount.length} ${t('bulkSuccessWord')}, ${failCount.length} ${t('bulkFailWord')}`,successCount.length>0?'#3bba64':'#ed4245');
-  textarea.value='';
-  toggleBulkMode();
+  if(!bulkStopRequested){textarea.value='';toggleBulkMode();}
+  else if(goBtn){goBtn.onclick=fetchBulkVideos;goBtn.setAttribute('aria-label',t('dlBtn'));goBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
+}
+async function cancelBulkDownloads(){
+  if(!bulkRunning)return;
+  bulkStopRequested=true;
+  await cancelBackendJob(activeBulkJob);
+  toast(t('cancelled'),'#f59e0b');
 }
 function showErr(icon,msg){document.getElementById('errIcon').textContent=icon;document.getElementById('errTxt').textContent=msg;document.getElementById('errorWrap').classList.add('show');}
 const PUBLIC_ERROR_TX={
   youtube_restricted:'errYoutubeRestricted',format_unavailable:'errFormatUnavailable',
   private_video:'errPrivate',copyright_restricted:'errPlatformRestricted',age_restricted:'errUnavailable',video_unavailable:'errUnavailable',live_not_supported:'errLive',
   instagram_ratelimit:'igBusy',platform_restricted:'errPlatformRestricted',unsupported_url:'errUnsupported',playlist_not_supported:'errUnsupported',video_too_long:'errUnavailable',
-  network_error:'errNetwork',request_timeout:'errTimeout',file_too_large:'errFileTooLarge',server_busy:'errServerBusy',conversion_failed:'errConversion',remux_incompatible:'errConversion',request_failed:'errGeneric'
+  network_error:'errNetwork',request_timeout:'errTimeout',file_too_large:'errFileTooLarge',server_busy:'errServerBusy',media_probe_failed:'errConversion',conversion_too_long:'errConversion',conversion_failed:'errConversion',remux_incompatible:'errConversion',request_failed:'errGeneric'
 };
 function publicErrorMessage(payload,status,url){
   const code=payload&&payload.error_code;
@@ -776,7 +809,7 @@ function openPlaylistDlModal(){
 }
 
 // ── PLAYLIST QUEUE (sıralı toplu indirme) ──────────────
-let plQueueRunning=false,plQueueStopRequested=false;
+let plQueueRunning=false,plQueueStopRequested=false,plQueueActiveJob=null;
 
 // Kuyruk durumu localStorage'a yazılır ki sekme kapanır/yenilenirse
 // (ya da "durdur"a basılırsa) kaldığın yerden devam edebilesin.
@@ -839,8 +872,7 @@ function resumeQueue(){
   }).join('');
 
   document.getElementById('plQueueProgress').textContent=`${doneArr.length} / ${fullIdx.length} ${t('plQueueCompletedWord')}`;
-  document.getElementById('plQueueOverlay').classList.add('open');
-  lockPageScroll();
+  openOverlay('plQueueOverlay');
 
   plQueueStopRequested=false;
   hideQueueResumeHint();
@@ -860,8 +892,7 @@ function openPlaylistQueueModal(){
   }).join('');
 
   document.getElementById('plQueueProgress').textContent=`0 / ${selectedIdx.length} ${t('plQueueCompletedWord')}`;
-  document.getElementById('plQueueOverlay').classList.add('open');
-  lockPageScroll();
+  openOverlay('plQueueOverlay');
 
   plQueueStopRequested=false;
   hideQueueResumeHint();
@@ -888,24 +919,35 @@ async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
     const it=playlistItems[i];
     const statusEl=document.getElementById(`plq-status-${i}`);
     if(statusEl){statusEl.classList.remove('err');statusEl.textContent=t('plQueueDownloadingItem');}
+    let dId=null;
     try{
-      const dId=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
+      dId=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
+      const controller=new AbortController();
+      plQueueActiveJob={downloadId:dId,controller};
+      activeProgressJobId=dId;
       const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',{title:it.title,uploader:'',url:it.url},fmt);
-      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']})});
+      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']}),signal:controller.signal});
       const payload=await res.json().catch(()=>({}));
       if(!res.ok){
         errSet.add(i);
         if(statusEl){statusEl.textContent=t('plQueueItemErr');statusEl.classList.add('err');}
       }else{
         if(!payload.download_url)throw new Error('Download file was not prepared');
-        triggerNativeDownload(payload.download_url);
+        await handoffPreparedDownload(payload,false,(pct,received,total)=>{
+          if(statusEl&&total>0)statusEl.textContent=`${Math.min(100,pct)}%`;
+        },controller.signal);
         addToLocalHistory({url:it.url,title:it.title||'video',platform:getPlatformName(it.url||''),format:fmt});
         doneSet.add(i);errSet.delete(i);
         if(statusEl){statusEl.textContent=t('plQueueItemDone');statusEl.classList.remove('err');statusEl.classList.add('done');}
       }
     }catch(e){
-      errSet.add(i);
-      if(statusEl){statusEl.textContent=t('plQueueItemErr');statusEl.classList.add('err');}
+      if(!plQueueStopRequested){
+        errSet.add(i);
+        if(statusEl){statusEl.textContent=t('plQueueItemErr');statusEl.classList.add('err');}
+      }
+    }finally{
+      plQueueActiveJob=null;
+      if(activeProgressJobId&&activeProgressJobId===dId)activeProgressJobId=null;
     }
     document.getElementById('plQueueProgress').textContent=`${doneSet.size} / ${total} ${t('plQueueCompletedWord')}`;
     saveQueueState(fullSelectedIdx,[...doneSet],[...errSet],f,f.mode,playlistTitle,playlistItems);
@@ -923,52 +965,94 @@ async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
   checkQueueResume();
   scheduleSocketDisconnect();
 }
-function triggerNativeDownload(path){
-  if(!path)return;
+const NATIVE_HANDOFF_START_TIMEOUT_MS=15000;
+const NATIVE_TRANSFER_TIMEOUT_MS=45*60*1000;
+async function waitForNativeTransfer(statusPath,onProgress,signal){
+  if(!statusPath)throw new Error('Transfer status unavailable');
+  const startedAt=Date.now();
+  let transferStarted=false;
+  while(Date.now()-startedAt<NATIVE_TRANSFER_TIMEOUT_MS){
+    if(signal&&signal.aborted)throw new DOMException('Transfer cancelled','AbortError');
+    const res=await fetch(statusPath.startsWith('http')?statusPath:API+statusPath,{cache:'no-store',signal});
+    if(!res.ok)throw new Error('Transfer status unavailable');
+    const status=await res.json();
+    if(status.state==='transferring')transferStarted=true;
+    if(onProgress&&status.expected_bytes>0){
+      const pct=90+Math.floor(Math.min(1,status.transferred_bytes/status.expected_bytes)*10);
+      onProgress(pct,status.transferred_bytes,status.expected_bytes);
+    }
+    if(status.state==='completed')return 'transfer-confirmed';
+    if(['interrupted','failed','expired'].includes(status.state))throw new Error('Prepared transfer failed');
+    if(!transferStarted&&Date.now()-startedAt>NATIVE_HANDOFF_START_TIMEOUT_MS)throw new Error('Browser did not start the download');
+    await new Promise(r=>setTimeout(r,750));
+  }
+  throw new DOMException('Prepared transfer timed out','TimeoutError');
+}
+async function triggerNativeDownload(path,statusPath,onProgress,signal){
+  if(!path)throw new Error('Download path unavailable');
   const a=document.createElement('a');
   a.href=path.startsWith('http')?path:API+path;document.body.appendChild(a);a.click();
   document.body.removeChild(a);
+  return waitForNativeTransfer(statusPath,onProgress,signal);
 }
 const BLOB_SAVE_LIMIT=32*1024*1024;
 const MAX_TOOL_FILE_BYTES=95*1024*1024;
 const MEDIA_JOB_TIMEOUT_MS=15*60*1000;
+const PREPARED_TRANSFER_TIMEOUT_MS=5*60*1000;
+const PREPARED_TRANSFER_IDLE_MS=30000;
 async function fetchMediaJob(formData){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),MEDIA_JOB_TIMEOUT_MS);
   try{return await fetch(API+'/convert',{method:'POST',body:formData,signal:controller.signal});}
   finally{clearTimeout(timeout);}
 }
-async function handoffPreparedDownload(payload,allowSaveModal,onProgress){
+async function handoffPreparedDownload(payload,allowSaveModal,onProgress,signal){
   if(!payload||!payload.download_url)throw new Error('Download file was not prepared');
   if(allowSaveModal&&Number(payload.size)>0&&Number(payload.size)<=BLOB_SAVE_LIMIT){
-    const transfer=await fetch(payload.download_url.startsWith('http')?payload.download_url:API+payload.download_url);
-    if(!transfer.ok)throw new Error('Prepared download expired');
-    const total=Number(transfer.headers.get('Content-Length'))||Number(payload.size)||0;
-    let blob;
-    if(transfer.body&&transfer.body.getReader){
-      const reader=transfer.body.getReader(),chunks=[];
-      let received=0;
-      while(true){
-        const part=await reader.read();
-        if(part.done)break;
-        chunks.push(part.value);received+=part.value.byteLength;
-        if(onProgress&&total>0)onProgress(Math.min(99,90+Math.floor(received/total*9)),received,total);
+    const controller=new AbortController();
+    activeTransferAbort=controller;
+    const totalTimeout=setTimeout(()=>controller.abort(),PREPARED_TRANSFER_TIMEOUT_MS);
+    let idleTimeout=null,reader=null;
+    const resetIdle=()=>{if(idleTimeout)clearTimeout(idleTimeout);idleTimeout=setTimeout(()=>controller.abort(),PREPARED_TRANSFER_IDLE_MS);};
+    try{
+      resetIdle();
+      const transfer=await fetch(payload.download_url.startsWith('http')?payload.download_url:API+payload.download_url,{signal:controller.signal,cache:'no-store'});
+      if(!transfer.ok)throw new Error('Prepared download expired');
+      const total=Number(transfer.headers.get('Content-Length'))||Number(payload.size)||0;
+      let blob;
+      if(transfer.body&&transfer.body.getReader){
+        reader=transfer.body.getReader();
+        const chunks=[];
+        let received=0;
+        while(true){
+          const part=await reader.read();
+          if(part.done)break;
+          resetIdle();
+          chunks.push(part.value);received+=part.value.byteLength;
+          if(onProgress&&total>0)onProgress(Math.min(99,90+Math.floor(received/total*9)),received,total);
+        }
+        blob=new Blob(chunks,{type:transfer.headers.get('Content-Type')||'application/octet-stream'});
+      }else{
+        blob=await transfer.blob();
       }
-      blob=new Blob(chunks,{type:transfer.headers.get('Content-Type')||'application/octet-stream'});
-    }else{
-      blob=await transfer.blob();
+      if(!blob.size)throw new Error('Prepared download is empty');
+      openSaveModal(blob,payload.filename||'download');
+      return 'save-modal';
+    }catch(e){
+      if(reader)try{await reader.cancel();}catch(_e){}
+      throw e;
+    }finally{
+      clearTimeout(totalTimeout);if(idleTimeout)clearTimeout(idleTimeout);
+      if(activeTransferAbort===controller)activeTransferAbort=null;
     }
-    if(!blob.size)throw new Error('Prepared download is empty');
-    openSaveModal(blob,payload.filename||'download');
-    return 'save-modal';
   }
-  triggerNativeDownload(payload.download_url);
-  return 'native';
+  return triggerNativeDownload(payload.download_url,payload.transfer_status_url,onProgress,signal);
 }
-function cancelPlaylistQueue(){
+async function cancelPlaylistQueue(){
   if(plQueueRunning){
     plQueueStopRequested=true;
     toast(t('plQueueStoppingMsg'),'#f59e0b');
+    await cancelBackendJob(plQueueActiveJob);
   }else{
     closePlaylistQueue();
   }
@@ -976,9 +1060,9 @@ function cancelPlaylistQueue(){
 function closePlaylistQueue(){
   if(plQueueRunning){
     plQueueStopRequested=true;
+    cancelBackendJob(plQueueActiveJob);
   }
-  document.getElementById('plQueueOverlay').classList.remove('open');
-  unlockPageScrollIfIdle();
+  closeOverlay('plQueueOverlay');
   const plqct2=document.getElementById('plQueueCancelTxt');if(plqct2)plqct2.textContent=t('plQueueStopBtn');
 }
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1005,7 +1089,7 @@ function openDlModal(){
   document.getElementById('dlVTitle').textContent=videoInfo.title||'video';
   const m=Math.floor((videoInfo.duration||0)/60),s=String((videoInfo.duration||0)%60).padStart(2,'0');
   document.getElementById('dlVMeta').textContent=(videoInfo.uploader||'')+(videoInfo.duration?' · '+m+':'+s:'');
-  resetProgress();document.getElementById('dlOverlay').classList.add('open');lockPageScroll();
+  resetProgress();openOverlay('dlOverlay');
 }
 function setProgress(pct,label,speed,done){
   document.getElementById('dlProgWrap').classList.add('show');
@@ -1026,6 +1110,7 @@ function resetProgress(){
   document.getElementById('dlBtn').disabled=false;
   const dbt=document.getElementById('dlBtnTxt');if(dbt)dbt.textContent=t('dlBtn');
   document.getElementById('dlCancel').classList.remove('vis');
+  document.getElementById('dlCancel').disabled=false;
 }
 
 async function startDownload(options={}){
@@ -1045,12 +1130,14 @@ async function startDownload(options={}){
   }
   const requestId=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
   const controller=new AbortController();
-  if(!bulk){dlId=requestId;dlAbort=controller;}
+  const activeJob={downloadId:requestId,controller};
+  if(typeof options.onJobStart==='function')options.onJobStart(activeJob);
+  if(!bulk){dlId=requestId;dlAbort=controller;activeProgressJobId=requestId;}
   try{
     const body={url:sourceInfo.url,quality:S.quality,format:fmt,codec:S.codec,audioQ:S.audioQ,metadata:S.metadata,sid:bulk?'':socketId,download_id:requestId,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']};
     if(!bulk)body.download_name=buildFilename(S.fnfTemplate||'{title}.{ext}',sourceInfo,fmt);
     const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
-    if(!bulk)dlAbort=null;
+    if(!bulk)dlId=null;
     if(res.status===409)return {ok:false,error_code:'cancelled'};
     const payload=await res.json().catch(()=>({}));
     if(!res.ok){
@@ -1062,7 +1149,7 @@ async function startDownload(options={}){
     const handoff=await handoffPreparedDownload(payload,!bulk,bulk?null:(pct,received,total)=>{
       const mb=n=>(n/1024/1024).toFixed(n<1024*1024?2:1)+' MB';
       setProgress(pct,t('downloading'),mb(received)+' / '+mb(total),false);
-    });
+    },controller.signal);
     addToLocalHistory({url:sourceInfo.url,title:sourceInfo.title||payload.filename||'video',platform:getPlatformName(sourceInfo.url||''),format:fmt});
     if(!bulk){
       resetProgress();closeOverlay('dlOverlay');
@@ -1077,11 +1164,18 @@ async function startDownload(options={}){
     }
     return {ok:false,error_code:e.name==='AbortError'?'cancelled':'network_error'};
   }
-  finally{if(!bulk)scheduleSocketDisconnect();}
+  finally{
+    if(activeProgressJobId===requestId)activeProgressJobId=null;
+    if(!bulk){dlAbort=null;dlId=null;scheduleSocketDisconnect();}
+  }
 }
 async function cancelDownload(){
-  if(dlAbort){dlAbort.abort();dlAbort=null;}
-  if(dlId){try{fetch(API+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({download_id:dlId,sid:socketId})});}catch(e){}dlId=null;}
+  const job=(dlId||dlAbort)?{downloadId:dlId,controller:dlAbort}:null;
+  const cancelBtn=document.getElementById('dlCancel');
+  if(cancelBtn)cancelBtn.disabled=true;
+  if(activeTransferAbort)activeTransferAbort.abort();
+  await cancelBackendJob(job);
+  dlAbort=null;dlId=null;activeProgressJobId=null;
   resetProgress();toast(t('cancelled'),'#f59e0b');scheduleSocketDisconnect();
 }
 
@@ -1111,7 +1205,7 @@ function fireConfetti(){
   setTimeout(()=>host.remove(),1400);
 }
 function releasePendingBlob(){if(pendingObjectUrl)URL.revokeObjectURL(pendingObjectUrl);pendingObjectUrl=null;pendingBlob=null;pendingFilename=null;}
-function openSaveModal(blob,filename){releasePendingBlob();pendingBlob=blob;pendingFilename=filename;document.getElementById('saveOverlay').classList.add('open');lockPageScroll();}
+function openSaveModal(blob,filename){releasePendingBlob();pendingBlob=blob;pendingFilename=filename;openOverlay('saveOverlay');}
 function saveAction(type){
   if(!pendingBlob)return;
   const url=URL.createObjectURL(pendingBlob);
@@ -1137,13 +1231,13 @@ function insertFnfTag(tag){const inp=document.getElementById('fnfInput');const p
 function setFnfTemplate(tpl){document.getElementById('fnfInput').value=tpl;updateFnfPreview();}
 
 // ── SETTINGS UI ───────────────────────────────────────
-function openSettings(){document.getElementById('stOverlay').classList.add('open');lockPageScroll();}
+function openSettings(){openOverlay('stOverlay');}
 function stTab(el){document.querySelectorAll('.st-nav-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');el.setAttribute('aria-selected','true');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');const content=document.querySelector('.st-content');if(content)content.scrollTop=0;}
 function stChip(el,key){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S[key]=el.dataset.v;saveSt();}
 function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+key.charAt(0).toUpperCase()+key.slice(1));if(tog){tog.classList.toggle('on',S[key]);tog.setAttribute('aria-checked',String(!!S[key]));}saveSt();}
 
 // ── REMUX ─────────────────────────────────────────────
-function openRemux(){document.getElementById('remuxOverlay').classList.add('open');lockPageScroll();}
+function openRemux(){openOverlay('remuxOverlay');}
 function formatLocalFileSize(bytes){if(bytes<=0)return'0 bayt';if(bytes<1024)return bytes+' bayt';if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';return(bytes/1024/1024).toFixed(2)+' MB';}
 function validateToolFile(f){
   if(!f||f.size<=0){toast(t('errConversion'),'#ed4245');return false;}
@@ -1177,7 +1271,7 @@ function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDro
 
 // ── CONVERT ───────────────────────────────────────────
 let convFile=null,convTargetFmt='mp3',convBusy=false;
-function openConvert(){document.getElementById('convOverlay').classList.add('open');lockPageScroll();}
+function openConvert(){openOverlay('convOverlay');}
 function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
 function selectConvFile(f){if(!validateToolFile(f)){convFile=null;_updateConvBtn();return;}convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
 function handleConvFile(inp){selectConvFile(inp.files[0]);}
@@ -1209,6 +1303,35 @@ async function startConvert(){
 
 // ── OVERLAYS ─────────────────────────────────────────
 let pageScrollLockY=0;
+const overlayReturnFocus=new Map();
+const OVERLAY_FOCUSABLE='button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function syncModalBackground(){
+  document.querySelectorAll('[data-modal-background]').forEach(child=>{
+    child.inert=false;
+    const previous=child.getAttribute('data-modal-previous-aria');
+    if(previous==='__none__')child.removeAttribute('aria-hidden');
+    else child.setAttribute('aria-hidden',previous);
+    child.removeAttribute('data-modal-previous-aria');
+    child.removeAttribute('data-modal-background');
+  });
+  const overlays=[...document.querySelectorAll('.overlay')];
+  const openOverlays=overlays.filter(overlay=>overlay.classList.contains('open'));
+  const activeOverlay=openOverlays[openOverlays.length-1]||null;
+  overlays.forEach(overlay=>{overlay.inert=overlay!==activeOverlay;});
+  if(!activeOverlay)return;
+  let current=activeOverlay;
+  while(current&&current!==document.body){
+    const parent=current.parentElement;if(!parent)break;
+    [...parent.children].forEach(sibling=>{
+      if(sibling!==current&&!sibling.matches('script')){
+        sibling.inert=true;
+        sibling.setAttribute('data-modal-previous-aria',sibling.getAttribute('aria-hidden')??'__none__');
+        sibling.setAttribute('aria-hidden','true');sibling.setAttribute('data-modal-background','');
+      }
+    });
+    current=parent;
+  }
+}
 function lockPageScroll(){
   if(document.documentElement.classList.contains('modal-open'))return;
   pageScrollLockY=window.scrollY||document.documentElement.scrollTop||0;
@@ -1224,11 +1347,51 @@ function unlockPageScrollIfIdle(){
   document.body.style.top='';
   window.scrollTo(0,restoreY);
 }
+function openOverlay(id,trigger){
+  const overlay=document.getElementById(id);if(!overlay)return;
+  const active=trigger||document.activeElement;
+  if(active&&active!==document.body)overlayReturnFocus.set(id,active);
+  overlay.inert=false;overlay.setAttribute('aria-hidden','false');overlay.classList.add('open');syncModalBackground();lockPageScroll();
+  requestAnimationFrame(()=>{
+    const target=overlay.querySelector('[autofocus],'+OVERLAY_FOCUSABLE);
+    if(target)target.focus({preventScroll:true});
+  });
+}
 function handleOverlay(e,id){if(e.target===document.getElementById(id)){if(id==='plQueueOverlay'){closePlaylistQueue();}else{closeOverlay(id);}}}
-function closeOverlay(id,preservePending){document.getElementById(id).classList.remove('open');unlockPageScrollIfIdle();if(id==='servicesOverlay'){const chip=document.getElementById('servicesChip');if(chip)chip.classList.remove('open');}if(id==='saveOverlay'&&!preservePending)releasePendingBlob();}
-function openDonate(){document.getElementById('donOverlay').classList.add('open');lockPageScroll();}
-function openHistory(){document.getElementById('historyOverlay').classList.add('open');lockPageScroll();loadHistory();}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){['dlOverlay','stOverlay','remuxOverlay','convOverlay','donOverlay','saveOverlay','historyOverlay','servicesOverlay'].forEach(id=>closeOverlay(id));closePlaylistQueue();document.getElementById('servicesChip').classList.remove('open');}});
+function closeOverlay(id,preservePending){
+  const overlay=document.getElementById(id);if(!overlay)return;
+  const wasOpen=overlay.classList.contains('open');
+  overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlay.inert=true;syncModalBackground();
+  unlockPageScrollIfIdle();
+  if(id==='servicesOverlay'){const chip=document.getElementById('servicesChip');if(chip){chip.classList.remove('open');chip.setAttribute('aria-expanded','false');}}
+  if(id==='saveOverlay'&&!preservePending)releasePendingBlob();
+  const previous=overlayReturnFocus.get(id);overlayReturnFocus.delete(id);
+  if(wasOpen&&previous&&document.contains(previous)&&!document.querySelector('.overlay.open'))requestAnimationFrame(()=>previous.focus({preventScroll:true}));
+}
+function openDonate(){openOverlay('donOverlay');}
+function openHistory(){openOverlay('historyOverlay');loadHistory();}
+document.addEventListener('keydown',e=>{
+  const overlays=[...document.querySelectorAll('.overlay.open')];
+  const activeOverlay=overlays[overlays.length-1];
+  if(e.key==='Escape'&&activeOverlay){e.preventDefault();if(activeOverlay.id==='plQueueOverlay')closePlaylistQueue();else closeOverlay(activeOverlay.id);return;}
+  if(e.key==='Tab'&&activeOverlay){
+    const focusable=[...activeOverlay.querySelectorAll(OVERLAY_FOCUSABLE)].filter(el=>el.offsetParent!==null);
+    if(!focusable.length){e.preventDefault();return;}
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  const overlays=[...document.querySelectorAll('.overlay')];
+  overlays.forEach(overlay=>{
+    overlay.setAttribute('aria-hidden','true');overlay.inert=true;
+    const dialog=overlay.firstElementChild;
+    if(dialog&&!dialog.hasAttribute('role'))dialog.setAttribute('role','dialog');
+    if(dialog&&!dialog.hasAttribute('aria-modal'))dialog.setAttribute('aria-modal','true');
+  });
+  syncModalBackground();
+});
 
 // ── UTILS ─────────────────────────────────────────────
 function toast(msg,color){const el=document.getElementById('toast');document.getElementById('toastTxt').textContent=msg;document.getElementById('toastDot').style.background=color||'#e8e8e8';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}

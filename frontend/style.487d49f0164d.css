@@ -84,7 +84,7 @@ body.modal-open{position:fixed;right:0;left:0;width:100%;height:100%;}
 .services-chip-wrap{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:900;}
 .modal-sheet.services-modal{max-width:500px;max-height:calc(100dvh - 16px);display:flex;flex-direction:column;overflow:hidden;}
 .services-modal .tool-modal-body{min-height:0;max-height:none;flex:1;padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
-.services-chip{display:inline-flex;align-items:center;gap:7px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all 0.15s;user-select:none;}
+.services-chip{display:inline-flex;align-items:center;gap:7px;background:var(--chip-bg);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all 0.15s;user-select:none;}
 .services-chip:hover{background:var(--chip-hover);border-color:var(--border2);color:var(--text);}
 .services-chip svg{width:12px;height:12px;transition:transform 0.2s;}
 .services-chip.open svg:last-child{transform:rotate(180deg);}
@@ -524,8 +524,8 @@ body:not(.light) .gh-eyes-normal{animation-duration:7s;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* OVERLAY */
-.overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.65);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;overscroll-behavior:contain;transition:opacity 0.22s,backdrop-filter 0.32s ease;}
-.overlay.open{opacity:1;pointer-events:all;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.65);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;overscroll-behavior:contain;transition:opacity 0.22s,backdrop-filter 0.32s ease,visibility 0s linear 0.22s;}
+.overlay.open{opacity:1;visibility:visible;pointer-events:all;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition-delay:0s;}
 @media(min-width:601px){.overlay{align-items:center;padding:20px;}}
 
 /* Modal category tone — a soft radial glow behind the sheet, tying each modal back to the shared space scene */

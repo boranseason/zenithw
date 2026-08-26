@@ -6,18 +6,25 @@ CI checks remain deterministic and never contact media providers.
 """
 
 import ast
+import math
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
 import unittest
+from collections import defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 
 
 APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 APP_SOURCE = APP_PATH.read_text(encoding="utf-8")
 APP_TREE = ast.parse(APP_SOURCE, filename=str(APP_PATH))
+FRONTEND_DIR = APP_PATH.parents[1] / "frontend"
+FRONTEND_APP_PATH = next(FRONTEND_DIR.glob("app.*.js"))
+FRONTEND_SOURCE = FRONTEND_APP_PATH.read_text(encoding="utf-8")
 
 
 def load_function(name, namespace):
@@ -98,6 +105,85 @@ class SourceHealthTests(unittest.TestCase):
         # Regression guard: route previously spanned ~470 lines (all hot-path
         # concerns inline). It should now be meaningfully smaller.
         self.assertLess(len(source.splitlines()), 250)
+
+    def test_converter_rejects_limits_instead_of_silently_truncating(self):
+        source = function_source("convert_file_with_slot")
+        self.assertNotIn("'-t'", source)
+        self.assertNotIn("'-fs'", source)
+        self.assertIn("probe_media_duration(input_path)", source)
+        self.assertIn("if input_duration is None:", source)
+        self.assertIn("run_ffmpeg_with_output_limit(", source)
+        self.assertIn('"error_code": "media_probe_failed"', source)
+        self.assertIn('"error_code": "video_too_long"', source)
+
+    def test_native_transfer_path_is_leased_until_response_close(self):
+        route_source = function_source("download_prepared_file")
+        cleanup_source = function_source("cleanup_old_files")
+        self.assertIn("acquire_transfer_path_lease(path)", route_source)
+        self.assertIn("release_transfer_path_lease(path)", route_source)
+        self.assertIn("cleanup_path_if_not_leased(fpath)", cleanup_source)
+        self.assertIn("cleanup_path_if_not_leased(path)", cleanup_source)
+
+    def test_native_handoff_reports_actual_transfer_completion(self):
+        route_source = function_source("download_prepared_file")
+        status_source = function_source("prepared_transfer_status")
+        finalize_source = function_source("finalize_prepared_download")
+        convert_source = function_source("convert_file_with_slot")
+        self.assertIn("_tracked_transfer", route_source)
+        self.assertIn('terminal_state = "completed"', route_source)
+        self.assertIn('state["expires_at"] = time.time()', status_source)
+        self.assertIn('"transfer_status_url"', finalize_source)
+        self.assertIn('"transfer_status_url"', convert_source)
+        self.assertIn("waitForNativeTransfer", FRONTEND_SOURCE)
+
+    def test_progress_and_cancellation_are_job_scoped(self):
+        emit_source = function_source("emit_job_progress")
+        cancel_source = function_source("cancel_route")
+        self.assertIn('payload["download_id"] = download_id', emit_source)
+        self.assertIn("cancel_rate_limiter.add(ip)", cancel_source)
+        self.assertIn("d.download_id!==activeProgressJobId", FRONTEND_SOURCE)
+        self.assertIn("await cancelBackendJob", FRONTEND_SOURCE)
+
+    def test_readiness_and_transcode_budget_are_explicit(self):
+        readiness_source = function_source("readiness")
+        convert_source = function_source("convert_file_with_slot")
+        self.assertIn("has_minimum_free_disk()", readiness_source)
+        self.assertIn("MAX_SPOOL_SIZE_BYTES", readiness_source)
+        self.assertIn("MAX_TRANSCODE_DURATION_SECONDS", convert_source)
+        self.assertIn('"error_code": "conversion_too_long"', convert_source)
+
+    def test_frontend_transfer_has_total_and_idle_timeouts(self):
+        self.assertIn("PREPARED_TRANSFER_TIMEOUT_MS", FRONTEND_SOURCE)
+        self.assertIn("PREPARED_TRANSFER_IDLE_MS", FRONTEND_SOURCE)
+        self.assertIn("reader.cancel", FRONTEND_SOURCE)
+        self.assertIn("createSocketClient", FRONTEND_SOURCE)
+
+
+class TransferStateTests(unittest.TestCase):
+    def setUp(self):
+        self.states = {
+            "token": {
+                "state": "prepared",
+                "transferred_bytes": 0,
+                "expires_at": 0,
+            }
+        }
+        self.update = load_function("update_transfer_state", {
+            "_prepared_files_lock": threading.RLock(),
+            "_transfer_states": self.states,
+            "time": time,
+            "PREPARED_FILE_TTL": 30,
+            "PENDING_CLEANUP_MAX_AGE": 90,
+        })
+
+    def test_progress_is_recorded_and_terminal_state_gets_short_ttl(self):
+        before = time.time()
+        self.update("token", "transferring", 1024)
+        self.assertEqual(self.states["token"]["transferred_bytes"], 1024)
+        self.assertGreaterEqual(self.states["token"]["expires_at"], before + 89)
+        self.update("token", "completed", 2048, terminal=True)
+        self.assertEqual(self.states["token"]["state"], "completed")
+        self.assertLess(self.states["token"]["expires_at"], time.time() + 31)
 
 
 class FormatPlanningTests(unittest.TestCase):
@@ -314,12 +400,41 @@ class CleanupLifecycleTests(unittest.TestCase):
                 "DOWNLOAD_DIR": temp_dir,
                 "DOWNLOAD_ID_RE": re.compile(r"^[A-Za-z0-9_-]{8,64}$"),
                 "_force_cleanup": force_cleanup,
+                "_spool_path_key": lambda path: os.path.normcase(
+                    os.path.realpath(os.path.abspath(path))
+                ),
                 "os": os,
             })
-            self.assertEqual(cleanup(token), 2)
-            self.assertFalse(any(Path(temp_dir, name).exists() for name in own_files))
+            final_path = str(Path(temp_dir, own_files[0]))
+            self.assertEqual(cleanup(token, keep_paths=(final_path,)), 1)
+            self.assertTrue(Path(final_path).exists())
+            self.assertFalse(Path(temp_dir, own_files[1]).exists())
+            self.assertEqual(cleanup(token), 1)
+            self.assertFalse(Path(final_path).exists())
             self.assertTrue(Path(temp_dir, other_file).exists())
             self.assertEqual(cleanup("bad/token"), 0)
+
+    def test_leased_transfer_path_cannot_be_cleaned(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = str(Path(temp_dir, "active.mp4"))
+            Path(path).write_bytes(b"active transfer")
+            namespace = {
+                "os": os,
+                "_active_transfer_paths": defaultdict(int),
+                "_active_transfer_paths_lock": threading.Lock(),
+                "_force_cleanup": os.remove,
+            }
+            namespace["_spool_path_key"] = load_function("_spool_path_key", namespace)
+            acquire = load_function("acquire_transfer_path_lease", namespace)
+            release = load_function("release_transfer_path_lease", namespace)
+            cleanup = load_function("cleanup_path_if_not_leased", namespace)
+
+            acquire(path)
+            self.assertFalse(cleanup(path))
+            self.assertTrue(Path(path).exists())
+            release(path)
+            self.assertTrue(cleanup(path))
+            self.assertFalse(Path(path).exists())
 
     def test_cancel_event_discard_is_idempotent(self):
         events = {"download01": object()}
@@ -330,6 +445,98 @@ class CleanupLifecycleTests(unittest.TestCase):
         discard("download01")
         discard("download01")
         self.assertEqual(events, {})
+
+
+class ConversionGuardTests(unittest.TestCase):
+    def test_probe_uses_longest_valid_declared_duration(self):
+        fake_subprocess = SimpleNamespace(
+            run=lambda *a, **k: SimpleNamespace(
+                returncode=0,
+                stdout="60\n120.5\nN/A\n",
+                stderr="",
+            ),
+            SubprocessError=subprocess.SubprocessError,
+        )
+        probe = load_function("probe_media_duration", {
+            "FFPROBE_PATH": "ffprobe",
+            "FFMPEG_PATH": "ffmpeg",
+            "FFMPEG_DIR": None,
+            "FFMPEG_LOCAL_PROTOCOLS": "file,pipe",
+            "FFMPEG_TIMEOUT": 30,
+            "subprocess": fake_subprocess,
+            "math": math,
+            "os": os,
+            "re": re,
+        })
+        self.assertEqual(probe("input.mp4"), 120.5)
+
+    def test_probe_falls_back_to_ffmpeg_header_when_ffprobe_is_missing(self):
+        fake_subprocess = SimpleNamespace(
+            run=lambda *a, **k: SimpleNamespace(
+                returncode=1,
+                stdout="",
+                stderr="Duration: 01:02:03.50, start: 0.000000, bitrate: 128 kb/s",
+            ),
+            SubprocessError=subprocess.SubprocessError,
+        )
+        probe = load_function("probe_media_duration", {
+            "FFPROBE_PATH": None,
+            "FFMPEG_PATH": "ffmpeg",
+            "FFMPEG_DIR": None,
+            "FFMPEG_LOCAL_PROTOCOLS": "file,pipe",
+            "FFMPEG_TIMEOUT": 30,
+            "subprocess": fake_subprocess,
+            "math": math,
+            "os": os,
+            "re": re,
+        })
+        self.assertEqual(probe("input.mp4"), 3723.5)
+
+    def test_ffmpeg_is_killed_when_output_reaches_size_limit(self):
+        processes = []
+
+        class FakeProcess:
+            def __init__(self):
+                self.returncode = None
+                self.killed = False
+
+            def poll(self):
+                return self.returncode
+
+            def kill(self):
+                self.killed = True
+                self.returncode = -9
+
+            def communicate(self):
+                return "", "stopped at size limit"
+
+        def popen(*a, **k):
+            process = FakeProcess()
+            processes.append(process)
+            return process
+
+        fake_subprocess = SimpleNamespace(
+            Popen=popen,
+            DEVNULL=subprocess.DEVNULL,
+            PIPE=subprocess.PIPE,
+            CompletedProcess=subprocess.CompletedProcess,
+            TimeoutExpired=subprocess.TimeoutExpired,
+        )
+        run_limited = load_function("run_ffmpeg_with_output_limit", {
+            "subprocess": fake_subprocess,
+            "time": time,
+            "os": os,
+            "MAX_CONVERT_OUTPUT_SIZE_BYTES": 4,
+            "FFMPEG_TIMEOUT": 30,
+        })
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = str(Path(temp_dir, "output.mp4"))
+            Path(output_path).write_bytes(b"1234")
+            result, exceeded = run_limited(["ffmpeg"], output_path)
+
+        self.assertTrue(exceeded)
+        self.assertTrue(processes[0].killed)
+        self.assertEqual(result.returncode, -9)
 
 
 class _Logger:
@@ -411,6 +618,7 @@ class AttemptExecutionTests(unittest.TestCase):
 
     def _load(self, behaviors, *, youtube=False):
         reap_calls = []
+        cleanup_calls = []
         fake_yt_dlp = _FakeYtDlpModule(behaviors)
 
         class _DownloadAttemptResult:
@@ -429,6 +637,9 @@ class AttemptExecutionTests(unittest.TestCase):
             "logger": _Logger(),
             "_snapshot_child_pids": lambda: set(),
             "_reap_new_children": lambda before, download_id, filename: reap_calls.append(1),
+            "cleanup_download_artifacts": lambda filename, keep_paths=None: cleanup_calls.append(
+                (filename, tuple(keep_paths or ()))
+            ),
             "gevent": type("gevent", (), {"Timeout": _GeventTimeout}),
             "yt_dlp": fake_yt_dlp,
             "_pot_provider_network_scope": _NullScope(),
@@ -439,7 +650,7 @@ class AttemptExecutionTests(unittest.TestCase):
             "time": time,
         }
         fn = load_function("run_download_attempts", namespace)
-        return fn, reap_calls
+        return fn, reap_calls, cleanup_calls
 
     def test_cookie_error_falls_through_to_next_attempt_which_succeeds(self):
         def first():
@@ -448,7 +659,7 @@ class AttemptExecutionTests(unittest.TestCase):
         def second():
             return {"_path": "/tmp/final.mp4", "title": "Second Attempt"}
 
-        fn, reap_calls = self._load([first, second])
+        fn, reap_calls, cleanup_calls = self._load([first, second])
         result = fn(
             "https://example.com/video", [{}, {}],
             download_id="d1", filename="f1", video_title=None,
@@ -459,6 +670,10 @@ class AttemptExecutionTests(unittest.TestCase):
         self.assertEqual(result.full_path, "/tmp/final.mp4")
         self.assertEqual(result.video_title, "Second Attempt")
         self.assertEqual(len(reap_calls), 1)  # only the failed first attempt reaps
+        self.assertEqual(cleanup_calls, [
+            ("f1", ()),
+            ("f1", ("/tmp/final.mp4",)),
+        ])
 
     def test_rate_limit_error_stops_immediately_without_trying_fallback(self):
         def first():
@@ -467,7 +682,7 @@ class AttemptExecutionTests(unittest.TestCase):
         def unreachable():
             raise AssertionError("second attempt should not run after a 429")
 
-        fn, _ = self._load([first, unreachable])
+        fn, _, cleanup_calls = self._load([first, unreachable])
         result = fn(
             "https://example.com/video", [{}, {}],
             download_id="d1", filename="f1", video_title=None,
@@ -476,9 +691,10 @@ class AttemptExecutionTests(unittest.TestCase):
         )
         self.assertFalse(result.success)
         self.assertIn("429", str(result.primary_err))
+        self.assertEqual(cleanup_calls, [("f1", ())])
 
     def test_expired_deadline_is_reported_as_timeout_not_a_generic_failure(self):
-        fn, _ = self._load([lambda: {"_path": "/tmp/x.mp4"}])
+        fn, _, cleanup_calls = self._load([lambda: {"_path": "/tmp/x.mp4"}])
         result = fn(
             "https://example.com/video", [{}],
             download_id="d1", filename="f1", video_title=None,
@@ -487,6 +703,7 @@ class AttemptExecutionTests(unittest.TestCase):
         )
         self.assertTrue(result.timed_out)
         self.assertFalse(result.success)
+        self.assertEqual(cleanup_calls, [("f1", ())])
 
     def test_youtube_403_switches_from_default_to_mweb_once(self):
         def first():
@@ -495,7 +712,7 @@ class AttemptExecutionTests(unittest.TestCase):
         def second():
             return {"_path": "/tmp/final.mp4", "title": "mweb fallback"}
 
-        fn, _ = self._load([first, second], youtube=True)
+        fn, _, _ = self._load([first, second], youtube=True)
         opts_list = [
             {"extractor_args": {"youtube": {"player_client": ["default"]}}},
             {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
@@ -519,7 +736,7 @@ class AttemptExecutionTests(unittest.TestCase):
         def unreachable_cookie_attempt():
             raise AssertionError("403 must not be retried with account cookies")
 
-        fn, reap_calls = self._load(
+        fn, reap_calls, _ = self._load(
             [default_403, mweb_403, unreachable_cookie_attempt],
             youtube=True,
         )
@@ -551,7 +768,7 @@ class AttemptExecutionTests(unittest.TestCase):
         def cookie_success():
             return {"_path": "/tmp/private.mp4", "title": "cookie fallback"}
 
-        fn, _ = self._load([default_login, mweb_login, cookie_success], youtube=True)
+        fn, _, _ = self._load([default_login, mweb_login, cookie_success], youtube=True)
         opts_list = [
             {"extractor_args": {"youtube": {"player_client": ["default"]}}},
             {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
@@ -570,7 +787,7 @@ class AttemptExecutionTests(unittest.TestCase):
         self.assertEqual(result.video_title, "cookie fallback")
 
     def test_cancel_event_set_before_any_attempt_is_re_raised(self):
-        fn, _ = self._load([lambda: {"_path": "/tmp/x.mp4"}])
+        fn, _, _ = self._load([lambda: {"_path": "/tmp/x.mp4"}])
         cancel_event = threading.Event()
         cancel_event.set()
         result = fn(
@@ -658,6 +875,9 @@ class JobFinalizerTests(unittest.TestCase):
         namespace = {
             "os": os,
             "logger": _Logger(),
+            "emit_job_progress": lambda sid, download_id, payload: namespace["safe_emit"](
+                "progress", dict(payload, download_id=download_id), room=sid
+            ),
             "MAX_DOWNLOAD_SIZE_BYTES": max_size,
             "discard_cancel_event": lambda download_id: calls.__setitem__("discard", calls["discard"] + 1),
             "safe_emit": lambda event, data, room=None: None,

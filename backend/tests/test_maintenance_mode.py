@@ -66,7 +66,10 @@ class MaintenanceConfigTests(unittest.TestCase):
             )
         )
         self.assertEqual(backend_config, frontend_config)
-        self.assertIs(backend_config["active"], False)
+        self.assertIsInstance(backend_config["active"], bool)
+        self.assertIsInstance(backend_config.get("title", ""), str)
+        self.assertIsInstance(backend_config.get("message", ""), str)
+        self.assertIsInstance(backend_config.get("until", ""), str)
         self.assertGreaterEqual(backend_config["retryAfter"], 60)
 
 

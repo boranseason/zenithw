@@ -1,5 +1,346 @@
 # ZenithW Optimization Audit
 
+## 2026-08-25 Backend + Frontend Re-Audit
+
+This section is a fresh review of the current checkout at commit `293a147`.
+The older 2026-08-18 findings below remain historical implementation notes;
+their `[x]` status does not cover the new findings in this section.
+
+**Scope:** `backend/app.py`, backend tests/deployment configuration, the main
+frontend, shared assets, Netlify/Cloudflare Pages configuration, and the
+maintenance workflow. No source fix was made during this review.
+
+**2026-08-26 follow-up:** all three critical findings, all eight medium findings,
+and four of five low findings below were fixed and verified locally. L-05 is
+deliberately left open: its next step requires a deployed performance trace so
+that code splitting is based on measured parse/network cost rather than guesswork.
+
+**Checks performed:** Python compilation, JavaScript syntax checks, 38 offline
+backend tests, static lifecycle/security/performance tracing, local desktop and
+390 x 844 browser interaction checks, and a read-only reachability check of the
+published frontend. The main mobile page had no horizontal overflow and the
+services modal's background scroll lock worked. Real provider downloads,
+FFmpeg conversions, slow native transfers, and load tests were not executed.
+
+### Summary
+
+| Severity | Count | Main risk |
+|---|---:|---|
+| **CRITICAL** | 3 | Silent output truncation and temporary-disk accounting failures |
+| **MEDIUM** | 8 | False success states, incomplete cancellation, timeout/readiness and security regressions |
+| **LOW** | 5 | Accessibility, dependency resilience, configuration hardening and initial payload |
+
+**Current unresolved counts:** critical 0, medium 0, low 1.
+
+Recommended order: **C-01 -> C-03 -> C-02 -> M-01/M-02 -> M-04 -> M-05/M-06**.
+
+### CRITICAL
+
+#### [x] C-01 - Converter can return a silently truncated file as success
+
+- **Evidence:** every remux/transcode command receives
+  `-t MAX_VIDEO_DURATION_SECONDS` and `-fs MAX_CONVERT_OUTPUT_SIZE_BYTES`
+  (`backend/app.py:3139-3147`, `3151-3159`, `3201-3208`). The result is accepted
+  using only FFmpeg's return code and final byte size (`3218-3234`); input and
+  output durations are never compared.
+- **Impact:** an input longer than 90 minutes is deliberately stopped at 90
+  minutes and can still be returned with HTTP 200. The `-fs` early-stop guard
+  can likewise produce a shortened file before the exact post-check notices
+  the limit. This is data-integrity loss, not merely a slow request.
+- **Recommendation:** probe duration/streams before conversion and reject an
+  over-limit input explicitly. Use a monitored output-byte guard, then validate
+  output duration and container with ffprobe before preparing the token. Never
+  describe a deliberately cut output as a completed conversion.
+- **Fixed (2026-08-26):** removed FFmpeg's success-producing `-t`/`-fs`
+  truncation flags. The backend now rejects declared over-limit durations with
+  `video_too_long` and monitors the output file while FFmpeg runs, killing the
+  process and returning HTTP 413 when the byte ceiling is reached. FFmpeg header
+  probing is used when FFprobe is absent; if neither path can establish a finite
+  duration, the file is rejected before conversion begins.
+- **Verified:** source regression checks plus unit coverage for longest-duration
+  selection and live output-limit termination.
+
+#### [x] C-02 - Failed download attempts can leave untracked artifacts during a successful retry
+
+- **Evidence:** `run_download_attempts()` reaps child processes after a failed
+  attempt but immediately continues to the next profile without calling
+  `cleanup_download_artifacts(filename)` (`backend/app.py:2514-2565`). On a
+  later success only `full_path` is registered (`2851-2858`). Scoped artifact
+  cleanup is called only on terminal timeout/cancel/error (`2841-2846`,
+  `2905-2928`).
+- **Impact:** a default-client attempt may leave `.part`, separate video/audio,
+  subtitle, or post-processing files; an mweb/cookie retry can then succeed
+  while those earlier files remain outside the prepared-file reservation.
+  Repeated fallbacks can consume ephemeral disk faster than the logical spool
+  counter reports and take the service down before the 30-minute sweep.
+- **Confidence:** high-confidence lifecycle gap, but the exact leftover set is
+  extractor/failure dependent and needs a staged failed-first/success-second
+  media test.
+- **Recommendation:** maintain an artifact set per attempt; clean only failed
+  attempt outputs before the next profile and clean every non-final sibling
+  before committing the successful file reservation.
+- **Fixed (2026-08-26):** every cancelled, timed-out, fatal, or retryable attempt
+  now performs token-scoped cleanup after child-process reaping. On success,
+  every token sibling except the authoritative resolved media path is removed
+  before the prepared-file reservation takes ownership.
+- **Verified:** retry-then-success, 429, timeout, final-path preservation, and
+  token-boundary regression tests.
+
+#### [x] C-03 - Generic file cleanup can release disk accounting while a slow transfer is still active
+
+- **Evidence:** every file older than `FILE_MAX_AGE` (30 minutes) is passed to
+  `_force_cleanup()` without checking prepared/transfer state
+  (`backend/app.py:988-1004`). A GET removes its prepared token before streaming
+  (`1928-1930`), while the authoritative cleanup and transfer-slot release are
+  deferred to `response.call_on_close` (`1945-1953`). `_force_cleanup()` also
+  releases the file's spool reservation when the path disappears (`904-923`).
+- **Impact:** a large download over a slow connection can cross 30 minutes. On
+  Linux the pathname may be unlinked while the open file descriptor still
+  occupies disk; the spool counter is then lowered and new jobs are admitted
+  against space that is not actually free. This can cause disk-full failures
+  and cascading job errors. On platforms that reject unlinking an open file,
+  behavior differs but the lifecycle is still inconsistent.
+- **Recommendation:** exclude active/prepared paths from age cleanup, track an
+  explicit transfer lease, and release bytes only from the final close path.
+  Add a slow-transfer test that crosses `FILE_MAX_AGE` and checks both physical
+  free space and logical reservation counters.
+- **Fixed (2026-08-26):** native GET transfers now acquire a path lease before
+  the existence/open step and release it only from response-close/error paths.
+  Both age-based and stale-pending cleanup atomically skip leased paths, so spool
+  accounting remains attached to the physical file during an active transfer.
+- **Verified:** lease lifecycle/unit cleanup regression tests and route wiring
+  checks. A deployed slow-network test crossing 30 minutes is still recommended
+  before production rollout.
+
+### MEDIUM
+
+#### [x] M-01 - Bulk and playlist UI report success before the browser accepts the file transfer
+
+- **Evidence:** `triggerNativeDownload()` clicks an anchor and returns
+  immediately (`frontend/app.38a2e2a6b4f9.js:926-931`). Playlist items are then
+  added to `doneSet` and persisted (`894-911`). Bulk uses the same native handoff
+  and counts `{ok:true}` as success (`577-605`, `1031-1072`).
+- **Impact:** browser multi-download protection, token expiry, transfer queue
+  rejection, network loss, or a failed GET can still produce "completed" UI
+  and a resume state that skips the item. Automatic downloads are especially
+  likely to be limited after the first asynchronous click.
+- **Recommendation:** distinguish `prepared`, `handoff_started`, and
+  `transfer_confirmed`. For batch jobs keep an explicit user-driven download
+  queue/list, or use a bounded archive/object-storage handoff where completion
+  can be observed.
+- **Fixed (2026-08-26):** prepared tokens now expose an owner-bound status route;
+  streamed bytes drive `transferring/completed/interrupted/failed` state, and
+  main, bulk, and playlist flows only persist success after confirmation.
+
+#### [x] M-02 - Stop/cancel does not reliably stop the current backend job
+
+- **Evidence:** playlist requests have no AbortController and the stop flag is
+  checked only between items (`frontend/app.38a2e2a6b4f9.js:870-925`,
+  `968-983`). Main cancellation aborts the local fetch, then starts a non-awaited
+  `/cancel` request (`1082-1085`). `/cancel` shares the general 10/minute rate
+  bucket (`backend/app.py:2037-2055`). Bulk has no current-job stop control.
+- **Impact:** the UI can say stopped/cancelled while yt-dlp/FFmpeg continues for
+  up to the server deadline, consuming the only processing slots and spool
+  reservation. The cancel request can also be lost during navigation or
+  rejected after other calls consumed the shared quota.
+- **Recommendation:** retain the active batch job ID/controller, await a bounded
+  cancel acknowledgement, give cancellation a narrow separate quota, and keep
+  the UI in "stopping" state until the backend confirms termination.
+- **Fixed (2026-08-26):** active batch controllers/job IDs are retained, the
+  current request is aborted, `/cancel` is awaited with a bound, and cancellation
+  uses a dedicated rate bucket instead of consuming the normal API quota.
+
+#### [x] M-03 - Small prepared-file transfer has no client timeout or abort path
+
+- **Evidence:** the <=32 MiB path calls `fetch(download_url)` without a signal or
+  deadline and buffers every chunk before showing the save modal
+  (`frontend/app.38a2e2a6b4f9.js:932-967`). The backend discards the job's cancel
+  event once the token is prepared (`backend/app.py:2695-2703`), so the existing
+  cancel endpoint cannot stop this transfer.
+- **Impact:** a stalled transfer can hold a backend transfer slot and leave the
+  modal/progress UI waiting indefinitely. Buffer chunks plus the final Blob also
+  create a short-lived memory peak above the nominal 32 MiB threshold.
+- **Recommendation:** pass an AbortController with an inactivity/total deadline,
+  cancel the stream reader on close, and expose transfer cancellation separately
+  from processing cancellation.
+- **Fixed (2026-08-26):** the buffered transfer now has total and inactivity
+  deadlines, an explicit abort controller, and reader cancellation on failure.
+
+#### [x] M-04 - Frontend security headers were removed from the repository configuration
+
+- **Evidence:** current `netlify.toml` contains only the publish directory and
+  `frontend/_headers` contains cache rules, not CSP, `X-Frame-Options` /
+  `frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy`, or
+  `Permissions-Policy`. Git history shows these global headers were removed in
+  commit `56221ae`, while the shipped changelog still claims they are enabled
+  (`frontend/updates-archive.243ec67d3c2e.js:210-211`).
+- **Impact:** defense in depth against injected markup/scripts, clickjacking,
+  MIME confusion, referrer leakage, and unnecessary browser capabilities is
+  absent at repository level. A Cloudflare dashboard rule may compensate, but
+  that was not verified by this source audit.
+- **Recommendation:** define one authoritative header policy in deployed source
+  and add a post-deploy assertion for the real response headers. Account for the
+  current inline handlers/scripts before tightening CSP.
+- **Fixed (2026-08-26):** `_headers` again defines CSP, anti-framing, MIME,
+  referrer, permissions, and opener policies. The current inline-handler
+  allowance is explicit and can be tightened after markup migration.
+
+#### [x] M-05 - `/health` is liveness-only but always advertises HTTP 200 readiness
+
+- **Evidence:** `/health` reports missing FFmpeg, incomplete JS solver, zero free
+  disk, and full spool as JSON fields but always returns 200
+  (`backend/app.py:1961-2012`).
+- **Impact:** Railway/load-balancer health checks can continue routing expensive
+  jobs to an instance that cannot convert/download or has no safe disk capacity.
+- **Recommendation:** keep a cheap liveness route, add a separate readiness route
+  with stable failure criteria, and point deployment health checks at readiness.
+- **Fixed (2026-08-26):** `/health` is a cheap liveness probe, `/ready` returns
+  503 when required media tooling/disk/spool capacity is unavailable, and the
+  Railway source configuration targets `/ready`.
+
+#### [x] M-06 - The documented conversion envelope conflicts with the default FFmpeg deadline
+
+- **Evidence:** inputs may represent up to 90 minutes, but every FFmpeg remux or
+  transcode has a 120-second default timeout (`backend/app.py:73`, `86`,
+  `3153-3158`, `3203-3208`; `README.md:150-157`). The frontend waits up to 15
+  minutes (`frontend/app.38a2e2a6b4f9.js:934-939`).
+- **Impact:** valid but incompatible-container transcodes, especially VP9/WebM,
+  can predictably time out on the backend long before the client deadline and
+  long before a 90-minute encode could finish.
+- **Recommendation:** set mode/codec-aware limits, estimate or probe workload,
+  reject jobs that cannot fit the service budget, and align frontend, Gunicorn,
+  and FFmpeg deadlines.
+- **Fixed (2026-08-26):** probed inputs that require CPU-heavy transcoding are
+  limited by `MAX_TRANSCODE_DURATION_SECONDS` (10 minutes by default). Compatible
+  stream-copy remuxes retain the broader media envelope; the frontend timeout
+  remains an upload/job envelope rather than claiming a 90-minute transcode.
+
+#### [x] M-07 - Maintenance-mode test is guaranteed to fail during intentional maintenance
+
+- **Evidence:** both current config files validly contain `"active": true`, but
+  `test_frontend_and_backend_workflow_configs_match` unconditionally asserts
+  `active is False` (`backend/tests/test_maintenance_mode.py:58-70`). The full
+  offline run produced **38 tests, 1 failure**; all 32 download contract tests
+  passed.
+- **Impact:** planned maintenance creates a red test suite, hides real regressions
+  in expected noise, and can block any CI/release gate that runs the suite.
+- **Recommendation:** test schema/parity and gate behavior independently from
+  the repository's current operational state. If production must be active by
+  default, enforce that in a deployment policy check, not a unit invariant.
+- **Fixed (2026-08-26):** the test now validates schema and frontend/backend
+  parity without requiring the current operational flag to be false.
+
+#### [x] M-08 - Socket progress events are not scoped to a download job
+
+- **Evidence:** progress payloads contain status/percent but no `download_id`
+  (`backend/app.py:2299-2358`, queue emits at `676-689`). The frontend has one
+  global listener that updates the current modal for every event on the SID
+  (`frontend/app.38a2e2a6b4f9.js:444-454`).
+- **Impact:** after a delayed/failed cancellation or overlapping playlist/main
+  action, an old job can overwrite the progress/error state of a newer job.
+- **Recommendation:** include the immutable job ID in every event and ignore
+  events that do not match the active UI job.
+- **Fixed (2026-08-26):** all progress emits include `download_id`; the client
+  ignores events that do not match its active job.
+
+### LOW
+
+#### [x] L-01 - Closed dialogs remain exposed to assistive technology and focus is unmanaged
+
+- **Evidence:** `.overlay` hides with opacity and pointer-events only
+  (`frontend/style.0f46294b97e0.css:527-528`); it does not use `visibility`,
+  `hidden`, `inert`, or synchronized `aria-hidden`. In the 390 x 844 browser
+  check all closed dialogs were present in the accessibility snapshot. Opening
+  the services dialog left `document.activeElement` on `BODY`; there is no focus
+  trap or focus restoration. The services trigger is a clickable `<div>` rather
+  than a keyboard-operable button (`frontend/index.html:54-61`).
+- **Impact:** keyboard and screen-reader navigation includes invisible controls
+  and users can lose their position when a modal opens/closes.
+- **Recommendation:** use real buttons, manage `inert`/`aria-hidden`, move focus
+  into the dialog, trap it while open, and restore it on close.
+- **Fixed (2026-08-26):** closed overlays use visibility and synchronized ARIA;
+  background content is inert/hidden while open, focus is trapped/restored,
+  Escape closes the top dialog, and the services trigger is a real button.
+
+#### [x] L-02 - A third-party Socket.IO CDN is a single point of failure for the whole app
+
+- **Evidence:** Socket.IO is synchronously loaded from cdnjs
+  (`frontend/index.html:647-650`) and app initialization immediately calls
+  `io(...)` (`frontend/app.38a2e2a6b4f9.js:34`).
+- **Impact:** CDN blocking/outage/integrity mismatch causes `io is not defined`
+  before the remaining application script initializes, disabling unrelated UI.
+- **Recommendation:** self-host the pinned asset or guard socket initialization
+  and allow non-progress features to continue.
+- **Fixed (2026-08-26):** socket initialization is guarded by a no-op fallback,
+  so a CDN failure removes live progress only and no longer prevents unrelated
+  controls from initializing.
+
+#### [x] L-03 - Numeric environment settings are mostly unbounded and fail inconsistently
+
+- **Evidence:** most concurrency, timeout, quota, TTL, and byte settings use raw
+  `int()`/`float()` at import (`backend/app.py:73-101`), although a bounded helper
+  exists for maintenance values (`119-124`).
+- **Impact:** a typo can crash startup; zero/negative values can permanently
+  disable queues or remove progress throttling instead of producing a clear
+  configuration error.
+- **Recommendation:** parse all operational values through typed bounded helpers
+  and validate cross-field invariants at startup.
+- **Fixed (2026-08-26):** operational integer/float settings now use bounded
+  parsers with safe defaults; spool/reservation/transfer cross-field constraints
+  are checked at startup, including the server port.
+
+#### [x] L-04 - Public health response exposes more operational detail than needed
+
+- **Evidence:** `/health` bypasses origin lock (`backend/app.py:484-490`) and
+  returns cookie-file presence/size, solver/provider state, worker model, queue,
+  transfer, cache, spool, and disk counters (`1961-2012`).
+- **Impact:** low-grade reconnaissance and traffic-timing information is public.
+- **Recommendation:** expose only status for the public probe and protect a
+  detailed diagnostics route with infrastructure authentication.
+- **Fixed (2026-08-26):** public `/health` and `/ready` return minimal status;
+  detailed counters moved to `/diagnostics`, which remains behind origin lock.
+
+#### [ ] L-05 - Initial frontend still parses a broad feature/translation bundle
+
+- **Evidence:** the landing page loads a 99,381-byte app file, an 81,405-byte
+  stylesheet, a 49,810-byte HTML document, five Google Font weights, and the
+  external Socket.IO client before any converter/history/settings action.
+- **Impact:** acceptable on desktop broadband but avoidable parse/network work on
+  low-end mobile. This is lower priority because content-hashed caching and
+  route-specific update assets are already implemented.
+- **Recommendation:** use deployed performance traces before splitting; the
+  likely first wins are font-weight reduction/self-hosting and lazy initialization
+  of converter/history/donation code, not many tiny chunks.
+- **Partial mitigation (2026-08-26):** Google Font weights were reduced from
+  five to four and preconnect hints were added. The app remains a broad 107,441
+  byte uncompressed bundle after the reliability/accessibility additions. Keep
+  this item open until a deployed trace identifies a worthwhile split boundary.
+
+### Verification record
+
+- 2026-08-26 remaining-fix suite: full backend discovery **49/49 passed**;
+  frontend JavaScript syntax, Railway JSON parsing, and `git diff --check`
+  passed.
+- Local 390 x 844 browser recheck: no horizontal overflow; modal background
+  lock, focus entry/trap/restoration, Escape close, and ARIA state passed.
+
+- 2026-08-26 critical-fix suite: `backend/tests/test_download_contracts.py`
+  **38/38 passed**; the 20 directly related source/lifecycle/conversion/attempt
+  tests also passed independently.
+- 2026-08-26 full backend discovery: **44 run, 1 failed**; the sole failure is
+  the already documented maintenance-mode state assertion (M-07).
+- 2026-08-26 Python compilation, frontend JavaScript syntax, and whitespace
+  checks passed.
+- `backend/app.py` compiled successfully.
+- `frontend/app.38a2e2a6b4f9.js` and `functions/_middleware.js` passed Node syntax checks.
+- `backend/tests/test_download_contracts.py`: **32/32 passed**.
+- Full backend discovery: **38 run, 1 failed** (M-07 only).
+- Local 390 x 844 browser check: no horizontal overflow; services modal opened,
+  internal scrolling/background lock worked; L-01 was reproduced.
+- Published landing page was reachable on 2026-08-25. Response-header correctness,
+  provider downloads, FFmpeg output integrity, cancellation under load, TTL,
+  and slow-transfer behavior remain staging requirements.
+
 Audit date: 2026-08-18  
 Scope: the supplied `zenithw-main (6).zip` (`backend/app.py`, deployment files, and all `frontend/` files).  
 Method: static hot-path review, Python compilation, JavaScript syntax checks, source/payload measurements, and configuration analysis. No production traffic profile, Railway resource limits, disk capacity, CDN response headers, or real download benchmark was supplied. Findings that need runtime proof are explicitly marked **likely**.

@@ -155,6 +155,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `MAX_DOWNLOAD_QUEUE` | No (default `12`) | Maximum number of downloads waiting for a worker slot |
 | `MAX_QUEUE_WAIT_SECONDS` | No (default `120`) | Maximum time a download may wait in the queue |
 | `MAX_VIDEO_DURATION_SECONDS` | No (default `5400`) | Maximum allowed video length (90 minutes) |
+| `MAX_TRANSCODE_DURATION_SECONDS` | No (default `600`) | Maximum duration for CPU-heavy codec transcoding; longer compatible files may still use remux |
 | `MAX_DOWNLOAD_SIZE_MB` | No (default `1536`) | Maximum allowed file size in MB |
 | `MAX_CONVERT_OUTPUT_SIZE_MB` | No (default `1024`) | Maximum converted output size in MB |
 | `MAX_SPOOL_SIZE_MB` | No (default `4096`) | Aggregate temporary/prepared-file storage budget in MB |
@@ -168,6 +169,8 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `INFO_CACHE_MAX_SIZE` | No (default `256`) | Maximum number of sanitized metadata responses retained in memory |
 | `CONVERSION_RATE_LIMIT_WINDOW` | No (default `600`) | Per-IP conversion quota window in seconds |
 | `CONVERSION_RATE_LIMIT_MAX_REQUESTS` | No (default `2`) | Conversions allowed per IP during the conversion quota window |
+| `CANCEL_RATE_LIMIT_WINDOW` | No (default `60`) | Separate cancellation quota window in seconds |
+| `CANCEL_RATE_LIMIT_MAX_REQUESTS` | No (default `30`) | Cancellation requests allowed per IP without consuming the normal API quota |
 | `MAINTENANCE_MODE` | No (default `workflow`) | `workflow` reads the committed config; `1`/`0` is an emergency environment override |
 | `MAINTENANCE_TITLE` | No (Cloudflare only) | Optional heading shown on the maintenance page |
 | `MAINTENANCE_MESSAGE` | No | Optional public maintenance explanation, limited to 240 characters |
@@ -207,12 +210,15 @@ unset) for the one-button GitHub flow.
 | `/info` | POST | Returns video/playlist metadata for a given URL |
 | `/download` | POST | Runs one download/extraction job and returns a short-lived native download URL |
 | `/files/<token>` | GET / HEAD | Transfers a prepared file through a single-use, IP-bound token |
+| `/files/<token>/status` | GET | Reports prepared/transferring/completed state to the owning client without exposing file details |
 | `/thumbnail` | POST | Downloads the cover image for a given URL |
 | `/convert` | POST | Remuxes or converts an uploaded file and returns a native download URL |
 | `/cancel` | POST | Cancels an in-progress download |
-| `/health` | GET | Reports dependencies, queues, disk/transfer budgets, caches, and the single-worker deployment boundary |
+| `/health` | GET | Minimal liveness response |
+| `/ready` | GET | Railway readiness response; returns 503 when required media dependencies or disk budget are unavailable |
+| `/diagnostics` | GET | Origin-protected dependency, queue, cache, transfer, and single-worker diagnostics |
 
-All endpoints (except `/health`) are rate-limited to **10 requests per minute per IP**. `/convert` additionally defaults to **2 conversions per 10 minutes per IP**.
+Normal API endpoints are rate-limited to **10 requests per minute per IP**. `/health` and `/ready` are probe endpoints, `/cancel` has a separate default **30 requests per minute** quota, and `/convert` additionally defaults to **2 conversions per 10 minutes per IP**.
 
 ---
 
@@ -220,7 +226,7 @@ All endpoints (except `/health`) are rate-limited to **10 requests per minute pe
 
 The backend intentionally runs as **one Gunicorn worker and one Railway replica**. Rate limits, semaphores, cancellation events, Socket.IO identifiers, metadata cache entries, prepared-file tokens, and temporary files are currently process-local.
 
-Do not increase `--workers` or add replicas without first moving shared coordination to Redis (or an equivalent shared store), configuring a Socket.IO message queue and sticky routing, and placing prepared files in shared/object storage. `/health` reports `horizontal_scaling_safe: false` and `expected_gunicorn_workers: 1` so deployment checks can detect this boundary.
+Do not increase `--workers` or add replicas without first moving shared coordination to Redis (or an equivalent shared store), configuring a Socket.IO message queue and sticky routing, and placing prepared files in shared/object storage. The origin-protected `/diagnostics` response reports `horizontal_scaling_safe: false` and `expected_gunicorn_workers: 1` so deployment checks can detect this boundary.
 
 Vertical scaling is safe when measurements show the current instance needs more CPU, memory, or disk headroom.
 
@@ -253,7 +259,7 @@ Found a vulnerability? Please report it to [info@zenithw.space](mailto:info@zeni
 
 ## Release History
 
-The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers the security-hardening work, and v12 focuses on presentation, themes, settings, and rendering improvements. v13.0 rebuilds YouTube delivery around the PO Token provider and modern EJS/Deno support, adds bounded spool/native-transfer behavior, corrects bulk success accounting and mute planning, and introduces real remux-first media processing.
+The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers security hardening, v12 focuses on presentation and rendering improvements, and v13 follows the complete media lifecycle: modern YouTube support and bounded storage in v13.0, Cloudflare Pages in v13.1, then verified file delivery, mobile dialog stability, conversion integrity, job-scoped cancellation/progress, readiness checks, privacy/accessibility, and end-to-end reliability through v13.8.
 
 ---
 
