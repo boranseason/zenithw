@@ -1,7 +1,7 @@
 {
-  "active": true,
-  "title": "Sunucumuzdaki dosya gönderememe",
-  "message": "1-2 Saatt sonra aktifiz sistem hatası tamamen bizim hatamız özür dileriz",
-  "until": "2026-08-26T18:10:00+03:00",
+  "active": false,
+  "title": "Kısa bir pati molası",
+  "message": "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
+  "until": "",
   "retryAfter": 900
 }
