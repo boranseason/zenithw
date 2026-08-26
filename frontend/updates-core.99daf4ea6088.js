@@ -40,7 +40,7 @@ function loadUpdateArchive(){
   if(archivePromise)return archivePromise;
   archivePromise=new Promise((resolve,reject)=>{
     const s=document.createElement('script');
-    s.src='updates-archive.34f41abc8e85.js';
+    s.src='updates-archive.07c744021db2.js';
     s.async=true;
     s.onload=()=>{
       if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[LATEST_UPDATE,...window.ZW_UPDATE_ARCHIVE];resolve(UPDATES);}

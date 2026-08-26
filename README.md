@@ -4,7 +4,7 @@
 
 🔗 **Live:** [zenithw.space](https://zenithw.space)
 
-🏷️ **Current release:** `v13.0` — rebuilt YouTube delivery, bounded temporary storage, native browser handoff, and cacheable frontend assets
+🏷️ **Current release:** `v13.8` — verified end-to-end file delivery, safer conversion, job-scoped cancellation/progress, readiness checks, accessibility, and clearer privacy controls
 
 ---
 
@@ -56,7 +56,7 @@
 | Segment skipping | [SponsorBlock API](https://sponsor.ajay.app/) |
 | Media processing | FFmpeg |
 | Frontend | Vanilla HTML/CSS/JS (no framework) |
-| Frontend hosting | [Netlify](https://netlify.com) |
+| Frontend hosting | [Cloudflare Pages](https://pages.cloudflare.com) |
 | Backend hosting | [Railway](https://railway.app) |
 
 ---
@@ -65,7 +65,7 @@
 
 ```
 zenithw/
-├── .gitignore                   # Keeps local notes and backend tests out of Git
+├── .gitignore                   # Keeps local/runtime artifacts out of Git
 ├── .github/
 │   └── dependabot.yml
 ├── backend/
@@ -90,13 +90,15 @@ zenithw/
 │   ├── vs-savefrom.html
 │   ├── vs-y2mate.html
 │   ├── app.[content-hash].js    # Cacheable landing-page application code
-│   ├── updates.[content-hash].js
+│   ├── updates-core.[content-hash].js
+│   ├── updates-archive.[content-hash].js
 │   ├── style.[content-hash].css
 │   ├── version.js               # Single source of truth for version info
 │   ├── zenithw.png
 │   ├── robots.txt
 │   └── sitemap.xml
-├── netlify.toml                 # Frontend deployment config
+├── functions/
+│   └── _middleware.js           # Cloudflare Pages maintenance middleware
 ├── LICENSE
 └── README.md
 ```
@@ -249,6 +251,7 @@ Vertical scaling is safe when measurements show the current instance needs more 
 - Conversion work has separate concurrency, time, duration, output-size, and per-IP quota limits
 - User-controlled filenames are HTML-escaped before rendering to prevent DOM XSS
 - The frontend uses Content Security Policy and Subresource Integrity for its pinned Socket.IO dependency
+- The application does not load Google Analytics, advertising pixels, or behavioral-tracking scripts
 - Media URLs are not sent to a third-party QR service
 - Rate-limiting state is periodically cleaned up to prevent memory leaks
 - Concurrent download and per-IP request limits protect the server from overload
