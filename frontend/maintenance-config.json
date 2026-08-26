@@ -1,7 +1,7 @@
 {
-  "active": true,
-  "title": "Yaşanan Kesinti İçin Özür Dileriz",
-  "message": "Malesef sistemimiz 1 gün boyunca erişilebilir olmayacak",
-  "until": "2026-08-26T12:55:00+03:00",
+  "active": false,
+  "title": "Kısa bir pati molası",
+  "message": "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
+  "until": "",
   "retryAfter": 900
 }
