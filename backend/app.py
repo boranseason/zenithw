@@ -2219,6 +2219,12 @@ def download_prepared_file(token):
                         close_iterable()
 
             response.response = _tracked_transfer()
+            # send_file() enables direct_passthrough. In that mode Werkzeug
+            # returns the raw iterable and skips Response.close(), so
+            # call_on_close callbacks never run under Gunicorn. Disable it
+            # after installing our streaming generator to guarantee that the
+            # transfer slot, path lease and temporary file are released.
+            response.direct_passthrough = False
 
             @response.call_on_close
             def _cleanup_prepared_file():
@@ -3338,6 +3344,9 @@ def download_thumbnail_with_slot(url):
                     continue
                 _register_cleanup(full_path)
                 response = send_file(full_path, as_attachment=True, download_name="thumbnail.jpg")
+                # Ensure the registered cleanup callback runs after send_file's
+                # direct-passthrough iterable is consumed.
+                response.direct_passthrough = False
 
                 @response.call_on_close
                 def _cleanup_thumb():

@@ -121,8 +121,19 @@ class SourceHealthTests(unittest.TestCase):
         cleanup_source = function_source("cleanup_old_files")
         self.assertIn("acquire_transfer_path_lease(path)", route_source)
         self.assertIn("release_transfer_path_lease(path)", route_source)
+        self.assertIn("response.direct_passthrough = False", route_source)
         self.assertIn("cleanup_path_if_not_leased(fpath)", cleanup_source)
         self.assertIn("cleanup_path_if_not_leased(path)", cleanup_source)
+
+    def test_send_file_cleanup_callbacks_are_not_bypassed(self):
+        self.assertIn(
+            "response.direct_passthrough = False",
+            function_source("download_prepared_file"),
+        )
+        self.assertIn(
+            "response.direct_passthrough = False",
+            function_source("download_thumbnail_with_slot"),
+        )
 
     def test_native_handoff_reports_actual_transfer_completion(self):
         route_source = function_source("download_prepared_file")
