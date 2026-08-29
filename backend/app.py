@@ -90,6 +90,7 @@ def _bounded_env_float(name, default, minimum, maximum):
 
 
 FFMPEG_TIMEOUT = _bounded_env_int("FFMPEG_TIMEOUT_SECONDS", 120, 30, 3600)
+FFMPEG_THREADS = _bounded_env_int("FFMPEG_THREADS", 2, 1, 8)
 DOWNLOAD_TIMEOUT_SECONDS = _bounded_env_int("DOWNLOAD_TIMEOUT_SECONDS", 600, 60, 3600)
 MAX_CONCURRENT_PER_IP = _bounded_env_int("MAX_CONCURRENT_PER_IP", 5, 1, 20)
 MAX_CONCURRENT_DOWNLOADS = _bounded_env_int("MAX_CONCURRENT_DOWNLOADS", 2, 1, 32)
@@ -1785,6 +1786,12 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
             opts["remote_components"] = {"ejs:npm"}
     if FFMPEG_DIR:
         opts["ffmpeg_location"] = FFMPEG_DIR
+        # Keep every yt-dlp-managed FFmpeg postprocessor within the same
+        # Railway CPU budget as the explicit /convert pipeline. Remux/copy
+        # operations ignore encoder threading, while real transcodes obey it.
+        opts["postprocessor_args"] = {
+            "ffmpeg": ["-threads", str(FFMPEG_THREADS)],
+        }
     # aria2c kaldırıldı: SSRF korumasını bypass ediyordu
     if use_cookies and os.path.exists(COOKIES_FILE) and not is_instagram(url):
         opts["cookiefile"] = COOKIES_FILE
@@ -2613,6 +2620,13 @@ def get_info_with_slot(url):
             )
             if auth_required and not future_cookie_profile:
                 break
+            if attempt_index + 1 < len(opts_list):
+                next_profile = opts_list[attempt_index + 1]
+                next_has_cookies = bool(next_profile.get("cookiefile"))
+                if next_has_cookies and not auth_required:
+                    # A cookie profile cannot repair an ordinary extraction
+                    # failure and only repeats traffic from the same Railway IP.
+                    break
             continue
 
     public_err = primary_err or last_err
@@ -3329,7 +3343,7 @@ def download_thumbnail_with_slot(url):
     last_err = None
     primary_err = None
     deadline = time.monotonic() + THUMBNAIL_TIMEOUT_SECONDS
-    for opts in opts_list:
+    for attempt_index, opts in enumerate(opts_list):
         before_pids = _snapshot_child_pids()
         try:
             remaining = deadline - time.monotonic()
@@ -3362,6 +3376,20 @@ def download_thumbnail_with_slot(url):
             last_err = e
             primary_err = remember_primary_error(primary_err, e)
             _reap_new_children(before_pids, "thumbnail", filename)
+            es = str(e).lower()
+            if "429" in es or "too many requests" in es:
+                break
+            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            future_cookie_profile = any(
+                candidate.get("cookiefile")
+                for candidate in opts_list[attempt_index + 1:]
+            )
+            if auth_required and not future_cookie_profile:
+                break
+            if attempt_index + 1 < len(opts_list):
+                next_has_cookies = bool(opts_list[attempt_index + 1].get("cookiefile"))
+                if next_has_cookies and not auth_required:
+                    break
             continue
 
     public_err = primary_err or last_err
@@ -3494,7 +3522,7 @@ def convert_file_with_slot(ip, spool_reservation):
             '-hide_banner', '-loglevel', 'fatal', '-nostdin',
             '-protocol_whitelist', FFMPEG_LOCAL_PROTOCOLS,
             '-probesize', '10M', '-analyzeduration', '10M',
-            '-i', input_path, '-y', '-threads', '2',
+            '-i', input_path, '-y', '-threads', str(FFMPEG_THREADS),
         ]
 
         audio_formats = {'mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a'}

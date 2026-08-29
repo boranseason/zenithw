@@ -151,6 +151,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `ARIA2_ENABLED` | No | Currently ignored — aria2 is disabled for SSRF protection |
 | `DOWNLOAD_TIMEOUT_SECONDS` | No (default `600`) | Maximum time allowed for a single download |
 | `FFMPEG_TIMEOUT_SECONDS` | No (default `120`) | Maximum runtime for a single FFmpeg conversion or mute operation |
+| `FFMPEG_THREADS` | No (default `2`) | FFmpeg encoder thread ceiling shared by yt-dlp post-processing and uploaded-file conversion; use `1` on Railway Free |
 | `MAX_CONCURRENT_DOWNLOADS` | No (default `2`) | Global concurrent download limit |
 | `MAX_CONCURRENT_CONVERSIONS` | No (default `1`) | Global concurrent conversion limit |
 | `MAX_CONCURRENT_PER_IP` | No (default `5`) | Concurrent request limit per IP |

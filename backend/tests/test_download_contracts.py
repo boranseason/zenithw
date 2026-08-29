@@ -75,6 +75,21 @@ class SourceHealthTests(unittest.TestCase):
         self.assertIn("future_cookie_profile", source)
         self.assertIn("auth_required and not future_cookie_profile", source)
 
+    def test_info_does_not_spend_cookie_profile_on_ordinary_failure(self):
+        source = function_source("get_info_with_slot")
+        self.assertIn("next_has_cookies and not auth_required", source)
+
+    def test_thumbnail_stops_rate_limit_and_unnecessary_cookie_retries(self):
+        source = function_source("download_thumbnail_with_slot")
+        self.assertIn('"429" in es or "too many requests" in es', source)
+        self.assertIn("next_has_cookies and not auth_required", source)
+
+    def test_ffmpeg_thread_limit_covers_ytdlp_and_convert(self):
+        base_source = function_source("get_base_opts")
+        convert_source = function_source("convert_file_with_slot")
+        self.assertIn('"ffmpeg": ["-threads", str(FFMPEG_THREADS)]', base_source)
+        self.assertIn("'-threads', str(FFMPEG_THREADS)", convert_source)
+
     def test_single_extraction_and_native_token_handoff_are_preserved(self):
         source = orchestration_source()
         self.assertEqual(source.count("extract_info(url, download=True)"), 1)
