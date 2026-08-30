@@ -3,9 +3,9 @@
 // version.js?v=... sorgusunu da aynı sürüme yükselt; böylece CDN ve tarayıcılar
 // yeni içeriği hemen yeniden doğrular.
 const ZW_VERSION = {
-  ver: 'v13.8',
-  dateTr: 'ağustos 2026',
-  dateEn: 'August 2026',
-  dateFr: 'août 2026',
-  dateDe: 'August 2026'
+  ver: 'v14.0',
+  dateTr: '31 ağustos 2026',
+  dateEn: 'August 31, 2026',
+  dateFr: '31 août 2026',
+  dateDe: '31. August 2026'
 };

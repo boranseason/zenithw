@@ -11,12 +11,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="updates.4afebabda436.css">
-<script src="version.js?v=13.8"></script>
+<link rel="stylesheet" href="updates.4afebabda436.css?v=20260831">
+<link rel="stylesheet" href="site-shell.css?v=20260831">
+<script src="version.js?v=14.0"></script>
 </head>
 <body class="updates-page">
-<header class="upd-site-header">
-  <div class="upd-shell">
+<main class="upd-shell">
+  <nav class="upd-site-header" aria-label="Sayfa navigasyonu">
     <a href="/" class="upd-brand">ZenithW<span>.</span></a>
     <div class="upd-header-actions">
       <div class="legal-lang-toggle" id="legalLangToggle">
@@ -25,28 +26,29 @@
       </div>
       <a href="/" class="upd-home-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span id="pgBack">ana sayfa</span></a>
     </div>
-  </div>
-</header>
+  </nav>
 
-<main>
-  <div class="upd-shell upd-layout">
-    <article class="upd-article" id="releaseArticle" tabindex="-1">
+  <section class="upd-hero" id="releaseArticle" tabindex="-1">
       <div class="upd-top-row">
-        <span class="upd-ver-badge" id="updBadge">v13.8</span>
+        <span class="upd-ver-badge" id="updBadge">v14.0</span>
         <span class="upd-top-date" id="updDate">ağustos 2026</span>
         <div class="upd-pick"><select id="verPicker" aria-label="Sürüm seç" onchange="jumpTo(this.value)"></select></div>
       </div>
-      <div class="upd-anma" id="updAnma"></div>
       <h2 class="upd-post-title" id="updPostTitle"></h2>
+      <div class="upd-anma" id="updAnma"></div>
+  </section>
+
+    <article class="upd-article">
       <div class="upd-intro" id="updIntro"></div>
       <div id="updSections"></div>
       <div class="upd-outro" id="updOutro"></div>
       <div class="upd-signoff" id="updSignoff">~ ZenithW ekibi 🤍</div>
       <nav class="upd-nav-row" id="updNavRow" aria-label="Sürüm gezinmesi"></nav>
     </article>
-  </div>
 </main>
 
-<script src="updates-core.99daf4ea6088.js"></script>
+<div id="siteBottomNav" data-active="updates"></div>
+<script src="updates-core.99daf4ea6088.js?v=14.0"></script>
+<script src="site-shell.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
 
 🔗 **Live:** [zenithw.space](https://zenithw.space)
 
-🏷️ **Current release:** `v13.8` — verified end-to-end file delivery, safer conversion, job-scoped cancellation/progress, readiness checks, accessibility, and clearer privacy controls
+🏷️ **Current release:** `v14.0` — a warmer time-aware home, dedicated tool pages, responsive shared navigation, calmer ambience, and a cleaner release experience
 
 ---
 
@@ -263,7 +263,7 @@ Found a vulnerability? Please report it to [info@zenithw.space](mailto:info@zeni
 
 ## Release History
 
-The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers security hardening, v12 focuses on presentation and rendering improvements, and v13 follows the complete media lifecycle: modern YouTube support and bounded storage in v13.0, Cloudflare Pages in v13.1, then verified file delivery, mobile dialog stability, conversion integrity, job-scoped cancellation/progress, readiness checks, privacy/accessibility, and end-to-end reliability through v13.8.
+The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers security hardening, v12 focuses on presentation and rendering improvements, and v13 follows the complete media lifecycle through verified end-to-end delivery. v14.0 gives that foundation a calmer, friendlier interface with dedicated tool pages and shared responsive navigation.
 
 ---
 

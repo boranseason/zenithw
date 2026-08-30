@@ -49,35 +49,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.487d49f0164d.css">
-<script src="version.js?v=13.8"></script>
+<link rel="stylesheet" href="site-shell.css">
+<script src="version.js?v=14.0"></script>
 </head>
 <body class="theme-default">
 <div class="page">
   <div class="services-chip-wrap">
-    <button type="button" class="services-chip" id="servicesChip" onclick="toggleServices()" aria-haspopup="dialog" aria-expanded="false" aria-controls="servicesOverlay">
+    <a class="services-chip" id="servicesChip" href="/services.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
       <span id="servicesChipTxt">desteklenen servisler</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
+    </a>
   </div>
-  <div class="overlay tone-cool" id="servicesOverlay" onclick="handleOverlay(event,'servicesOverlay')">
-    <div class="modal-sheet services-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="servicesTitleTxt">
-      <header class="tool-modal-header">
-        <div class="tool-modal-heading">
-          <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg></span>
-          <div><strong id="servicesTitleTxt">desteklenen platformlar</strong><small id="servicesModalSub">500+ platform · tek bağlantı</small></div>
-        </div>
-        <button type="button" class="tool-modal-close" onclick="closeOverlay('servicesOverlay')" aria-label="Platformlar penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-      </header>
-      <div class="tool-modal-body">
-        <div class="services-tags">
-          <span class="services-tag">youtube</span><span class="services-tag">tiktok</span><span class="services-tag">instagram</span><span class="services-tag">twitter / x</span><span class="services-tag">twitch clips</span><span class="services-tag">reddit</span><span class="services-tag">pinterest</span><span class="services-tag">soundcloud</span><span class="services-tag">facebook</span><span class="services-tag">snapchat</span><span class="services-tag">vimeo</span><span class="services-tag">dailymotion</span><span class="services-tag">bilibili</span><span class="services-tag">bluesky</span><span class="services-tag">tumblr</span><span class="services-tag">streamable</span><span class="services-tag">rutube</span><span class="services-tag">ok.ru</span><span class="services-tag">vk</span><span class="services-tag">loom</span><span class="services-tag">pornhub</span><span class="services-tag">xvideos</span><span class="services-tag services-tag-more">500+ sites</span>
-        </div>
-        <div class="services-note" id="servicesNoteTxt">bir platformu desteklemek, teknik uyumluluk dışında ilişki anlamına gelmez. tüm sorumluluk kullanıcıdadır.</div>
-      </div>
-    </div>
-  </div>
-  <div class="logo-wrap" onclick="scrollToTop()"><h1 class="logo-name" style="font-size:30px;font-weight:700;letter-spacing:-1.5px;">ZenithW<span>.</span></h1></div>
+  <div class="logo-wrap" onclick="scrollToTop()"><h1 class="logo-name" id="timeGreeting" style="font-size:30px;font-weight:700;letter-spacing:-1.5px;">selam kanka<span>.</span></h1></div>
   <div class="url-form">
     <div class="url-field-wrap">
       <div class="url-field">
@@ -236,35 +220,8 @@
   </div>
 </div>
 
-<!-- BOTTOM BAR -->
-<div class="bottom-bar">
-  <button class="bar-btn active" onclick="scrollToTop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v13M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="bbSave">kaydet</span></button>
-  <button class="bar-btn" onclick="openHistory()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span id="bbHistory">geçmiş</span></button>
-  <button class="bar-btn" onclick="location.href='/updates'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="bbUpdates">güncel</span></button>
-  <button class="bar-btn" onclick="openConvert()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg><span id="bbConvert">dönüştür</span></button>
-  <div class="bar-divider"></div>
-  <button class="bar-btn" id="moreBtn" onclick="toggleMoreMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg><span id="bbMore">diğer</span></button>
-</div>
-
-<!-- MORE MENU POPUP -->
-<div class="more-popup" id="morePopup">
-  <button class="more-item" onclick="openRemux(); toggleMoreMenu()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-    <span id="moreItemRemux">remux</span>
-  </button>
-  <button class="more-item" onclick="openSettings(); toggleMoreMenu()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-    <span id="moreItemSettings">ayarlar</span>
-  </button>
-  <a class="more-item" href="/about" style="text-decoration:none;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-    <span id="moreItemAbout">hakkında</span>
-  </a>
-  <button class="more-item" onclick="openDonate(); toggleMoreMenu()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-    <span id="moreItemDonate">destek ol</span>
-  </button>
-</div>
+<!-- SHARED BOTTOM NAVIGATION -->
+<div id="siteBottomNav" data-active="home"></div>
 
 <div class="yt-popup" id="ytPopup">
   <span class="yt-popup-icon">📡</span>
@@ -304,19 +261,6 @@
   </div>
 </div>
 
-<!-- HISTORY MODAL -->
-<div class="overlay tone-neutral" id="historyOverlay" onclick="handleOverlay(event,'historyOverlay')">
-  <div class="upd-modal" style="max-width:420px;">
-    <div class="handle" style="margin:-6px auto 12px;"></div>
-    <button class="modal-close-btn" onclick="closeOverlay('historyOverlay')">✕</button>
-    <div class="upd-title" id="historyTitle">indirme geçmişi</div>
-    <div id="historyList" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-      <div style="text-align:center;padding:40px;color:var(--text3);font-size:12px;">yükleniyor...</div>
-    </div>
-    <button class="action-btn" onclick="clearHistory()" style="margin-top:16px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg><span id="clearHistoryTxt">geçmişi temizle</span></button>
-  </div>
-</div>
-
 <!-- PLAYLIST QUEUE MODAL -->
 <div class="overlay tone-neutral" id="plQueueOverlay" onclick="handleOverlay(event,'plQueueOverlay')">
   <div class="upd-modal" style="max-width:420px;">
@@ -347,308 +291,12 @@
   </div>
 </div>
 
-<!-- REMUX MODAL -->
-<div class="overlay tone-neutral" id="remuxOverlay" onclick="handleOverlay(event,'remuxOverlay')">
-  <div class="remux-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="remuxTitleTxt">
-    <header class="tool-modal-header">
-      <div class="tool-modal-heading">
-        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3l4 4-4 4M3 7h18M7 21l-4-4 4-4M21 17H3"/></svg></span>
-        <div><strong id="remuxTitleTxt">remux</strong><small id="remuxModalSub">konteyneri kayıpsız onar</small></div>
-      </div>
-      <button type="button" class="tool-modal-close" onclick="closeOverlay('remuxOverlay')" aria-label="Remux penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </header>
-    <div class="tool-modal-body">
-      <div class="dropzone" id="remuxDrop" onclick="document.getElementById('remuxFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleRemuxDrop(event)">
-        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg></div>
-        <div class="drop-title" id="remuxDropTitle">dosya sürükle veya seç</div><div class="drop-sub" id="remuxDropSub">mp4, webm, mp3, ogg, opus, wav, m4a</div>
-        <input class="visually-hidden-input" type="file" id="remuxFileInput" accept=".mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.ogg,.opus,.wav,.m4a,video/*,audio/*" onchange="handleRemuxFile(this)"/>
-      </div>
-      <div class="remux-info">
-        <div class="remux-info-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><div id="remuxInfo1"><strong>remux ne yapar?</strong> dosya konteynerindeki sorunları düzeltir.</div></div>
-        <div class="remux-info-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div id="remuxInfo2"><strong>kayıpsız:</strong> codec verisini yeni konteynere kopyalar.</div></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- CONVERT MODAL -->
-<div class="overlay tone-neutral" id="convOverlay" onclick="handleOverlay(event,'convOverlay')">
-  <div class="conv-modal tool-modal" role="dialog" aria-modal="true" aria-labelledby="convTitleTxt">
-    <header class="tool-modal-header">
-      <div class="tool-modal-heading">
-        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7h11M16 4l3 3-3 3M16 17H5M8 14l-3 3 3 3"/></svg></span>
-        <div><strong id="convTitleTxt">dönüştür</strong><small id="convModalSub">dosyanı istediğin formata çevir</small></div>
-      </div>
-      <button type="button" class="tool-modal-close" onclick="closeOverlay('convOverlay')" aria-label="Dönüştürme penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </header>
-    <div class="tool-modal-body">
-      <div class="dropzone" id="convDrop" onclick="document.getElementById('convFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleConvDrop(event)">
-        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3V9z"/></svg></div>
-        <div class="drop-title" id="convDropTitle">dosya seç veya sürükle</div><div class="drop-sub" id="convDropSub">mp4, webm, mkv, mp3, flac, wav...</div>
-        <input class="visually-hidden-input" type="file" id="convFileInput" accept="video/*,audio/*,.mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.wav,.ogg,.opus,.m4a" onchange="handleConvFile(this)"/>
-      </div>
-      <div class="conv-progress" id="convProgress">
-        <div class="dl-prog-top">
-          <div class="dl-prog-icon" id="convProgIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg></div>
-          <div class="dl-prog-info"><div class="dl-prog-label" id="convProgLabel">dönüştürülüyor...</div><div class="dl-prog-speed" id="convProgSub"></div></div>
-          <div class="dl-prog-pct" id="convProgPct">—</div>
-        </div>
-      </div>
-      <div class="conv-fmt-row">
-        <div class="conv-fmt-label" id="convFmtLabel">ÇIKIŞ FORMATINI SEÇ</div>
-        <div class="conv-chips">
-          <div class="chip" data-v="mp4" onclick="setConvFmt(this)">mp4</div><div class="chip" data-v="webm" onclick="setConvFmt(this)">webm</div><div class="chip" data-v="mkv" onclick="setConvFmt(this)">mkv</div><div class="chip" data-v="avi" onclick="setConvFmt(this)">avi</div><div class="chip" data-v="mov" onclick="setConvFmt(this)">mov</div>
-          <div class="chip active" data-v="mp3" onclick="setConvFmt(this)">mp3</div><div class="chip" data-v="flac" onclick="setConvFmt(this)">flac</div><div class="chip" data-v="wav" onclick="setConvFmt(this)">wav</div><div class="chip" data-v="ogg" onclick="setConvFmt(this)">ogg</div><div class="chip" data-v="opus" onclick="setConvFmt(this)">opus</div><div class="chip" data-v="m4a" onclick="setConvFmt(this)">m4a</div>
-        </div>
-      </div>
-      <button class="action-btn" id="convBtn" onclick="startConvert()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg><span id="convBtnTxt">dosya seçin</span></button>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="overlay tone-neutral" id="stOverlay" onclick="handleOverlay(event,'stOverlay')">
-  <div class="st-modal" role="dialog" aria-modal="true" aria-labelledby="stModalTitle">
-    <header class="st-modal-header">
-      <div class="st-modal-heading">
-        <span class="st-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg></span>
-        <div><strong id="stModalTitle">ayarlar</strong><small id="stModalSubtitle">indirme deneyimini özelleştir</small></div>
-      </div>
-      <button type="button" class="st-modal-close" onclick="closeOverlay('stOverlay')" aria-label="Ayarları kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </header>
-    <div class="st-modal-layout">
-    <nav class="st-sidebar" aria-labelledby="stModalTitle" role="tablist">
-      <button class="st-nav-btn active" data-page="video" role="tab" aria-selected="true" aria-controls="stPageVideo" onclick="stTab(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
-        <span id="stNavVideo">video</span>
-      </button>
-      <button class="st-nav-btn" data-page="audio" role="tab" aria-selected="false" aria-controls="stPageAudio" onclick="stTab(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-        <span id="stNavAudio">ses</span>
-      </button>
-      <button class="st-nav-btn" data-page="appearance" role="tab" aria-selected="false" aria-controls="stPageAppearance" onclick="stTab(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
-        <span id="stNavAppearance">görünüm</span>
-      </button>
-      <button class="st-nav-btn" data-page="meta" role="tab" aria-selected="false" aria-controls="stPageMeta" onclick="stTab(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span id="stNavMeta">metadata</span>
-      </button>
-      <button class="st-nav-btn" data-page="filename" role="tab" aria-selected="false" aria-controls="stPageFilename" onclick="stTab(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        <span id="stNavFilename">dosya adı</span>
-      </button>
-    </nav>
-    <div class="st-content">
-      <!-- VIDEO -->
-      <div class="st-page active" id="stPageVideo">
-        <div class="st-section">
-          <div class="st-section-label" id="stLblQuality">video kalitesi</div>
-          <div class="st-chips" id="stQChips">
-            <div class="chip" data-v="4320" onclick="stChip(this,'quality')">8k+</div>
-            <div class="chip" data-v="2160" onclick="stChip(this,'quality')">4k</div>
-            <div class="chip" data-v="1440" onclick="stChip(this,'quality')">1440p</div>
-            <div class="chip active" data-v="1080" onclick="stChip(this,'quality')">1080p</div>
-            <div class="chip" data-v="720" onclick="stChip(this,'quality')">720p</div>
-            <div class="chip" data-v="480" onclick="stChip(this,'quality')">480p</div>
-            <div class="chip" data-v="360" onclick="stChip(this,'quality')">360p</div>
-            <div class="chip" data-v="240" onclick="stChip(this,'quality')">240p</div>
-            <div class="chip" data-v="144" onclick="stChip(this,'quality')">144p</div>
-            <div class="chip" data-v="9999" onclick="stChip(this,'quality')">max ✦</div>
-          </div>
-          <div class="st-note" id="stNoteQuality">tercih edilen kalite seçilir; bulunamazsa en yakın kullanılır.</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblCodec">youtube codec</div>
-          <div class="st-chips" id="stCodecChips">
-            <div class="chip active" data-v="h264" onclick="stChip(this,'codec')">h264 + aac</div>
-            <div class="chip" data-v="av1" onclick="stChip(this,'codec')">av1 + opus</div>
-            <div class="chip" data-v="vp9" onclick="stChip(this,'codec')">vp9 + opus</div>
-          </div>
-          <div class="st-note" id="stNoteCodec">h264: max uyumluluk · av1: en iyi kalite, 8k & hdr · vp9: av1 kalitesi</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblVFmt">video formatı</div>
-          <div class="st-chips" id="stVFmtChips">
-            <div class="chip active" data-v="mp4" onclick="stChip(this,'vfmt')">mp4</div>
-            <div class="chip" data-v="webm" onclick="stChip(this,'vfmt')">webm</div>
-            <div class="chip" data-v="mkv" onclick="stChip(this,'vfmt')">mkv</div>
-            <div class="chip" data-v="avi" onclick="stChip(this,'vfmt')">avi</div>
-            <div class="chip" data-v="mov" onclick="stChip(this,'vfmt')">mov</div>
-          </div>
-        </div>
-      </div>
-      <!-- AUDIO -->
-      <div class="st-page" id="stPageAudio">
-        <div class="st-section">
-          <div class="st-section-label" id="stLblAFmt">ses formatı</div>
-          <div class="st-chips" id="stAFmtChips">
-            <div class="chip active" data-v="mp3" onclick="stChip(this,'afmt')">mp3</div>
-            <div class="chip" data-v="flac" onclick="stChip(this,'afmt')">flac</div>
-            <div class="chip" data-v="wav" onclick="stChip(this,'afmt')">wav</div>
-            <div class="chip" data-v="ogg" onclick="stChip(this,'afmt')">ogg</div>
-            <div class="chip" data-v="opus" onclick="stChip(this,'afmt')">opus</div>
-            <div class="chip" data-v="m4a" onclick="stChip(this,'afmt')">m4a</div>
-          </div>
-          <div class="st-note" id="stNoteAFmt">flac, wav: kayıpsız · mp3, ogg, opus, m4a: kayıplı</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblBitrate">ses bit hızı</div>
-          <div class="st-chips" id="stAQChips">
-            <div class="chip" data-v="320" onclick="stChip(this,'audioQ')">320 kbps</div>
-            <div class="chip active" data-v="256" onclick="stChip(this,'audioQ')">256 kbps</div>
-            <div class="chip" data-v="192" onclick="stChip(this,'audioQ')">192 kbps</div>
-            <div class="chip" data-v="128" onclick="stChip(this,'audioQ')">128 kbps</div>
-          </div>
-          <div class="st-note" id="stNoteBitrate">yalnızca kayıplı formatlar için geçerli.</div>
-        </div>
-      </div>
-      <!-- APPEARANCE -->
-      <div class="st-page" id="stPageAppearance">
-        <div class="st-section">
-          <div class="st-section-label" id="stLblTheme">tema</div>
-          <div class="theme-row">
-            <button class="theme-btn" id="themeAuto" onclick="setTheme('auto')">otomatik</button>
-            <button class="theme-btn" id="themeLight" onclick="setTheme('light')">açık</button>
-            <button class="theme-btn active" id="themeDark" onclick="setTheme('dark')">koyu</button>
-          </div>
-          <div class="st-note" id="stNoteTheme">otomatik tema cihaz ekran modunu takip eder.</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblLang">dil</div>
-          <div class="lang-select-wrap">
-            <svg class="lang-select-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>
-            <select class="lang-select" id="langSelect" onchange="setLang(this.value)" aria-labelledby="stLblLang">
-              <option value="tr">Türkçe</option>
-              <option value="en">English</option>
-              <option value="fr">Français</option>
-              <option value="de">Deutsch</option>
-            </select>
-            <svg class="lang-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
-          </div>
-          <div class="st-note" id="stNoteLang">arayüz dili. tarayıcıdan otomatik algılanır.</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblAccent">renk teması</div>
-          <div class="accent-grid" id="stAccentChips" role="group" aria-labelledby="stLblAccent">
-            <button type="button" class="accent-option active" data-v="default" onclick="setAccent('default')" aria-pressed="true">
-              <span class="accent-swatch swatch-default" aria-hidden="true"><i></i></span>
-              <span class="accent-option-copy"><strong id="accDefault">klasik</strong><small id="accDefaultDesc">buz mavisi · dengeli</small></span>
-              <span class="accent-check" aria-hidden="true">✓</span>
-            </button>
-            <button type="button" class="accent-option" data-v="purple" onclick="setAccent('purple')" aria-pressed="false">
-              <span class="accent-swatch swatch-purple" aria-hidden="true"><i></i></span>
-              <span class="accent-option-copy"><strong id="accPurple">neon mor</strong><small id="accPurpleDesc">elektrik moru · derin uzay</small></span>
-              <span class="accent-check" aria-hidden="true">✓</span>
-            </button>
-            <button type="button" class="accent-option" data-v="gray" onclick="setAccent('gray')" aria-pressed="false">
-              <span class="accent-swatch swatch-gray" aria-hidden="true"><i></i></span>
-              <span class="accent-option-copy"><strong id="accGray">grafit</strong><small id="accGrayDesc">nötr gri · sade</small></span>
-              <span class="accent-check" aria-hidden="true">✓</span>
-            </button>
-            <button type="button" class="accent-option" data-v="pink" onclick="setAccent('pink')" aria-pressed="false">
-              <span class="accent-swatch swatch-pink" aria-hidden="true"><i></i></span>
-              <span class="accent-option-copy"><strong id="accPink">neon pembe</strong><small id="accPinkDesc">canlı pembe · sıcak</small></span>
-              <span class="accent-check" aria-hidden="true">✓</span>
-            </button>
-            <button type="button" class="accent-option" data-v="cobalt" onclick="setAccent('cobalt')" aria-pressed="false">
-              <span class="accent-swatch swatch-cobalt" aria-hidden="true"><i></i></span>
-              <span class="accent-option-copy"><strong id="accCobalt">cobalt mavisi</strong><small id="accCobaltDesc">derin mavi · odaklı</small></span>
-              <span class="accent-check" aria-hidden="true">✓</span>
-            </button>
-          </div>
-          <div class="st-note" id="stNoteAccent">tema; arka planı, panelleri, parlamaları ve etkileşim renklerini birlikte değiştirir.</div>
-        </div>
-      </div>
-      <!-- META -->
-      <div class="st-page" id="stPageMeta">
-        <div class="st-section">
-          <div class="st-section-label" id="stLblMeta">dosya metadatası</div>
-          <div class="st-toggle-row">
-            <div class="st-tl"><div class="st-tl-name" id="stMetaName">metadata göm</div><div class="st-tl-desc" id="stMetaDesc">dosyaya başlık, sanatçı ve platform bilgisi gömülür.</div></div>
-            <button type="button" class="toggle on" id="togMetadata" role="switch" aria-checked="true" onclick="stToggle('metadata')" aria-label="Metadata göm"></button>
-          </div>
-          <div class="st-toggle-row">
-            <div class="st-tl"><div class="st-tl-name" id="stSbName">SponsorBlock</div><div class="st-tl-desc" id="stSbDesc">sponsor/reklam bölümlerini videodan otomatik keser (YouTube).</div></div>
-            <button type="button" class="toggle" id="togSponsorblock" role="switch" aria-checked="false" onclick="stToggle('sponsorblock')" aria-label="SponsorBlock"></button>
-          </div>
-          <div class="st-toggle-row">
-            <div class="st-tl"><div class="st-tl-name" id="stSubName">altyazı göm</div><div class="st-tl-desc" id="stSubDesc">mevcutsa altyazıyı videoya gömer (varsayılan dil: tr, yoksa en).</div></div>
-            <button type="button" class="toggle" id="togSubtitles" role="switch" aria-checked="false" onclick="stToggle('subtitles')" aria-label="Altyazı göm"></button>
-          </div>
-        </div>
-      </div>
-      <!-- FILENAME -->
-      <div class="st-page" id="stPageFilename">
-        <div class="st-section">
-          <div class="st-section-label" id="stLblFnf">dosya adı formatı</div>
-          <input class="fnf-input" id="fnfInput" type="text" value="{title}.{ext}" oninput="updateFnfPreview()"/>
-          <div class="fnf-tags">
-            <span class="fnf-tag" onclick="insertFnfTag('{title}')">{title}</span>
-            <span class="fnf-tag" onclick="insertFnfTag('{artist}')">{artist}</span>
-            <span class="fnf-tag" onclick="insertFnfTag('{date}')">{date}</span>
-            <span class="fnf-tag" onclick="insertFnfTag('{platform}')">{platform}</span>
-            <span class="fnf-tag" onclick="insertFnfTag('{ext}')">{ext}</span>
-          </div>
-          <div class="fnf-preview" id="fnfPreview">Örnek: video_başlığı.mp4</div>
-          <div class="st-note" id="stNoteFnf">İndirme başlamadan önce dosya adı bu formata göre oluşturulur.</div>
-        </div>
-        <div class="st-section">
-          <div class="st-section-label" id="stLblFnfEx">örnek formatlar</div>
-          <div class="fnf-tags fnf-presets">
-            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{title}.{ext}')">{title}.{ext}</button>
-            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{artist} - {title}.{ext}')">{artist} - {title}.{ext}</button>
-            <button type="button" class="fnf-tag" onclick="setFnfTemplate('{date} - {title}.{ext}')">{date} - {title}.{ext}</button>
-            <button type="button" class="fnf-tag" onclick="setFnfTemplate('[{platform}] {title}.{ext}')">[{platform}] {title}.{ext}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- DONATE -->
-<div class="overlay tone-warm" id="donOverlay" onclick="handleOverlay(event,'donOverlay')">
-  <div class="don-modal tool-modal support-modal" role="dialog" aria-modal="true" aria-labelledby="donTitle">
-    <header class="tool-modal-header">
-      <div class="tool-modal-heading">
-        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 00-.1-7.8z"/></svg></span>
-        <div><strong id="donTitle">destek ol</strong><small id="donSub">küçük bir katkı ZenithW'nin devamına yardımcı olur</small></div>
-      </div>
-      <button type="button" class="tool-modal-close" onclick="closeOverlay('donOverlay')" aria-label="Destek penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </header>
-    <div class="tool-modal-body">
-    <section class="don-card" aria-label="Papara">
-      <div class="don-card-row">
-        <div class="don-card-icon don-papara-icon" aria-hidden="true">P</div>
-        <div><div class="don-card-name">papara</div><div class="don-card-sub" id="donPaparaSub">türkiye — anlık transfer</div></div>
-      </div>
-      <div class="don-copy-row"><span class="don-num">1479763319</span><button class="don-copy-btn" onclick="copyText('1479763319',this)" id="donCopyBtn">kopyala</button></div>
-    </section>
-    <div class="support-link-list">
-      <div class="don-ig support-link-row">
-        <div class="don-card-icon don-instagram-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></div>
-        <div class="support-link-copy"><div class="don-ig-name">instagram</div><div class="don-ig-handle">@boranseason</div></div>
-        <a href="https://www.instagram.com/boranseason" target="_blank" rel="noopener noreferrer" class="don-ig-link" id="donFollowBtn">takip et</a>
-      </div>
-      <div class="don-contact support-link-row">
-        <div class="don-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="3"/></svg></div>
-        <div class="support-link-copy"><div class="don-contact-name" id="donContactName">iletişim</div><div class="don-contact-email">info@zenithw.space</div></div>
-        <a href="mailto:info@zenithw.space" class="don-contact-link" id="donContactBtn">e-posta gönder</a>
-      </div>
-    </div>
-    <div class="don-thanks" id="donThanks">her destek için teşekkür ederiz 🙏</div>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"
         integrity="sha512-Xm9qbB6Pu06k3PUwPj785dyTl6oHxgsv9nHp7ej7nCpAqGZT3OZpsELuCYX05DdonFpTlBpXMOxjavIAIUwr0w=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="app.d4596317c4a7.js"></script>
+<script src="site-shell.js"></script>
 </body>
 </html>

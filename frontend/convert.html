@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Dönüştür — ZenithW</title>
+<meta name="description" content="Video ve ses dosyalarını farklı formatlara dönüştürün.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" type="image/png" href="zenithw.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.487d49f0164d.css">
+<link rel="stylesheet" href="site-shell.css">
+</head>
+<body class="theme-default tool-page">
+<main class="tool-page-main">
+  <a class="tool-page-brand" href="/">ZenithW<span>.</span></a>
+  <div class="conv-modal tool-modal tool-page-panel" aria-labelledby="convTitleTxt">
+    <header class="tool-modal-header">
+      <div class="tool-modal-heading">
+        <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7h11M16 4l3 3-3 3M16 17H5M8 14l-3 3 3 3"/></svg></span>
+        <div><strong id="convTitleTxt">dönüştür</strong><small id="convModalSub">dosyanı istediğin formata çevir</small></div>
+      </div>
+      <button type="button" class="tool-modal-close" aria-label="Dönüştürme penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="tool-modal-body">
+      <div class="dropzone" id="convDrop" onclick="document.getElementById('convFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleConvDrop(event)">
+        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3V9z"/></svg></div>
+        <div class="drop-title" id="convDropTitle">dosya seç veya sürükle</div><div class="drop-sub" id="convDropSub">mp4, webm, mkv, mp3, flac, wav...</div>
+        <input class="visually-hidden-input" type="file" id="convFileInput" accept="video/*,audio/*,.mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.wav,.ogg,.opus,.m4a" onchange="handleConvFile(this)"/>
+      </div>
+      <div class="conv-progress" id="convProgress">
+        <div class="dl-prog-top">
+          <div class="dl-prog-icon" id="convProgIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg></div>
+          <div class="dl-prog-info"><div class="dl-prog-label" id="convProgLabel">dönüştürülüyor...</div><div class="dl-prog-speed" id="convProgSub"></div></div>
+          <div class="dl-prog-pct" id="convProgPct">—</div>
+        </div>
+      </div>
+      <div class="conv-fmt-row">
+        <div class="conv-fmt-label" id="convFmtLabel">ÇIKIŞ FORMATINI SEÇ</div>
+        <div class="conv-chips">
+          <div class="chip" data-v="mp4" onclick="setConvFmt(this)">mp4</div><div class="chip" data-v="webm" onclick="setConvFmt(this)">webm</div><div class="chip" data-v="mkv" onclick="setConvFmt(this)">mkv</div><div class="chip" data-v="avi" onclick="setConvFmt(this)">avi</div><div class="chip" data-v="mov" onclick="setConvFmt(this)">mov</div>
+          <div class="chip active" data-v="mp3" onclick="setConvFmt(this)">mp3</div><div class="chip" data-v="flac" onclick="setConvFmt(this)">flac</div><div class="chip" data-v="wav" onclick="setConvFmt(this)">wav</div><div class="chip" data-v="ogg" onclick="setConvFmt(this)">ogg</div><div class="chip" data-v="opus" onclick="setConvFmt(this)">opus</div><div class="chip" data-v="m4a" onclick="setConvFmt(this)">m4a</div>
+        </div>
+      </div>
+      <button class="action-btn" id="convBtn" onclick="startConvert()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg><span id="convBtnTxt">dosya seçin</span></button>
+    </div>
+  </div>
+</main>
+<input id="urlInput" type="url" hidden aria-hidden="true"><textarea id="urlTextarea" hidden aria-hidden="true"></textarea>
+<div id="siteBottomNav" data-active="convert"></div>
+<div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
+<div class="overlay tone-neutral" id="saveOverlay" onclick="handleOverlay(event,'saveOverlay')">
+  <div class="save-modal">
+    <div class="handle"></div>
+    <div class="save-title"><span>📥</span><span id="saveTitleTxt">nasıl kaydetmek istersin?</span></div>
+    <div class="save-btns">
+      <button class="save-btn" onclick="saveAction('download')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v13M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="saveDlTxt">indir</span></button>
+      <button class="save-btn" onclick="saveAction('share')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span id="saveShareTxt">paylaş</span></button>
+      <button class="save-btn" onclick="saveAction('copy')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg><span id="saveCopyTxt">kopyala</span></button>
+    </div>
+    <div class="save-note" id="saveNoteTxt">tarayıcı pop-up'ları engelliyorsa "indir" butonunu kullanın.</div>
+    <button class="save-done" onclick="closeOverlay('saveOverlay')" id="saveDoneTxt">tamam</button>
+  </div>
+</div>
+<script src="app.d4596317c4a7.js"></script>
+<script src="site-shell.js"></script>
+</body>
+</html>

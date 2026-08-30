@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>İndirme geçmişi — ZenithW</title>
+<meta name="description" content="Bu tarayıcıda saklanan ZenithW indirme geçmişi.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" type="image/png" href="zenithw.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.487d49f0164d.css">
+<link rel="stylesheet" href="site-shell.css">
+</head>
+<body class="theme-default tool-page">
+<main class="tool-page-main">
+  <a class="tool-page-brand" href="/">ZenithW<span>.</span></a>
+  <div class="upd-modal tool-page-panel" style="max-width:420px;">
+    <div class="handle" style="margin:-6px auto 12px;"></div>
+    <button class="modal-close-btn">✕</button>
+    <div class="upd-title" id="historyTitle">indirme geçmişi</div>
+    <div id="historyList" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+      <div style="text-align:center;padding:40px;color:var(--text3);font-size:12px;">yükleniyor...</div>
+    </div>
+    <button class="action-btn" onclick="clearHistory()" style="margin-top:16px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg><span id="clearHistoryTxt">geçmişi temizle</span></button>
+  </div>
+</main>
+<input id="urlInput" type="url" hidden aria-hidden="true"><textarea id="urlTextarea" hidden aria-hidden="true"></textarea>
+<div id="siteBottomNav" data-active="history"></div>
+<div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
+
+<script src="app.d4596317c4a7.js"></script>
+<script src="site-shell.js"></script>
+<script>
+window.reDownload=function(url){
+  if(!url)return;
+  try{sessionStorage.setItem('zw_pending_url',url);}catch(e){}
+  location.href='/';
+};
+</script>
+</body>
+</html>
