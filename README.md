@@ -1,8 +1,8 @@
 <p align="center">
-  <a href="./README.tr.md">🇹🇷 Turkish Version</a> •
-  <a href="./README.fr.md">🇫🇷 Version Française</a> •
-  <a href="./README.ja.md">🇯🇵 日本語版</a> •
-  <a href="./README.de.md">🇩🇪 Deutsche Version</a>
+  <a href="./README.tr.md">Turkish</a> •
+  <a href="./README.fr.md">Française</a> •
+  <a href="./README.ja.md">日本語版</a> •
+  <a href="./README.de.md">Deutsche</a>
 </p>
 
 ---
