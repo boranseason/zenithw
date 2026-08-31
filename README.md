@@ -1,3 +1,11 @@
+<p align="center">
+  <a href="./README.tr.md">🇹🇷 Turkish Version (README.tr.md)</a> •
+  <a href="./README.fr.md">🇫🇷 Version Française</a> •
+  <a href="./README.ja.md">🇯🇵 日本語版</a> •
+  <a href="./README.de.md">🇩🇪 Deutsche Version</a>
+</p>
+
+---
 # ZenithW
 
 **Free, ad-free, watermark-free media downloader.** Download video and audio from YouTube, TikTok, Instagram, X/Twitter, Reddit, and more with a single click.
