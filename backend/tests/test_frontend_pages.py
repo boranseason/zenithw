@@ -25,7 +25,7 @@ class StandaloneToolPageTests(unittest.TestCase):
             with self.subTest(filename=filename):
                 source = (FRONTEND / filename).read_text(encoding="utf-8")
                 self.assertIn('id="siteBottomNav"', source)
-                self.assertIn('src="site-shell.js?v=14.0"', source)
+                self.assertIn('src="site-shell.js?v=14.1"', source)
 
     def test_services_are_a_home_page_popover(self):
         source = (FRONTEND / "index.html").read_text(encoding="utf-8")
@@ -43,6 +43,7 @@ class StandaloneToolPageTests(unittest.TestCase):
         index = (FRONTEND / "index.html").read_text(encoding="utf-8")
         shell = (FRONTEND / "site-shell.js").read_text(encoding="utf-8")
         self.assertIn('id="timeGreeting"', index)
+        self.assertNotIn('class="logo-wrap" onclick=', index)
         self.assertIn("const TR_GREETING_COUNT=110", shell)
         for period in ("deepNight", "morning", "noon", "evening", "lateNight"):
             self.assertIn(f"{period}:", shell)
@@ -63,9 +64,13 @@ class StandaloneToolPageTests(unittest.TestCase):
     def test_settings_use_the_wide_workspace_layout(self):
         settings = (FRONTEND / "settings.html").read_text(encoding="utf-8")
         shell = (FRONTEND / "site-shell.css").read_text(encoding="utf-8")
-        self.assertIn('class="theme-default tool-page settings-page"', settings)
+        self.assertIn('class="theme-default tool-page settings-page mobile-settings-index"', settings)
         self.assertIn('id="appVersion"', settings)
+        self.assertIn('id="stPageAccessibility"', settings)
+        self.assertIn('id="stPageAdvanced"', settings)
+        self.assertIn('id="mobileSettingsTitle"', settings)
         self.assertIn("body.settings-page.tool-page", shell)
+        self.assertIn(".settings-page.mobile-settings-index .st-content{display:none}", shell)
 
 
 if __name__ == "__main__":
