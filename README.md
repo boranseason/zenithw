@@ -156,6 +156,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `ORIGIN_SECRET` | **Yes** when origin lock is enabled | Shared secret injected by Cloudflare in the `X-Origin-Verify` header |
 | `ENABLE_ORIGIN_LOCK` | No (default enabled) | Set to `0` only when intentionally disabling the origin-secret check |
 | `TRUST_PROXY` | No (default enabled) | Trust Cloudflare/proxy client-IP headers; disable when serving the backend directly |
+| `PROXY_HOPS` | No (default `1`) | Number of explicitly trusted reverse-proxy hops used by `ProxyFix`; keep `1` for the supplied EC2 Nginx config |
 | `ARIA2_ENABLED` | No | Currently ignored — aria2 is disabled for SSRF protection |
 | `DOWNLOAD_TIMEOUT_SECONDS` | No (default `600`) | Maximum time allowed for a single download |
 | `FFMPEG_TIMEOUT_SECONDS` | No (default `120`) | Maximum runtime for a single FFmpeg conversion or mute operation |

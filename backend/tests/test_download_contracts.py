@@ -70,6 +70,17 @@ class SourceHealthTests(unittest.TestCase):
     def test_backend_source_compiles(self):
         compile(APP_SOURCE, str(APP_PATH), "exec")
 
+    def test_proxy_fix_can_be_disabled_and_has_bounded_hops(self):
+        self.assertIn('if TRUST_PROXY:', APP_SOURCE)
+        self.assertIn('PROXY_HOPS = _bounded_env_int("PROXY_HOPS", 1, 1, 8)', APP_SOURCE)
+        self.assertIn('x_for=PROXY_HOPS', APP_SOURCE)
+
+    def test_client_ip_does_not_parse_raw_x_forwarded_for(self):
+        source = function_source("get_client_ip")
+        self.assertNotIn("request.headers.get('X-Forwarded-For')", source)
+        self.assertIn("origin_secret_valid", source)
+        self.assertIn("_is_cloudflare_ip(remote_ip)", source)
+
     def test_info_auth_errors_can_reach_cookie_fallback(self):
         source = function_source("get_info_with_slot")
         self.assertIn("future_cookie_profile", source)
@@ -83,6 +94,47 @@ class SourceHealthTests(unittest.TestCase):
         source = function_source("download_thumbnail_with_slot")
         self.assertIn('"429" in es or "too many requests" in es', source)
         self.assertIn("next_has_cookies and not auth_required", source)
+
+
+class ClientIpTrustTests(unittest.TestCase):
+    def _call(self, *, remote, headers, trust_proxy=True, cloudflare_peer=False):
+        namespace = {
+            "request": SimpleNamespace(remote_addr=remote, headers=headers),
+            "TRUST_PROXY": trust_proxy,
+            "ORIGIN_SECRET_VALUE": "origin-secret",
+            "ORIGIN_SECRET_HEADER": "X-Origin-Verify",
+            "hmac": SimpleNamespace(compare_digest=lambda a, b: a == b),
+            "_normalize_client_ip": load_function(
+                "_normalize_client_ip", {"ipaddress": __import__("ipaddress")}
+            ),
+            "_is_cloudflare_ip": lambda value: cloudflare_peer,
+        }
+        return load_function("get_client_ip", namespace)()
+
+    def test_direct_client_cannot_spoof_cloudflare_header(self):
+        self.assertEqual(self._call(
+            remote="203.0.113.10",
+            headers={"CF-Connecting-IP": "198.51.100.44"},
+        ), "203.0.113.10")
+
+    def test_origin_secret_authenticates_cloudflare_header(self):
+        self.assertEqual(self._call(
+            remote="10.0.0.8",
+            headers={
+                "CF-Connecting-IP": "198.51.100.44",
+                "X-Origin-Verify": "origin-secret",
+            },
+        ), "198.51.100.44")
+
+    def test_disabled_proxy_mode_ignores_all_forwarded_headers(self):
+        self.assertEqual(self._call(
+            remote="203.0.113.10",
+            headers={
+                "CF-Connecting-IP": "198.51.100.44",
+                "X-Origin-Verify": "origin-secret",
+            },
+            trust_proxy=False,
+        ), "203.0.113.10")
 
     def test_ffmpeg_thread_limit_covers_ytdlp_and_convert(self):
         base_source = function_source("get_base_opts")

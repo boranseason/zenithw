@@ -43,13 +43,31 @@ logging.getLogger("engineio").setLevel(logging.WARNING)
 logging.getLogger("socketio").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
+
+def _bounded_env_int(name, default, minimum, maximum):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return min(maximum, max(minimum, value))
+
+
 # ── Flask App ──────────────────────────────────────────
 app = Flask(__name__, static_folder=None)
 
-# Railway/Cloudflare arkasında çalışırken gerçek client IP'sini almak için
-# ProxyFix middleware. Railway'in internal proxy IP'leri yerine X-Forwarded-For
-# zincirinin başındaki (Cloudflare) IP'sini kullanır.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+# Only trust forwarded headers when the deployment explicitly enables its
+# reverse-proxy boundary. On AWS, Nginx accepts CF-Connecting-IP only from the
+# published Cloudflare networks, replaces X-Forwarded-For, and is the one
+# trusted hop. Railway remains compatible with the same one-hop default.
+TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
+PROXY_HOPS = _bounded_env_int("PROXY_HOPS", 1, 1, 8)
+if TRUST_PROXY:
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=PROXY_HOPS,
+        x_proto=PROXY_HOPS,
+        x_host=PROXY_HOPS,
+    )
 
 # SECRET_KEY: Production'da mutlaka env variable ile sabit değer set edilmeli.
 # Set edilmezse her restart'ta session'lar geçersiz olur.
@@ -61,7 +79,7 @@ if not SECRET_KEY:
     else:
         raise RuntimeError(
             "SECRET_KEY environment variable is required in production. "
-            "Set it in Railway dashboard or set FLASK_ENV=development for local dev."
+            "Set it in the deployment environment or set FLASK_ENV=development for local dev."
         )
 app.config['SECRET_KEY'] = SECRET_KEY
 
@@ -71,14 +89,6 @@ MAX_UPLOAD_SIZE_BYTES = 95 * 1024 * 1024
 app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE_BYTES
 
 # ── Constants ──────────────────────────────────────────
-def _bounded_env_int(name, default, minimum, maximum):
-    try:
-        value = int(os.environ.get(name, str(default)))
-    except (TypeError, ValueError):
-        value = default
-    return min(maximum, max(minimum, value))
-
-
 def _bounded_env_float(name, default, minimum, maximum):
     try:
         value = float(os.environ.get(name, str(default)))
@@ -212,7 +222,7 @@ def _load_pot_provider_config():
         raise RuntimeError("YOUTUBE_POT_PROVIDER_URL has an invalid port") from exc
     host = (parsed.hostname or "").lower().rstrip(".")
     if parsed.scheme != "http":
-        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must use http on Railway's private network")
+        raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must use http on a private or loopback network")
     if not host or not (1 <= port <= 65535):
         raise RuntimeError("YOUTUBE_POT_PROVIDER_URL must contain a valid hostname and port")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -439,9 +449,6 @@ cancel_rate_limiter = TTLCache(
 )
 
 # ── Client IP tespiti ─────────────────────────────────
-TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") != "0"
-
-
 def _normalize_client_ip(value):
     try:
         return str(ipaddress.ip_address((value or "").strip()))
@@ -450,20 +457,26 @@ def _normalize_client_ip(value):
 
 
 def get_client_ip():
+    remote_ip = _normalize_client_ip(request.remote_addr)
     if TRUST_PROXY:
-        # 1. Öncelik: Cloudflare'in kendi header'ı (CF-Connecting-IP)
+        # CF-Connecting-IP is accepted only when the direct/proxy-resolved peer
+        # is Cloudflare or the request carries the shared Cloudflare origin
+        # secret. This prevents a direct client from spoofing rate-limit keys.
+        origin_secret_valid = bool(
+            ORIGIN_SECRET_VALUE
+            and hmac.compare_digest(
+                request.headers.get(ORIGIN_SECRET_HEADER, ""),
+                ORIGIN_SECRET_VALUE,
+            )
+        )
         cf_ip = request.headers.get('CF-Connecting-IP')
-        if cf_ip:
+        if cf_ip and (origin_secret_valid or _is_cloudflare_ip(remote_ip)):
             candidate = _normalize_client_ip(cf_ip)
             if candidate:
                 return candidate
-        # 2. Fallback: X-Forwarded-For (Railway'de ProxyFix ile parse ediliyor)
-        xff = request.headers.get('X-Forwarded-For')
-        if xff:
-            candidate = _normalize_client_ip(xff.split(',')[0])
-            if candidate:
-                return candidate
-    return _normalize_client_ip(request.remote_addr) or "unknown"
+        # ProxyFix already reduced the configured trusted-hop chain to
+        # request.remote_addr. Never parse a raw X-Forwarded-For value again.
+    return remote_ip or "unknown"
 
 
 def check_rate_limit(ip):
@@ -495,7 +508,7 @@ if ENABLE_ORIGIN_LOCK and not ORIGIN_SECRET_VALUE:
     else:
         raise RuntimeError(
             "ORIGIN_SECRET environment variable is required when ENABLE_ORIGIN_LOCK is enabled. "
-            "Set it in Railway/Cloudflare, disable ENABLE_ORIGIN_LOCK explicitly, or use "
+            "Set it in the origin and Cloudflare, disable ENABLE_ORIGIN_LOCK explicitly, or use "
             "ALLOW_INSECURE_ORIGIN_LOCK=1 only for local development."
         )
 
@@ -549,7 +562,7 @@ def _enforce_cloudflare_origin():
             return jsonify({"error": "Not Found"}), 404
     else:
         logger.warning("[ORIGIN-LOCK] ORIGIN_SECRET ayarlı değil — origin-lock etkin şekilde devre dışı. "
-                       "Railway env değişkenlerine ORIGIN_SECRET ekleyip Cloudflare'de aynı değeri "
+                       "Origin env değişkenlerine ORIGIN_SECRET ekleyip Cloudflare'de aynı değeri "
                        "X-Origin-Verify header'ı olarak enjekte eden bir Transform Rule tanımlayın.")
 
     return None

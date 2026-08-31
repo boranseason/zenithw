@@ -18,7 +18,7 @@ limits. Instance-local files would also be unavailable from another replica.
 
 ## Safe scaling policy
 
-1. Keep `--workers 1` and one Railway replica. Scale the existing instance
+1. Keep `--workers 1` and one Railway replica or EC2 service. Scale the existing instance
    vertically if CPU, memory, or disk measurements require more headroom.
 2. Treat `/health` values `deployment_mode`, `horizontal_scaling_safe`, and
    `expected_gunicorn_workers` as a deployment guard. Horizontal scaling is not
@@ -51,3 +51,29 @@ Environment variables remain available as emergency overrides:
 After a workflow run, wait for both platform deployments and verify `/health` plus
 `/maintenance-status`. Do not scale workers or replicas as part of maintenance; the
 single-process boundary still applies.
+
+## AWS EC2 deployment boundary
+
+The checked-in files under `deploy/` are the production templates for a standard
+Ubuntu EC2 host:
+
+- `systemd/zenithw-backend.service` keeps exactly one Gunicorn/gevent worker bound to
+  loopback, so the application port is never exposed publicly.
+- `nginx/cloudflare-real-ip.conf` trusts `CF-Connecting-IP` only when the TCP
+  peer belongs to Cloudflare's published proxy networks.
+- `nginx/zenithw.conf` replaces forwarded client-IP headers, supports Socket.IO
+  upgrades, disables response/request buffering for progress and streaming, and
+  terminates TLS with a certificate valid for `api.zenithw.space`.
+- `zenithw.env.example` preserves the conservative single-worker limits and runs
+  the optional PO Token provider on local loopback.
+
+For EC2, keep the security group limited to SSH from the administrator's current
+IP and HTTP/HTTPS from Cloudflare's official IPv4/IPv6 ranges. Keep Railway live
+until the EC2 origin passes `/health`, `/ready`, CORS, WebSocket, real-IP,
+download, conversion, cancellation, streaming, and cleanup tests through the
+public proxied hostname.
+
+Set Cloudflare to **Full (strict)** only after the origin certificate is installed
+and direct origin TLS has been verified with the `api.zenithw.space` hostname.
+Then change the proxied `api` DNS record to the stable EC2 public IPv4/Elastic IP.
+Do not delete Railway during cutover; retain its hostname as the rollback target.
