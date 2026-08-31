@@ -1,5 +1,5 @@
 const LATEST_UPDATE=
-{ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,
+{ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,cover:'zenithw.png',coverAltTr:'ZenithW v14 kapak görseli',coverAltEn:'ZenithW v14 cover image',
 titleTr:'Fanta molasında başlayan yeni bir ZenithW',
 titleEn:'a new ZenithW that started over a Fanta break',
 introTr:[
@@ -79,6 +79,9 @@ async function render(){
   document.getElementById('updBadge').classList.toggle('is-latest',!!u.latest);
   document.getElementById('updDate').textContent=CUR_LANG==='tr'?u.dateTr:u.dateEn;
   document.getElementById('updPostTitle').textContent=CUR_LANG==='tr'?u.titleTr:u.titleEn;
+  const cover=document.getElementById('updCover'),coverImg=document.getElementById('updCoverImg');
+  if(u.cover){cover.hidden=false;coverImg.src=u.cover;coverImg.alt=CUR_LANG==='tr'?(u.coverAltTr||'Güncelleme kapak görseli'):(u.coverAltEn||'Release cover image');}
+  else{cover.hidden=true;coverImg.removeAttribute('src');coverImg.alt='';}
   document.getElementById('updAnma').innerHTML='';
 
   const intro=CUR_LANG==='tr'?u.introTr:u.introEn;

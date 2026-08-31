@@ -77,7 +77,9 @@ const TX={
     accDefault:'klasik',accDefaultDesc:'buz mavisi · dengeli',accPurple:'neon mor',accPurpleDesc:'elektrik moru · derin uzay',accGray:'grafit',accGrayDesc:'nötr gri · sade',accPink:'neon pembe',accPinkDesc:'canlı pembe · sıcak',accCobalt:'cobalt mavisi',accCobaltDesc:'derin mavi · odaklı',
     saveTitleTxt:'nasıl kaydetmek istersin?',saveDlTxt:'indir',saveShareTxt:'paylaş',saveCopyTxt:'kopyala',
     saveNoteTxt:'tarayıcı pop-up\'ları engelliyorsa "indir" butonunu kullanın.',saveDoneTxt:'tamam',
-    stModalTitle:'ayarlar',stModalSubtitle:'indirme deneyimini özelleştir',stNavVideo:'video',stNavAudio:'ses',stNavAppearance:'görünüm',stNavMeta:'metadata',stNavFilename:'dosya adı',stNavClose:'kapat',
+    stModalTitle:'ayarlar',stModalSubtitle:'indirme deneyimini özelleştir',stNavVideo:'video',stNavAudio:'ses',stNavAppearance:'görünüm',stNavAccessibility:'erişilebilirlik',stNavMeta:'metadata',stNavFilename:'dosya adı',stNavAdvanced:'gelişmiş',stNavClose:'kapat',
+    stLblVisual:'görsel rahatlık',stReduceMotionName:'hareketleri azalt',stReduceMotionDesc:'animasyon ve geçişleri mümkün olduğunca kapatır.',stReduceTransparencyName:'şeffaflığı azalt',stReduceTransparencyDesc:'bulanıklık efektlerini kapatıp yüzeyleri daha belirgin yapar.',stLblBehavior:'davranış',stQueueName:'kuyruğu otomatik açma',stQueueDesc:'playlist indirmesi başlarken kuyruk arka planda çalışır.',
+    stSubtitleLangName:'tercih edilen altyazı dili',stSubtitleLangDesc:'seçilen dil yoksa İngilizce altyazı denenir.',stLblFilenameStyle:'dosya adı stili',stLblSaving:'kaydetme yöntemi',stSaveAsk:'sor',stSaveDownload:'indir',stSaveShare:'paylaş',stSaveCopy:'kopyala',stNoteSaving:'desteklenmeyen yöntemlerde güvenli indirme seçeneğine dönülür.',stLblSettingsData:'ayar verileri',stImportBtn:'içe aktar',stExportBtn:'dışa aktar',stResetBtn:'sıfırla',stLblLocalData:'yerel veriler',stClearLocalBtn:'geçmişi ve kuyruğu temizle',stNoteLocalData:'ayarların ve dil tercihin korunur; yalnızca ZenithW geçmişi ile yarım kalan kuyruk silinir.',
     stLblQuality:'video kalitesi',stNoteQuality:'tercih edilen kalite seçilir; bulunamazsa en yakın kullanılır.',
     stLblCodec:'youtube codec',stNoteCodec:'h264: max uyumluluk · av1: en iyi kalite, 8k & hdr · vp9: av1 kalitesi',
     stLblVFmt:'video formatı',stLblAFmt:'ses formatı',stNoteAFmt:'flac, wav: kayıpsız · mp3, ogg, opus, m4a: kayıplı',
@@ -141,7 +143,9 @@ const TX={
     accDefault:'classic',accDefaultDesc:'ice blue · balanced',accPurple:'neon purple',accPurpleDesc:'electric violet · deep space',accGray:'graphite',accGrayDesc:'neutral gray · minimal',accPink:'neon pink',accPinkDesc:'vivid pink · warm',accCobalt:'cobalt blue',accCobaltDesc:'deep blue · focused',
     saveTitleTxt:'choose how to save',saveDlTxt:'download',saveShareTxt:'share',saveCopyTxt:'copy',
     saveNoteTxt:'if your browser blocked the popup, use the download button.',saveDoneTxt:'done',
-    stModalTitle:'settings',stModalSubtitle:'customize your download experience',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'appearance',stNavMeta:'metadata',stNavFilename:'filename',stNavClose:'close',
+    stModalTitle:'settings',stModalSubtitle:'customize your download experience',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'appearance',stNavAccessibility:'accessibility',stNavMeta:'metadata',stNavFilename:'filename',stNavAdvanced:'advanced',stNavClose:'close',
+    stLblVisual:'visual comfort',stReduceMotionName:'reduce motion',stReduceMotionDesc:'disables animations and transitions whenever possible.',stReduceTransparencyName:'reduce transparency',stReduceTransparencyDesc:'disables blur and makes surfaces more solid.',stLblBehavior:'behavior',stQueueName:"don't open the queue automatically",stQueueDesc:'playlist downloads can continue in the background.',
+    stSubtitleLangName:'preferred subtitle language',stSubtitleLangDesc:'English subtitles are tried if the selected language is unavailable.',stLblFilenameStyle:'filename style',stLblSaving:'saving method',stSaveAsk:'ask',stSaveDownload:'download',stSaveShare:'share',stSaveCopy:'copy',stNoteSaving:'unsupported methods safely fall back to downloading.',stLblSettingsData:'settings data',stImportBtn:'import',stExportBtn:'export',stResetBtn:'reset',stLblLocalData:'local data',stClearLocalBtn:'clear history and queue',stNoteLocalData:'settings and language stay intact; only ZenithW history and unfinished queue are removed.',
     stLblQuality:'video quality',stNoteQuality:'preferred quality is selected; closest available used if not found.',
     stLblCodec:'youtube codec',stNoteCodec:'h264: max compatibility · av1: best quality, 8k & hdr · vp9: av1 quality',
     stLblVFmt:'video format',stLblAFmt:'audio format',stNoteAFmt:'flac, wav: lossless · mp3, ogg, opus, m4a: lossy',
@@ -207,7 +211,9 @@ const TX={
     accDefault:'classique',accDefaultDesc:'bleu glacier · équilibré',accPurple:'violet néon',accPurpleDesc:'violet électrique · espace',accGray:'graphite',accGrayDesc:'gris neutre · minimal',accPink:'rose néon',accPinkDesc:'rose vif · chaleureux',accCobalt:'bleu cobalt',accCobaltDesc:'bleu profond · précis',
     saveTitleTxt:'comment voulez-vous enregistrer ?',saveDlTxt:'télécharger',saveShareTxt:'partager',saveCopyTxt:'copier',
     saveNoteTxt:'si votre navigateur bloque la fenêtre pop-up, utilisez le bouton "télécharger".',saveDoneTxt:'terminé',
-    stModalTitle:'paramètres',stModalSubtitle:'personnalisez votre expérience',stNavVideo:'vidéo',stNavAudio:'audio',stNavAppearance:'apparence',stNavMeta:'métadonnées',stNavFilename:'nom de fichier',stNavClose:'fermer',
+    stModalTitle:'paramètres',stModalSubtitle:'personnalisez votre expérience',stNavVideo:'vidéo',stNavAudio:'audio',stNavAppearance:'apparence',stNavAccessibility:'accessibilité',stNavMeta:'métadonnées',stNavFilename:'nom de fichier',stNavAdvanced:'avancé',stNavClose:'fermer',
+    stLblVisual:'confort visuel',stReduceMotionName:'réduire les animations',stReduceMotionDesc:'désactive les animations et transitions si possible.',stReduceTransparencyName:'réduire la transparence',stReduceTransparencyDesc:'désactive le flou et renforce les surfaces.',stLblBehavior:'comportement',stQueueName:"ne pas ouvrir la file automatiquement",stQueueDesc:'les téléchargements continuent en arrière-plan.',
+    stSubtitleLangName:'langue de sous-titres préférée',stSubtitleLangDesc:"l'anglais est essayé si la langue choisie manque.",stLblFilenameStyle:'style du nom',stLblSaving:'méthode d’enregistrement',stSaveAsk:'demander',stSaveDownload:'télécharger',stSaveShare:'partager',stSaveCopy:'copier',stNoteSaving:'une méthode non prise en charge revient au téléchargement.',stLblSettingsData:'données des paramètres',stImportBtn:'importer',stExportBtn:'exporter',stResetBtn:'réinitialiser',stLblLocalData:'données locales',stClearLocalBtn:'effacer historique et file',stNoteLocalData:'les paramètres et la langue sont conservés.',
     stLblQuality:'qualité vidéo',stNoteQuality:'la qualité préférée est sélectionnée ; la plus proche disponible est utilisée si introuvable.',
     stLblCodec:'codec youtube',stNoteCodec:'h264 : compatibilité maximale · av1 : meilleure qualité, 8k & hdr · vp9 : qualité proche de av1',
     stLblVFmt:'format vidéo',stLblAFmt:'format audio',stNoteAFmt:'flac, wav : sans perte · mp3, ogg, opus, m4a : avec perte',
@@ -273,7 +279,9 @@ const TX={
     accDefault:'klassisch',accDefaultDesc:'eisblau · ausgewogen',accPurple:'neon-lila',accPurpleDesc:'elektrisches lila · weltraum',accGray:'graphit',accGrayDesc:'neutrales grau · minimal',accPink:'neon-pink',accPinkDesc:'lebendiges pink · warm',accCobalt:'kobaltblau',accCobaltDesc:'tiefblau · fokussiert',
     saveTitleTxt:'wie möchtest du speichern?',saveDlTxt:'herunterladen',saveShareTxt:'teilen',saveCopyTxt:'kopieren',
     saveNoteTxt:'wenn dein browser das pop-up blockiert, nutze den "herunterladen"-button.',saveDoneTxt:'fertig',
-    stModalTitle:'einstellungen',stModalSubtitle:'download-erlebnis anpassen',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'erscheinungsbild',stNavMeta:'metadaten',stNavFilename:'dateiname',stNavClose:'schließen',
+    stModalTitle:'einstellungen',stModalSubtitle:'download-erlebnis anpassen',stNavVideo:'video',stNavAudio:'audio',stNavAppearance:'erscheinungsbild',stNavAccessibility:'barrierefreiheit',stNavMeta:'metadaten',stNavFilename:'dateiname',stNavAdvanced:'erweitert',stNavClose:'schließen',
+    stLblVisual:'visueller komfort',stReduceMotionName:'bewegung reduzieren',stReduceMotionDesc:'deaktiviert animationen und übergänge soweit möglich.',stReduceTransparencyName:'transparenz reduzieren',stReduceTransparencyDesc:'deaktiviert weichzeichnung und verstärkt flächen.',stLblBehavior:'verhalten',stQueueName:'warteschlange nicht automatisch öffnen',stQueueDesc:'playlist-downloads laufen im hintergrund weiter.',
+    stSubtitleLangName:'bevorzugte untertitelsprache',stSubtitleLangDesc:'Englisch wird versucht, wenn die Sprache fehlt.',stLblFilenameStyle:'dateinamenstil',stLblSaving:'speichermethode',stSaveAsk:'fragen',stSaveDownload:'download',stSaveShare:'teilen',stSaveCopy:'kopieren',stNoteSaving:'nicht unterstützte methoden wechseln sicher zum download.',stLblSettingsData:'einstellungsdaten',stImportBtn:'importieren',stExportBtn:'exportieren',stResetBtn:'zurücksetzen',stLblLocalData:'lokale daten',stClearLocalBtn:'verlauf und warteschlange löschen',stNoteLocalData:'einstellungen und sprache bleiben erhalten.',
     stLblQuality:'videoqualität',stNoteQuality:'die bevorzugte qualität wird gewählt; falls nicht verfügbar, wird die nächstliegende genutzt.',
     stLblCodec:'youtube-codec',stNoteCodec:'h264: maximale kompatibilität · av1: beste qualität, 8k & hdr · vp9: qualität nahe an av1',
     stLblVFmt:'videoformat',stLblAFmt:'audioformat',stNoteAFmt:'flac, wav: verlustfrei · mp3, ogg, opus, m4a: verlustbehaftet',
@@ -353,6 +361,7 @@ function applyLang(){
   const ta=document.getElementById('themeAuto');if(ta)ta.textContent=t('themeAuto');
   const tl=document.getElementById('themeLight');if(tl)tl.textContent=t('themeLight');
   const td=document.getElementById('themeDark');if(td)td.textContent=t('themeDark');
+  const mobileTitle=document.getElementById('mobileSettingsTitle');if(mobileTitle&&document.body.classList.contains('mobile-settings-index'))mobileTitle.textContent=t('stModalTitle');
   // lang select
   const ls=document.getElementById('langSelect');if(ls)ls.value=LANG;
   // version — tek kaynaktan (version.js) otomatik, elle güncellemeye gerek yok
@@ -374,9 +383,21 @@ function setLang(lang){
 }
 
 // ── SETTINGS ─────────────────────────────────────────
-const S={quality:'1080',codec:'h264',vfmt:'mp4',afmt:'mp3',audioQ:'256',metadata:true,sponsorblock:false,subtitles:false,theme:'dark',fnfTemplate:'{title}.{ext}',accent:'default'};
+const DEFAULT_SETTINGS={quality:'1080',codec:'h264',vfmt:'mp4',afmt:'mp3',audioQ:'256',metadata:true,sponsorblock:false,subtitles:false,theme:'dark',fnfTemplate:'{title}.{ext}',filenameStyle:'basic',accent:'default',reduceMotion:false,reduceTransparency:false,keepQueueClosed:false,subtitleLang:'tr',saveMethod:'ask'};
+const S={...DEFAULT_SETTINGS};
 function saveSt(){try{localStorage.setItem('zw_s',JSON.stringify(S));}catch(e){}}
-function loadSt(){try{const r=localStorage.getItem('zw_s');if(r)Object.assign(S,JSON.parse(r));}catch(e){}}
+function cleanSettings(raw){
+  const clean={};
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return clean;
+  Object.keys(DEFAULT_SETTINGS).forEach(key=>{const value=raw[key],sample=DEFAULT_SETTINGS[key];if(typeof value===typeof sample)clean[key]=value;});
+  if(clean.fnfTemplate)clean.fnfTemplate=clean.fnfTemplate.slice(0,180);
+  return clean;
+}
+function loadSt(){try{const r=localStorage.getItem('zw_s');if(r)Object.assign(S,cleanSettings(JSON.parse(r)));}catch(e){}}
+function applyAccessibilityPrefs(){
+  document.documentElement.classList.toggle('zw-reduce-motion',!!S.reduceMotion);
+  document.documentElement.classList.toggle('zw-reduce-transparency',!!S.reduceTransparency);
+}
 function applyStUI(){
   document.querySelectorAll('#stQChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===S.quality));
   document.querySelectorAll('#stCodecChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===S.codec));
@@ -391,8 +412,13 @@ function applyStUI(){
   const tm=document.getElementById('togMetadata');if(tm){tm.classList.toggle('on',!!S.metadata);tm.setAttribute('aria-checked',String(!!S.metadata));}
   const tsb=document.getElementById('togSponsorblock');if(tsb){tsb.classList.toggle('on',!!S.sponsorblock);tsb.setAttribute('aria-checked',String(!!S.sponsorblock));}
   const tsu=document.getElementById('togSubtitles');if(tsu){tsu.classList.toggle('on',!!S.subtitles);tsu.setAttribute('aria-checked',String(!!S.subtitles));}
+  ['ReduceMotion','ReduceTransparency','KeepQueueClosed'].forEach(name=>{const key=name.charAt(0).toLowerCase()+name.slice(1),el=document.getElementById('tog'+name);if(el){el.classList.toggle('on',!!S[key]);el.setAttribute('aria-checked',String(!!S[key]));}});
+  const subLang=document.getElementById('subtitleLangSelect');if(subLang)subLang.value=S.subtitleLang||'tr';
+  document.querySelectorAll('#saveMethodChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===(S.saveMethod||'ask')));
+  document.querySelectorAll('#filenameStyleChips .chip').forEach(c=>c.classList.toggle('active',c.dataset.v===(S.filenameStyle||'basic')));
   ['Auto','Light','Dark'].forEach(n=>{const b=document.getElementById('theme'+n);if(b)b.classList.toggle('active',S.theme===n.toLowerCase());});
   const fi=document.getElementById('fnfInput');if(fi){fi.value=S.fnfTemplate||'{title}.{ext}';updateFnfPreview();}
+  applyAccessibilityPrefs();
 }
 
 // ── THEME ─────────────────────────────────────────────
@@ -872,7 +898,7 @@ function resumeQueue(){
   }).join('');
 
   document.getElementById('plQueueProgress').textContent=`${doneArr.length} / ${fullIdx.length} ${t('plQueueCompletedWord')}`;
-  openOverlay('plQueueOverlay');
+  if(!S.keepQueueClosed)openOverlay('plQueueOverlay');
 
   plQueueStopRequested=false;
   hideQueueResumeHint();
@@ -892,7 +918,7 @@ function openPlaylistQueueModal(){
   }).join('');
 
   document.getElementById('plQueueProgress').textContent=`0 / ${selectedIdx.length} ${t('plQueueCompletedWord')}`;
-  openOverlay('plQueueOverlay');
+  if(!S.keepQueueClosed)openOverlay('plQueueOverlay');
 
   plQueueStopRequested=false;
   hideQueueResumeHint();
@@ -926,7 +952,8 @@ async function runPlaylistQueue(fullSelectedIdx,alreadyDone,fmtOverride){
       plQueueActiveJob={downloadId:dId,controller};
       activeProgressJobId=dId;
       const filename=buildFilename(S.fnfTemplate||'{title}.{ext}',{title:it.title,uploader:'',url:it.url},fmt);
-      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']}),signal:controller.signal});
+      const preferredSub=S.subtitleLang&&S.subtitleLang!=='auto'?S.subtitleLang:'tr';
+      const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.url,quality:f.quality,format:fmt,codec:f.codec,audioQ:f.audioQ,metadata:f.metadata,sid:socketId,download_id:dId,download_name:filename,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:[preferredSub,'en']}),signal:controller.signal});
       const payload=await res.json().catch(()=>({}));
       if(!res.ok){
         errSet.add(i);
@@ -1134,7 +1161,8 @@ async function startDownload(options={}){
   if(typeof options.onJobStart==='function')options.onJobStart(activeJob);
   if(!bulk){dlId=requestId;dlAbort=controller;activeProgressJobId=requestId;}
   try{
-    const body={url:sourceInfo.url,quality:S.quality,format:fmt,codec:S.codec,audioQ:S.audioQ,metadata:S.metadata,sid:bulk?'':socketId,download_id:requestId,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:['tr','en']};
+    const preferredSub=S.subtitleLang&&S.subtitleLang!=='auto'?S.subtitleLang:'tr';
+    const body={url:sourceInfo.url,quality:S.quality,format:fmt,codec:S.codec,audioQ:S.audioQ,metadata:S.metadata,sid:bulk?'':socketId,download_id:requestId,audio_only:isAudio,mute:isMute,sponsorblock:!!S.sponsorblock,subtitles:!!S.subtitles,sub_langs:[preferredSub,'en']};
     if(!bulk)body.download_name=buildFilename(S.fnfTemplate||'{title}.{ext}',sourceInfo,fmt);
     const res=await fetch(API+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
     if(!bulk)dlId=null;
@@ -1205,7 +1233,12 @@ function fireConfetti(){
   setTimeout(()=>host.remove(),1400);
 }
 function releasePendingBlob(){if(pendingObjectUrl)URL.revokeObjectURL(pendingObjectUrl);pendingObjectUrl=null;pendingBlob=null;pendingFilename=null;}
-function openSaveModal(blob,filename){releasePendingBlob();pendingBlob=blob;pendingFilename=filename;openOverlay('saveOverlay');}
+function openSaveModal(blob,filename){
+  releasePendingBlob();pendingBlob=blob;pendingFilename=filename;
+  const method=S.saveMethod||'ask';
+  if(method==='ask')openOverlay('saveOverlay');
+  else saveAction(method);
+}
 function saveAction(type){
   if(!pendingBlob)return;
   const url=URL.createObjectURL(pendingBlob);
@@ -1229,12 +1262,35 @@ function getPlatformName(url){if(url.includes('youtube')||url.includes('youtu.be
 function updateFnfPreview(){const tpl=document.getElementById('fnfInput').value||'{title}.{ext}';S.fnfTemplate=tpl;saveSt();const el=document.getElementById('fnfPreview');if(el)el.textContent='Örnek: '+buildFilename(tpl,{title:'video_başlığı',uploader:'sanatçı',url:''},S.afmt||'mp3');}
 function insertFnfTag(tag){const inp=document.getElementById('fnfInput');const pos=inp.selectionStart||inp.value.length;inp.value=inp.value.slice(0,pos)+tag+inp.value.slice(inp.selectionEnd||pos);inp.focus();updateFnfPreview();}
 function setFnfTemplate(tpl){document.getElementById('fnfInput').value=tpl;updateFnfPreview();}
+const FILENAME_STYLES={classic:'{title}.{ext}',basic:'{artist} - {title}.{ext}',pretty:'{title} · {artist}.{ext}',nerdy:'[{platform}] {date} - {title}.{ext}'};
+function setFilenameStyle(el){
+  const style=el.dataset.v||'basic';
+  S.filenameStyle=style;saveSt();
+  setFnfTemplate(FILENAME_STYLES[style]||FILENAME_STYLES.basic);
+  document.querySelectorAll('#filenameStyleChips .chip').forEach(c=>c.classList.toggle('active',c===el));
+}
 
 // ── SETTINGS UI ───────────────────────────────────────
 function openSettings(){openOverlay('stOverlay');}
-function stTab(el){document.querySelectorAll('.st-nav-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');el.setAttribute('aria-selected','true');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');const content=document.querySelector('.st-content');if(content)content.scrollTop=0;}
+function stTab(el){
+  document.querySelectorAll('.st-nav-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');el.setAttribute('aria-selected','true');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');const content=document.querySelector('.st-content');if(content)content.scrollTop=0;
+  if(window.matchMedia('(max-width:600px)').matches&&document.body.classList.contains('settings-page')){document.body.classList.remove('mobile-settings-index');const title=document.getElementById('mobileSettingsTitle'),label=el.querySelector('span');if(title&&label)title.textContent=label.textContent;window.scrollTo({top:0,behavior:'auto'});}
+}
+function showMobileSettingsHome(){if(!document.body.classList.contains('settings-page'))return;document.body.classList.add('mobile-settings-index');const title=document.getElementById('mobileSettingsTitle');if(title)title.textContent=t('stModalTitle');window.scrollTo({top:0,behavior:'auto'});}
 function stChip(el,key){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S[key]=el.dataset.v;saveSt();}
-function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+key.charAt(0).toUpperCase()+key.slice(1));if(tog){tog.classList.toggle('on',S[key]);tog.setAttribute('aria-checked',String(!!S[key]));}saveSt();}
+function stToggle(key){S[key]=!S[key];const tog=document.getElementById('tog'+key.charAt(0).toUpperCase()+key.slice(1));if(tog){tog.classList.toggle('on',S[key]);tog.setAttribute('aria-checked',String(!!S[key]));}saveSt();applyAccessibilityPrefs();}
+function setSettingValue(key,value){if(Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS,key)){S[key]=value;saveSt();}}
+function setChoice(el,key){setSettingValue(key,el.dataset.v);el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c===el));}
+function exportSettings(){
+  const blob=new Blob([JSON.stringify({app:'ZenithW',version:1,settings:S},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='zenithw-settings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(LANG==='tr'?'ayarlar dışa aktarıldı':'settings exported','#3bba64');
+}
+async function importSettings(file){
+  if(!file||file.size>100000){toast(LANG==='tr'?'geçersiz ayar dosyası':'invalid settings file','#ed4245');return;}
+  try{const parsed=JSON.parse(await file.text()),incoming=parsed&&parsed.settings?parsed.settings:parsed;Object.assign(S,DEFAULT_SETTINGS,cleanSettings(incoming));saveSt();applyStUI();setTheme(S.theme);setAccent(S.accent);toast(LANG==='tr'?'ayarlar içe aktarıldı':'settings imported','#3bba64');}catch(e){toast(LANG==='tr'?'ayar dosyası okunamadı':'could not read settings file','#ed4245');}
+}
+function resetSettings(){Object.assign(S,DEFAULT_SETTINGS);saveSt();applyStUI();setTheme(S.theme);setAccent(S.accent);toast(LANG==='tr'?'ayarlar sıfırlandı':'settings reset','#f59e0b');}
+function clearZenithLocalData(){try{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(QUEUE_STATE_KEY);}catch(e){}hideQueueResumeHint();toast(LANG==='tr'?'geçmiş ve kuyruk temizlendi':'history and queue cleared','#3bba64');}
 
 // ── REMUX ─────────────────────────────────────────────
 function openRemux(){openOverlay('remuxOverlay');}
@@ -1472,6 +1528,7 @@ async function reDownload(url){
   setTheme(S.theme||'dark');
   setAccent(S.accent||'default');
   applyLang(); // LAST — after all functions are defined
+  if(document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:600px)').matches)showMobileSettingsHome();
   resetCatTimer();
   window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(S.theme==='auto')setTheme('auto');});
 })();

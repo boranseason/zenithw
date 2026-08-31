@@ -28,22 +28,20 @@
     host.innerHTML=`
       <nav class="bottom-bar" aria-label="ZenithW">
         <a class="bar-btn ${active==='home'?'active':''}" href="/" aria-current="${active==='home'?'page':'false'}">${svg('home')}<span id="bbSave"></span></a>
-        <a class="bar-btn ${active==='history'?'active':''}" href="/history.html" aria-current="${active==='history'?'page':'false'}">${svg('history')}<span id="bbHistory"></span></a>
+        <a class="bar-btn ${active==='remux'?'active':''}" href="/remux.html" aria-current="${active==='remux'?'page':'false'}">${svg('remux')}<span id="bbRemux"></span></a>
+        <a class="bar-btn ${active==='settings'?'active':''}" href="/settings.html" aria-current="${active==='settings'?'page':'false'}">${svg('settings')}<span id="bbSettings"></span></a>
+        <a class="bar-btn ${active==='support'?'active':''}" href="/support.html" aria-current="${active==='support'?'page':'false'}">${svg('support')}<span id="bbSupport"></span></a>
         <a class="bar-btn ${active==='updates'?'active':''}" href="/updates" aria-current="${active==='updates'?'page':'false'}">${svg('updates')}<span id="bbUpdates"></span></a>
-        <a class="bar-btn ${active==='convert'?'active':''}" href="/convert.html" aria-current="${active==='convert'?'page':'false'}">${svg('convert')}<span id="bbConvert"></span></a>
-        <span class="bar-divider" aria-hidden="true"></span>
-        <button type="button" class="bar-btn ${['remux','settings','about','support'].includes(active)?'active':''}" id="moreBtn" aria-expanded="false" aria-controls="morePopup">${svg('more')}<span id="bbMore"></span></button>
       </nav>
       <div class="more-popup" id="morePopup">
-        <a class="more-item ${active==='remux'?'active':''}" href="/remux.html">${svg('remux')}<span id="moreItemRemux"></span></a>
-        <a class="more-item ${active==='settings'?'active':''}" href="/settings.html">${svg('settings')}<span id="moreItemSettings"></span></a>
-        <a class="more-item ${active==='support'?'active':''}" href="/support.html">${svg('support')}<span id="moreItemDonate"></span></a>
+        <a class="more-item ${active==='history'?'active':''}" href="/history.html">${svg('history')}<span id="moreItemHistory"></span></a>
+        <a class="more-item ${active==='convert'?'active':''}" href="/convert.html">${svg('convert')}<span id="moreItemConvert"></span></a>
         <a class="more-item ${active==='about'?'active':''}" href="/about">${svg('about')}<span id="moreItemAbout"></span></a>
       </div>`;
   }
   function applyShellLanguage(){
     const lang=currentLang(),copy=labels[lang];
-    const map={bbSave:'home',bbHistory:'history',bbUpdates:'updates',bbConvert:'convert',bbMore:'more',moreItemRemux:'remux',moreItemSettings:'settings',moreItemAbout:'about',moreItemDonate:'support'};
+    const map={bbSave:'home',bbRemux:'remux',bbSettings:'settings',bbSupport:'support',bbUpdates:'updates',moreItemHistory:'history',moreItemConvert:'convert',moreItemAbout:'about'};
     Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=copy[key];});
     updateTimeGreeting();
   }
