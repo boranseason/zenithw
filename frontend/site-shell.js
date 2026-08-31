@@ -47,17 +47,61 @@
     Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=copy[key];});
     updateTimeGreeting();
   }
-  const greetings={
-    tr:{morning:'günaydın kanka',noon:'iyi öğlenler dostum',evening:'iyi akşamlar kanka',night:'geceler dostum'},
-    en:{morning:'good morning, buddy',noon:'good afternoon, friend',evening:'good evening, buddy',night:'still up, friend'},
-    fr:{morning:'bonjour mon pote',noon:'bon après-midi l’ami',evening:'bonsoir mon pote',night:'encore debout l’ami'},
-    de:{morning:'guten morgen, kumpel',noon:'schönen mittag, freund',evening:'guten abend, kumpel',night:'noch wach, freund'}
+  // 110 Turkish greetings: 60 common, 30 rare, 15 epic and 5 legendary.
+  const TR_GREETING_COUNT=110;
+  const trGreetingDecks={
+    deepNight:{
+      common:['dostum saate bak, uyumaya ne dersin','gecenin bu saatinde hâlâ buradasın ha','uyku modu seni arıyor kanka','bir link daha, sonra gerçekten yatıyoruz','saat ilerledi dostum, gözlere mola','gece sessiz, ZenithW nöbette','ekranı biraz kısalım mı gece kuşu','yarının enerjisini bugünden harcama kanka','gece vardiyası yine bize kaldı','bu saatte indirilen video ayrı değerli','uykuya gitmeden son durak mı burası','gece üç kararları sabah sorgulanır'],
+      rare:['beyin uykuda anıları düzenler, ona biraz zaman ver','gece kuşlarının göz kırpma sayısı azalır, arada kırp kanka','mavi ışık melatonini şaşırtabilir, ekranı biraz ısıt','ayılar kış uykusunda nabızlarını ciddi biçimde yavaşlatır','dostum saat sabaha yaklaşıyor, yatağın seni özledi','şu an dünyanın bir yerinde herkes yeni güne uyanıyor'],
+      epic:['02.00 kulübüne hoş geldin; üyelik şartı biraz uykusuzluk','gecenin gizli bölümü açıldı, ödülün bir bardak su','bu mesajı görme ihtimalin düşüktü; şimdi gerçekten dinlen'],
+      legendary:['efsanevi gece kuşu bulundu; görev: bilgisayarı kapat ve güzel bir rüya indir']
+    },
+    morning:{
+      common:['günaydın kanka, yeni sekme yeni başlangıç','kahvaltı hazırsa linkler de hazır','sabah enerjisi sisteme yüklendi','günaydın dostum, bugün temiz başlıyoruz','güne bir dosya kadar hafif başla','uyandın mı kanka, ZenithW çoktan burada','sabahın ilk linki senden gelsin','kahve kokusu buraya kadar geldi','bugün güzel bir şey indirecek gibisin','güneş doğdu, indirme kuyruğu boş','günaydın şef, bağlantıyı bırak','sabah modu açık, telaş modu kapalı'],
+      rare:['güneş ışığı vücudun iç saatini ayarlamaya yardım eder','sabah birkaç dakika gün ışığı almak uyanmayı kolaylaştırabilir','arılar güneşin konumunu küçük danslarla anlatır','su samurları uyurken birbirlerini kaybetmemek için el ele tutuşabilir','dostum bugün küçük bir işi erkenden bitirmek iyi hissettirebilir','dünyanın en sessiz sabahları bile kuşlarla başlar'],
+      epic:['bugünün ilk güzel tesadüfü bu mesaj olabilir','sabah sandığından daha nadir bir selam yakaladın','güneş doğdu ve epic mod tesadüfen sana düştü'],
+      legendary:['efsanevi günaydın: bugün ertelediğin o küçük şeyi bitireceksin']
+    },
+    noon:{
+      common:['iyi öğlenler dostum, mola nasıl gidiyor','öğlen modu açık, bağlantıyı bırak','günün ortasında kısa bir ZenithW molası','kanka biraz su içtin mi','öğle arasında hızlı bir indirme mi','günün yarısı geçti, keyifler yerinde mi','öğlen güneşi dışarıda, dosyalar burada','bir link bırak, gerisini bize bırak','bugün tempo yüksek ama arayüz sakin','öğlen selamı benden, seçim senden','karnın toksa formatı seçelim','günün ortası, temiz bir başlangıç için geç değil'],
+      rare:['ahtapotların üç kalbi vardır, bizde tek ama sağlam sunucu var','muz botanikte meyve, çilek ise teknik olarak farklı bir yapıdadır','deniz su samurları ceplerinde sevdikleri taşları saklayabilir','bir bulut yüzlerce ton su taşıyabilir ve hâlâ süzülebilir','kısa bir yürüyüş öğleden sonraki odağı tazeleyebilir','insan beyni dinlenirken bile arka planda çalışmayı sürdürür'],
+      epic:['öğlenin nadir mesajı: bugün kendine biraz daha nazik davran','bu cümle öğle destesinin epic köşesinden düştü','günün tam ortasında küçük bir şans bonusu buldun'],
+      legendary:['efsanevi öğlen molası açıldı; bugün acele etmeden de yetişebilirsin']
+    },
+    evening:{
+      common:['iyi akşamlar kanka, gün nasıl geçti','akşam modu açık, acele etmiyoruz','günün yorgunluğunu bağlantıyla bırak','akşam sakinliği arayüze de geldi','dostum bugün elinden geleni yaptın','güneş battı, ZenithW ışıkları kıstı','akşamın ilk dosyası hangisi','bir çay koy, gerisini hallederiz','bugünü güzel bir videoyla kapatıyoruz','işler bittiyse keyif indirmesi başlasın','akşam selamı dosttan gelir','şimdi biraz kendine vakit ayırma zamanı'],
+      rare:['kediler günün büyük bölümünü uyuyarak geçirebilir ve hiç suçluluk duymaz','gün batımındaki kızıllık ışığın atmosferde daha uzun yol almasından gelir','penguenler kalabalıkta eşlerini seslerinden tanıyabilir','bazı ağaçlar kök ve mantar ağları üzerinden kaynak paylaşır','akşam ışığını azaltmak uykuya geçişi kolaylaştırabilir','bugün yaptığın küçük şeyler yarının temelini kuruyor'],
+      epic:['akşam destesinin epic mesajı sana denk geldi: bugün yeterdin','gün bitti sanma, huzurlu kısmı şimdi başlıyor','nadir akşam bonusu: sevdiğin birine selam göndermeyi unutma'],
+      legendary:['efsanevi akşam bulundu; bugünün bütün telaşı burada sona eriyor']
+    },
+    lateNight:{
+      common:['geceler dostum, hâlâ buralarda mısın','gece modu sana yakıştı kanka','son bir link deyip kaç tane oldu','sessizlik güzel, arayüz daha güzel','geceye sakin bir dosya bırakalım','yarına biraz enerji sakla dostum','ekran açık, şehir yavaşlıyor','gece indirmelerinin ayrı bir havası var','kanka gözlerin mola istiyor olabilir','uyumadan önce ne indiriyoruz','bugünü kapatmadan son bağlantı','gece geldi, gereksiz acele gitti'],
+      rare:['zürafalar çok kısa sürelerle uyuyabilir, sen yine de onları örnek alma','yunuslar uyurken beyinlerinin bir yarısını uyanık tutabilir','Satürn’ün yoğunluğu sudan düşüktür; yeterince büyük bir havuzda yüzebilirdi','gece gökyüzünde gördüğün bazı ışıklar yıllar önce yola çıktı','uyku sırasında beyin günün gereksiz ayrıntılarını ayıklamaya çalışır','yarınki sen, zamanında uyuyan bugünkü sana teşekkür edebilir'],
+      epic:['gecenin epic mesajı: her şeyi bugün bitirmek zorunda değilsin','nadir gece kartı açıldı; ödülün sakin bir nefes','bu cümle yalnızca uykuyla pazarlık edenlere görünür'],
+      legendary:['efsanevi gece mesajı: sekmeyi kapatınca rüyalar otomatik başlayacak']
+    }
   };
-  function updateTimeGreeting(){
+  const translatedGreetings={
+    en:{deepNight:['friend, look at the time—how about some sleep','one last link, then we really rest','the night shift found you again'],morning:['good morning, buddy','new morning, clean start','coffee ready, links ready'],noon:['good afternoon, friend','a small ZenithW break','half the day, plenty of time'],evening:['good evening, buddy','slow down, the day is done','tea first, link second'],lateNight:['still awake, friend','night mode suits you','save some energy for tomorrow']},
+    fr:{deepNight:['mon pote, regarde l’heure—on dort bientôt','un dernier lien, puis au lit','l’équipe de nuit te retrouve'],morning:['bonjour mon pote','nouveau matin, nouveau départ','café prêt, liens prêts'],noon:['bon après-midi l’ami','une petite pause ZenithW','la moitié du jour est passée'],evening:['bonsoir mon pote','la journée ralentit enfin','un thé puis un lien'],lateNight:['encore debout l’ami','le mode nuit te va bien','garde un peu d’énergie pour demain']},
+    de:{deepNight:['freund, schau auf die Uhr—wie wäre es mit Schlaf','ein letzter Link, dann ist Ruhe','die Nachtschicht hat dich gefunden'],morning:['guten Morgen, Kumpel','neuer Morgen, sauberer Start','Kaffee bereit, Links bereit'],noon:['schönen Mittag, Freund','eine kleine ZenithW-Pause','der halbe Tag ist geschafft'],evening:['guten Abend, Kumpel','der Tag wird endlich ruhiger','erst Tee, dann der Link'],lateNight:['noch wach, Freund','der Nachtmodus steht dir','heb etwas Energie für morgen auf']}
+  };
+  const greetingState={key:'',text:''};
+  function greetingPeriod(hour){return hour>=2&&hour<5?'deepNight':hour>=5&&hour<11?'morning':hour>=11&&hour<17?'noon':hour>=17&&hour<22?'evening':'lateNight';}
+  function greetingTier(){const roll=Math.random();return roll<.01?'legendary':roll<.08?'epic':roll<.28?'rare':'common';}
+  function chooseGreeting(lang,period){
+    if(lang!=='tr'){const pool=translatedGreetings[lang][period];return{text:pool[Math.floor(Math.random()*pool.length)],tier:'common'};}
+    const tier=greetingTier(),pool=trGreetingDecks[period][tier];let text=pool[Math.floor(Math.random()*pool.length)];
+    try{const key='zw_last_greeting_tr',last=localStorage.getItem(key);for(let i=0;text===last&&i<5;i++)text=pool[Math.floor(Math.random()*pool.length)];localStorage.setItem(key,text);}catch(e){}
+    return{text,tier};
+  }
+  function updateTimeGreeting(force){
     const title=document.getElementById('timeGreeting');if(!title)return;
-    const hour=new Date().getHours();
-    const part=hour>=5&&hour<11?'morning':hour>=11&&hour<17?'noon':hour>=17&&hour<23?'evening':'night';
-    title.replaceChildren(document.createTextNode(greetings[currentLang()][part]),Object.assign(document.createElement('span'),{textContent:'.'}));
+    const lang=currentLang(),period=greetingPeriod(new Date().getHours()),key=lang+':'+period;
+    if(!force&&greetingState.key===key)return;
+    const choice=chooseGreeting(lang,period);greetingState.key=key;greetingState.text=choice.text;
+    title.replaceChildren(document.createTextNode(choice.text),Object.assign(document.createElement('span'),{textContent:'.'}));
+    const badge=document.getElementById('greetingRarity');if(badge){badge.textContent=choice.tier;badge.className='greeting-rarity '+choice.tier;}
   }
   function toggleMoreMenu(){
     const button=document.getElementById('moreBtn'),popup=document.getElementById('morePopup');

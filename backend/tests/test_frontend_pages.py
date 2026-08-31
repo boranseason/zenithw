@@ -10,21 +10,28 @@ class StandaloneToolPageTests(unittest.TestCase):
         source = (FRONTEND / "index.html").read_text(encoding="utf-8")
         for overlay_id in (
             "historyOverlay", "remuxOverlay", "convOverlay",
-            "stOverlay", "donOverlay", "servicesOverlay",
+            "stOverlay", "donOverlay",
         ):
             self.assertNotIn(f'id="{overlay_id}"', source)
+        self.assertIn('id="servicesOverlay"', source)
         for workflow_overlay in ("dlOverlay", "plQueueOverlay", "saveOverlay"):
             self.assertIn(f'id="{workflow_overlay}"', source)
 
     def test_every_tool_destination_keeps_shared_navigation(self):
         for filename in (
             "history.html", "convert.html", "remux.html",
-            "settings.html", "support.html", "services.html",
+            "settings.html", "support.html",
         ):
             with self.subTest(filename=filename):
                 source = (FRONTEND / filename).read_text(encoding="utf-8")
                 self.assertIn('id="siteBottomNav"', source)
-                self.assertIn('src="site-shell.js"', source)
+                self.assertIn('src="site-shell.js?v=14.0"', source)
+
+    def test_services_are_a_home_page_popover(self):
+        source = (FRONTEND / "index.html").read_text(encoding="utf-8")
+        self.assertIn('onclick="toggleServices()"', source)
+        self.assertIn('class="services-popover"', source)
+        self.assertFalse((FRONTEND / "services.html").exists())
 
     def test_support_page_has_no_papara_details(self):
         source = (FRONTEND / "support.html").read_text(encoding="utf-8").lower()
@@ -36,10 +43,30 @@ class StandaloneToolPageTests(unittest.TestCase):
         index = (FRONTEND / "index.html").read_text(encoding="utf-8")
         shell = (FRONTEND / "site-shell.js").read_text(encoding="utf-8")
         self.assertIn('id="timeGreeting"', index)
-        for language in ("tr", "en", "fr", "de"):
-            self.assertIn(f"{language}:{{morning:", shell)
-        for period in ("morning", "noon", "evening", "night"):
-            self.assertIn(f"'{period}'", shell)
+        self.assertIn('id="greetingRarity"', index)
+        self.assertIn("const TR_GREETING_COUNT=110", shell)
+        for period in ("deepNight", "morning", "noon", "evening", "lateNight"):
+            self.assertIn(f"{period}:", shell)
+        for tier in ("common", "rare", "epic", "legendary"):
+            self.assertIn(f"{tier}:", shell)
+        for language in ("en", "fr", "de"):
+            self.assertIn(f"{language}:{{deepNight:", shell)
+
+    def test_v14_release_is_current_and_v13_8_is_archived(self):
+        version = (FRONTEND / "version.js").read_text(encoding="utf-8")
+        updates = (FRONTEND / "updates-core.99daf4ea6088.js").read_text(encoding="utf-8")
+        archive = (FRONTEND / "updates-archive.07c744021db2.js").read_text(encoding="utf-8")
+        self.assertIn("ver: 'v14.0'", version)
+        self.assertIn("Fanta molasında başlayan yeni bir ZenithW", updates)
+        self.assertIn("['v14.0', 'v13.8'", updates)
+        self.assertIn("{ver:'v13.8',latest:false", archive)
+
+    def test_settings_use_the_wide_workspace_layout(self):
+        settings = (FRONTEND / "settings.html").read_text(encoding="utf-8")
+        shell = (FRONTEND / "site-shell.css").read_text(encoding="utf-8")
+        self.assertIn('class="theme-default tool-page settings-page"', settings)
+        self.assertIn('id="appVersion"', settings)
+        self.assertIn("body.settings-page.tool-page", shell)
 
 
 if __name__ == "__main__":

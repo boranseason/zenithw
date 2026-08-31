@@ -11,22 +11,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.487d49f0164d.css">
-<link rel="stylesheet" href="site-shell.css">
+<link rel="stylesheet" href="site-shell.css?v=14.0">
+<script src="version.js?v=14.0"></script>
 </head>
-<body class="theme-default tool-page">
+<body class="theme-default tool-page settings-page">
 <main class="tool-page-main">
   <a class="tool-page-brand" href="/">ZenithW<span>.</span></a>
   <div class="st-modal tool-page-panel" aria-labelledby="stModalTitle">
     <header class="st-modal-header">
       <div class="st-modal-heading">
         <span class="st-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg></span>
-        <div><strong id="stModalTitle">ayarlar</strong><small id="stModalSubtitle">indirme deneyimini özelleştir</small></div>
+        <div><small class="settings-version" id="appVersion">v14.0 — 31 ağustos 2026</small><strong id="stModalTitle">ayarlar</strong><small id="stModalSubtitle">indirme deneyimini özelleştir</small></div>
       </div>
       <button type="button" class="st-modal-close" aria-label="Ayarları kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </header>
     <div class="st-modal-layout">
     <nav class="st-sidebar" aria-labelledby="stModalTitle" role="tablist">
-      <button class="st-nav-btn active" data-page="video" role="tab" aria-selected="true" aria-controls="stPageVideo" onclick="stTab(this)">
+      <button class="st-nav-btn" data-page="video" role="tab" aria-selected="false" aria-controls="stPageVideo" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
         <span id="stNavVideo">video</span>
       </button>
@@ -34,7 +35,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="stNavAudio">ses</span>
       </button>
-      <button class="st-nav-btn" data-page="appearance" role="tab" aria-selected="false" aria-controls="stPageAppearance" onclick="stTab(this)">
+      <button class="st-nav-btn active" data-page="appearance" role="tab" aria-selected="true" aria-controls="stPageAppearance" onclick="stTab(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
         <span id="stNavAppearance">görünüm</span>
       </button>
@@ -49,7 +50,7 @@
     </nav>
     <div class="st-content">
       <!-- VIDEO -->
-      <div class="st-page active" id="stPageVideo">
+      <div class="st-page" id="stPageVideo">
         <div class="st-section">
           <div class="st-section-label" id="stLblQuality">video kalitesi</div>
           <div class="st-chips" id="stQChips">
@@ -112,7 +113,7 @@
         </div>
       </div>
       <!-- APPEARANCE -->
-      <div class="st-page" id="stPageAppearance">
+      <div class="st-page active" id="stPageAppearance">
         <div class="st-section">
           <div class="st-section-label" id="stLblTheme">tema</div>
           <div class="theme-row">
@@ -220,6 +221,6 @@
 <div class="toast" id="toast"><div class="toast-dot" id="toastDot"></div><span id="toastTxt"></span></div>
 
 <script src="app.d4596317c4a7.js"></script>
-<script src="site-shell.js"></script>
+<script src="site-shell.js?v=14.0"></script>
 </body>
 </html>
