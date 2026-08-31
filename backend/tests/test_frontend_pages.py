@@ -69,6 +69,10 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn('id="stPageAccessibility"', settings)
         self.assertIn('id="stPageAdvanced"', settings)
         self.assertIn('id="mobileSettingsTitle"', settings)
+        self.assertIn('data-v="default"', settings)
+        self.assertIn('data-v="purple"', settings)
+        for removed_theme in ("gray", "pink", "cobalt"):
+            self.assertNotIn(f'data-v="{removed_theme}"', settings)
         self.assertIn("body.settings-page.tool-page", shell)
         self.assertIn(".settings-page.mobile-settings-index .st-content{display:none}", shell)
 

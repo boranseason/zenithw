@@ -437,7 +437,7 @@ function setTheme(th){
   syncBrowserThemeColor(isLight);
 }
 function setAccent(acc){
-  const themes=['default','purple','gray','pink','cobalt'];
+  const themes=['default','purple'];
   if(!themes.includes(acc))acc='default';
   S.accent=acc;saveSt();
   document.querySelectorAll('#stAccentChips .accent-option').forEach(option=>{
