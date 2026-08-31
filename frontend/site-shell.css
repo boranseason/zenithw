@@ -9,6 +9,7 @@ body:not(.light).theme-default{
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--nav-bg,rgba(8,8,8,.94));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border,rgba(255,255,255,.1));display:flex;align-items:center;padding:0 4px;height:var(--bar-height,64px);padding-bottom:var(--safe-bottom,0px);font-family:"Geist Mono",monospace;}
 .bar-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:1;height:100%;background:none;border:none;color:var(--text3,rgba(255,255,255,.55));font-size:9px;font-weight:600;font-family:inherit;letter-spacing:.3px;text-transform:lowercase;cursor:pointer;border-radius:10px;padding:8px 4px;min-width:0;}
 .bar-btn svg{width:18px;height:18px;stroke-width:1.6;flex-shrink:0;}
+.mobile-extra{display:none}
 .bar-btn:hover,.bar-btn.active{color:var(--accent,#78c8ff);background:var(--chip-hover,rgba(255,255,255,.08));}
 .bar-divider{width:1px;height:20px;background:var(--border,rgba(255,255,255,.1));flex-shrink:0;}
 .more-popup{position:fixed;bottom:calc(var(--bar-height,64px) + var(--safe-bottom,0px) + 8px);right:12px;z-index:600;min-width:160px;padding:6px;background:var(--surface,rgba(18,18,20,.97));border:1px solid var(--border2,rgba(255,255,255,.18));border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.4);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .18s,transform .18s;}
@@ -124,8 +125,10 @@ html.zw-reduce-transparency .overlay,html.zw-reduce-transparency .bottom-bar,htm
 }
 @media(max-width:900px){.services-overlay{padding-top:48px;}.services-popover{border-radius:14px;}}
 @media(max-width:900px){
-  .bottom-bar{height:calc(72px + var(--safe-bottom,0px));padding:4px 5px var(--safe-bottom,0px);gap:3px;background:rgba(17,18,20,.97);border-top-color:rgba(255,255,255,.12)}
-  .bar-btn{height:62px;padding:6px 2px;border-radius:14px;font-size:8.5px;gap:4px;transition:background .16s ease,color .16s ease,transform .12s ease}
+  .bottom-bar{height:calc(72px + var(--safe-bottom,0px));padding:4px 5px var(--safe-bottom,0px);gap:3px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x;background:rgba(17,18,20,.97);border-top-color:rgba(255,255,255,.12)}
+  .bottom-bar::-webkit-scrollbar{display:none}
+  .bar-btn{flex:0 0 74px;height:62px;padding:6px 2px;border-radius:14px;font-size:8.5px;gap:4px;scroll-snap-align:center;transition:background .16s ease,color .16s ease,transform .12s ease}
+  .mobile-extra{display:flex}
   .bar-btn svg{width:20px;height:20px}.bar-btn:active{transform:scale(.96)}
   .bar-btn.active{color:#101114;background:#ececec;box-shadow:0 6px 20px rgba(0,0,0,.2)}
   .more-popup{display:none}

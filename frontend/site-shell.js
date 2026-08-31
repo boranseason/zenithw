@@ -32,6 +32,9 @@
         <a class="bar-btn ${active==='settings'?'active':''}" href="/settings.html" aria-current="${active==='settings'?'page':'false'}">${svg('settings')}<span id="bbSettings"></span></a>
         <a class="bar-btn ${active==='support'?'active':''}" href="/support.html" aria-current="${active==='support'?'page':'false'}">${svg('support')}<span id="bbSupport"></span></a>
         <a class="bar-btn ${active==='updates'?'active':''}" href="/updates" aria-current="${active==='updates'?'page':'false'}">${svg('updates')}<span id="bbUpdates"></span></a>
+        <a class="bar-btn mobile-extra ${active==='history'?'active':''}" href="/history.html" aria-current="${active==='history'?'page':'false'}">${svg('history')}<span id="bbHistoryMobile"></span></a>
+        <a class="bar-btn mobile-extra ${active==='convert'?'active':''}" href="/convert.html" aria-current="${active==='convert'?'page':'false'}">${svg('convert')}<span id="bbConvertMobile"></span></a>
+        <a class="bar-btn mobile-extra ${active==='about'?'active':''}" href="/about" aria-current="${active==='about'?'page':'false'}">${svg('about')}<span id="bbAboutMobile"></span></a>
       </nav>
       <div class="more-popup" id="morePopup">
         <a class="more-item ${active==='history'?'active':''}" href="/history.html">${svg('history')}<span id="moreItemHistory"></span></a>
@@ -41,8 +44,9 @@
   }
   function applyShellLanguage(){
     const lang=currentLang(),copy=labels[lang];
-    const map={bbSave:'home',bbRemux:'remux',bbSettings:'settings',bbSupport:'support',bbUpdates:'updates',moreItemHistory:'history',moreItemConvert:'convert',moreItemAbout:'about'};
+    const map={bbSave:'home',bbRemux:'remux',bbSettings:'settings',bbSupport:'support',bbUpdates:'updates',bbHistoryMobile:'history',bbConvertMobile:'convert',bbAboutMobile:'about',moreItemHistory:'history',moreItemConvert:'convert',moreItemAbout:'about'};
     Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=copy[key];});
+    if(window.matchMedia('(max-width:900px)').matches){requestAnimationFrame(()=>document.querySelector('.bottom-bar .bar-btn.active')?.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'}));}
     updateTimeGreeting();
   }
   // 110 Turkish greetings: 60 common, 30 rare, 15 epic and 5 legendary.

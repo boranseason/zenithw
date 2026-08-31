@@ -25,7 +25,7 @@ class StandaloneToolPageTests(unittest.TestCase):
             with self.subTest(filename=filename):
                 source = (FRONTEND / filename).read_text(encoding="utf-8")
                 self.assertIn('id="siteBottomNav"', source)
-                self.assertIn('src="site-shell.js?v=14.1"', source)
+                self.assertIn('src="site-shell.js?v=14.3"', source)
 
     def test_services_are_a_home_page_popover(self):
         source = (FRONTEND / "index.html").read_text(encoding="utf-8")
