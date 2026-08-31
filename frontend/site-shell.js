@@ -99,7 +99,6 @@
     if(!force&&greetingState.key===key)return;
     const choice=chooseGreeting(lang,period);greetingState.key=key;greetingState.text=choice.text;
     title.replaceChildren(document.createTextNode(choice.text),Object.assign(document.createElement('span'),{textContent:'.'}));
-    const badge=document.getElementById('greetingRarity');if(badge){badge.textContent=choice.tier;badge.className='greeting-rarity '+choice.tier;}
   }
   function toggleMoreMenu(){
     const button=document.getElementById('moreBtn'),popup=document.getElementById('morePopup');

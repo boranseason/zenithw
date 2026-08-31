@@ -43,7 +43,6 @@ class StandaloneToolPageTests(unittest.TestCase):
         index = (FRONTEND / "index.html").read_text(encoding="utf-8")
         shell = (FRONTEND / "site-shell.js").read_text(encoding="utf-8")
         self.assertIn('id="timeGreeting"', index)
-        self.assertIn('id="greetingRarity"', index)
         self.assertIn("const TR_GREETING_COUNT=110", shell)
         for period in ("deepNight", "morning", "noon", "evening", "lateNight"):
             self.assertIn(f"{period}:", shell)

@@ -1274,7 +1274,7 @@ function setFilenameStyle(el){
 function openSettings(){openOverlay('stOverlay');}
 function stTab(el){
   document.querySelectorAll('.st-nav-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});document.querySelectorAll('.st-page').forEach(p=>p.classList.remove('active'));el.classList.add('active');el.setAttribute('aria-selected','true');const pg=document.getElementById('stPage'+el.dataset.page.charAt(0).toUpperCase()+el.dataset.page.slice(1));if(pg)pg.classList.add('active');const content=document.querySelector('.st-content');if(content)content.scrollTop=0;
-  if(window.matchMedia('(max-width:600px)').matches&&document.body.classList.contains('settings-page')){document.body.classList.remove('mobile-settings-index');const title=document.getElementById('mobileSettingsTitle'),label=el.querySelector('span');if(title&&label)title.textContent=label.textContent;window.scrollTo({top:0,behavior:'auto'});}
+  if(window.matchMedia('(max-width:900px)').matches&&document.body.classList.contains('settings-page')){document.body.classList.remove('mobile-settings-index');const title=document.getElementById('mobileSettingsTitle'),label=el.querySelector('span');if(title&&label)title.textContent=label.textContent;window.scrollTo({top:0,behavior:'auto'});}
 }
 function showMobileSettingsHome(){if(!document.body.classList.contains('settings-page'))return;document.body.classList.add('mobile-settings-index');const title=document.getElementById('mobileSettingsTitle');if(title)title.textContent=t('stModalTitle');window.scrollTo({top:0,behavior:'auto'});}
 function stChip(el,key){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S[key]=el.dataset.v;saveSt();}
@@ -1356,7 +1356,6 @@ async function startConvert(){
   }catch(e){lbl.textContent=e.name==='AbortError'?t('errTimeout'):t('errConversion');btn.disabled=false;showPublicError({error_code:e.name==='AbortError'?'request_timeout':'conversion_failed'},0,'',false);}
   finally{convBusy=false;}
 }
-
 // ── OVERLAYS ─────────────────────────────────────────
 let pageScrollLockY=0;
 const overlayReturnFocus=new Map();
@@ -1452,7 +1451,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ── UTILS ─────────────────────────────────────────────
 function toast(msg,color){const el=document.getElementById('toast');document.getElementById('toastTxt').textContent=msg;document.getElementById('toastDot').style.background=color||'#e8e8e8';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
 function copyText(txt,btn){navigator.clipboard.writeText(txt).then(()=>{const o=btn.textContent;btn.textContent='✓';setTimeout(()=>btn.textContent=o,2000);});}
-function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'});}
+function scrollToTop(){
+  if(document.activeElement&&typeof document.activeElement.blur==='function')document.activeElement.blur();
+  document.body.classList.remove('url-editing','modal-open');
+  document.documentElement.classList.remove('modal-open');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 function toggleAccordion(el){el.classList.toggle('open');}
 
 // ── HISTORY (localStorage — kullanıcıya özel, sunucuda tutulmaz) ──
@@ -1528,7 +1532,7 @@ async function reDownload(url){
   setTheme(S.theme||'dark');
   setAccent(S.accent||'default');
   applyLang(); // LAST — after all functions are defined
-  if(document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:600px)').matches)showMobileSettingsHome();
+  if(document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:900px)').matches)showMobileSettingsHome();
   resetCatTimer();
   window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(S.theme==='auto')setTheme('auto');});
   // Bazı mobil tarayıcılar (özellikle iOS Safari) sayfayı geri/ileri
@@ -1537,7 +1541,7 @@ async function reDownload(url){
   // kategori menüsünü atlıyordu. Sayfa bfcache'den geri geldiğinde mobilde
   // menüyü yeniden göster.
   window.addEventListener('pageshow',function(e){
-    if(e.persisted&&document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:600px)').matches){
+    if(e.persisted&&document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:900px)').matches){
       showMobileSettingsHome();
     }
   });
