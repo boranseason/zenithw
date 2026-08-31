@@ -1452,7 +1452,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ── UTILS ─────────────────────────────────────────────
 function toast(msg,color){const el=document.getElementById('toast');document.getElementById('toastTxt').textContent=msg;document.getElementById('toastDot').style.background=color||'#e8e8e8';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
 function copyText(txt,btn){navigator.clipboard.writeText(txt).then(()=>{const o=btn.textContent;btn.textContent='✓';setTimeout(()=>btn.textContent=o,2000);});}
-function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'});document.getElementById('urlInput').focus();}
+function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'});}
 function toggleAccordion(el){el.classList.toggle('open');}
 
 // ── HISTORY (localStorage — kullanıcıya özel, sunucuda tutulmaz) ──
@@ -1531,4 +1531,14 @@ async function reDownload(url){
   if(document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:600px)').matches)showMobileSettingsHome();
   resetCatTimer();
   window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(S.theme==='auto')setTheme('auto');});
+  // Bazı mobil tarayıcılar (özellikle iOS Safari) sayfayı geri/ileri
+  // gezinmede bfcache'den eski DOM durumuyla geri getirebiliyor. Bu durumda
+  // ayarlar sayfası en son açık kalan alt sekmeyle (ör. görünüm) geri gelip
+  // kategori menüsünü atlıyordu. Sayfa bfcache'den geri geldiğinde mobilde
+  // menüyü yeniden göster.
+  window.addEventListener('pageshow',function(e){
+    if(e.persisted&&document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:600px)').matches){
+      showMobileSettingsHome();
+    }
+  });
 })();
