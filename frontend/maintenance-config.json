@@ -1,7 +1,7 @@
 {
-  "active": false,
-  "title": "Kısa bir pati molası",
-  "message": "Pati ekibimiz sunucuların kablolarını düzeltiyor. Kısa süre sonra yeniden buradayız.",
-  "until": "",
+  "active": true,
+  "title": "Backend Adresimiz Amazon AWS taşınacak",
+  "message": "Sadece uzun bir süre bekleyin",
+  "until": "2026-09-01T20:40:00+03:00",
   "retryAfter": 900
 }
