@@ -67,7 +67,8 @@
 | Medya İşleme | FFmpeg |
 | Frontend | Pure HTML/CSS/JS (Framework yok) |
 | Frontend Barındırma | [Cloudflare Pages](https://pages.cloudflare.com) |
-| Backend Barındırma | [Railway](https://railway.app) |
+| Backend Barındırma | [Amazon EC2](https://aws.amazon.com/tr/ec2/) — Ubuntu, Nginx, systemd |
+| Uç Ağ, DNS ve TLS | [Cloudflare](https://www.cloudflare.com/) |
 
 ---
 
@@ -83,7 +84,7 @@ zenithw/
 │   ├── app.py                   # Flask API — meta veri, medya görevleri, yerel dosya aktarımı, sağlık, iptal
 │   ├── requirements.txt
 │   ├── requirements-dev.txt     # İsteğe bağlı yerel/CI araçları; canlı ortam kurulumlarından hariç tutulur
-│   ├── nixpacks.toml            # Railway derleme konfigürasyonu (ffmpeg dahil)
+│   ├── nixpacks.toml            # İsteğe bağlı PaaS derleme konfigürasyonu (ffmpeg dahil)
 │   ├── Procfile                 # Gunicorn + geventwebsocket çalıştırıcısı
 │   └── .gitignore
 ├── frontend/
@@ -153,7 +154,7 @@ Yerel frontend geliştirmesi için `frontend/` dizinindeki dosyaları açın vey
 | `PORT` | Hayır (varsayılan `5000`) | Sunucunun dinleyeceği port |
 | `SECRET_KEY` | **Evet** (Canlı ortamda) | Flask gizli anahtarı. Rastgele bir değer yalnızca geliştirme modunda oluşturulur |
 | `YOUTUBE_COOKIES` | Hayır | YouTube bot korumasını geçmek için kullanılan tarayıcıdan dışa aktarılmış `cookies.txt` içeriği |
-| `YOUTUBE_POT_PROVIDER_URL` | Hayır | YouTube PO Token sağlayıcısı için özel Railway temel URL'si; yalnızca özel Railway sunucuları veya yerel loopback kabul edilir |
+| `YOUTUBE_POT_PROVIDER_URL` | Hayır | EC2/Linux kurulumunda YouTube PO Token sağlayıcısının yerel loopback temel URL'si |
 | `FLASK_ENV` / `ALLOW_DEV_CORS` | Hayır | CORS üzerinden yerel kaynaklara izin vermek için `development` veya `1` yapın |
 | `ORIGIN_SECRET` | Kaynak kilidi etkinken **Evet** | Cloudflare tarafından `X-Origin-Verify` başlığında gönderilen ortak gizli anahtar |
 | `ENABLE_ORIGIN_LOCK` | Hayır (varsayılan etkin) | Yalnızca kaynak anahtarı kontrolü kasıtlı olarak devre dışı bırakıldığında `0` yapın |
@@ -161,7 +162,7 @@ Yerel frontend geliştirmesi için `frontend/` dizinindeki dosyaları açın vey
 | `ARIA2_ENABLED` | Hayır | Şu anda yoksayılıyor — SSRF koruması için aria2 devre dışı bırakılmıştır |
 | `DOWNLOAD_TIMEOUT_SECONDS` | Hayır (varsayılan `600`) | Tek bir indirme için izin verilen maksimum süre |
 | `FFMPEG_TIMEOUT_SECONDS` | Hayır (varsayılan `120`) | Tek bir FFmpeg dönüştürme veya sessize alma işlemi için maksimum çalışma süresi |
-| `FFMPEG_THREADS` | Hayır (varsayılan `2`) | yt-dlp sonrası işleme ve yüklenen dosya dönüştürme tarafından paylaşılan FFmpeg iş parçacığı üst sınırı; Railway Free üzerinde `1` kullanın |
+| `FFMPEG_THREADS` | Hayır (varsayılan `2`) | yt-dlp sonrası işleme ve yüklenen dosya dönüştürme tarafından paylaşılan FFmpeg iş parçacığı üst sınırı; production t3.small üzerinde `1` kullanılır |
 | `MAX_CONCURRENT_DOWNLOADS` | Hayır (varsayılan `2`) | Genel eşzamanlı indirme sınırı |
 | `MAX_CONCURRENT_CONVERSIONS` | Hayır (varsayılan `1`) | Genel eşzamanlı dönüştürme sınırı |
 | `MAX_CONCURRENT_PER_IP` | Hayır (varsayılan `5`) | IP başına eşzamanlı istek sınırı |
@@ -198,7 +199,7 @@ Yerel frontend geliştirmesi için `frontend/` dizinindeki dosyaları açın vey
 
 Normal kontrol akışı **GitHub → Actions → Bakım modu → Run workflow** şeklindedir. `enable` veya `disable` seçeneğini belirleyin, isteğe bağlı olarak metni/bitiş zamanını düzenleyin ve çalıştırın. İş akışı, eşleşen `backend/maintenance-config.json` ve `frontend/maintenance-config.json` dosyalarını tek bir commit ile günceller. 
 
-Railway, yeni `/info`, `/download`, `/thumbnail` ve `/convert` isteklerini JSON `503` ile reddederken; `/cancel`, `/files/<token>` ve `/health` kullanılabilir kalır.
+Backend, yeni `/info`, `/download`, `/thumbnail` ve `/convert` isteklerini JSON `503` ile reddederken; `/cancel`, `/files/<token>` ve `/health` kullanılabilir kalır.
 
 ---
 
@@ -214,7 +215,7 @@ Railway, yeni `/info`, `/download`, `/thumbnail` ve `/convert` isteklerini JSON 
 | `/convert` | POST | Yüklenen bir dosyayı yeniden kapsüller (remux) veya dönüştürür ve yerel bir indirme URL'si döndürür |
 | `/cancel` | POST | Devam eden bir indirmeyi iptal eder |
 | `/health` | GET | Minimum canlılık kontrol yanıtı |
-| `/ready` | GET | Railway hazırlık yanıtı; gerekli medya bağımlılıkları veya disk bütçesi uygun olmadığında 503 döndürür |
+| `/ready` | GET | Backend hazırlık yanıtı; gerekli medya bağımlılıkları veya disk bütçesi uygun olmadığında 503 döndürür |
 | `/diagnostics` | GET | Kaynak korumalı bağımlılık, kuyruk, önbellek, aktarım ve tek çalıştırıcı teşhis verileri |
 
 Normal API uç noktaları **IP başına dakikada 10 istek** ile sınırlandırılmıştır. `/health` ve `/ready` durum kontrol noktalarıdır, `/cancel` ayrı bir varsayılan **dakikada 30 istek** kotasına sahiptir ve `/convert` ek olarak **IP başına 10 dakikada 2 dönüştürme** olarak varsayılana ayarlanmıştır.
@@ -223,7 +224,7 @@ Normal API uç noktaları **IP başına dakikada 10 istek** ile sınırlandırı
 
 ## Dağıtım Modeli
 
-Backend kasıtlı olarak **tek bir Gunicorn çalıştırıcısı ve tek bir Railway kopyası** olarak çalışır. Hız sınırları, semaforlar, iptal olayları, Socket.IO tanımlayıcıları, meta veri önbellek girdileri, hazırlanan dosya belirteçleri ve geçici dosyalar şu anda işlem içi (process-local) olarak tutulur.
+Backend kasıtlı olarak **Amazon EC2 üzerindeki tek bir Gunicorn çalıştırıcısıyla** çalışır. Hız sınırları, semaforlar, iptal olayları, Socket.IO tanımlayıcıları, meta veri önbellek girdileri, hazırlanan dosya belirteçleri ve geçici dosyalar şu anda işlem içi (process-local) olarak tutulur.
 
 Paylaşılan koordinasyonu Redis'e taşımadan `--workers` sayısını artırmayın veya kopya eklemeyin. Kaynak korumalı `/diagnostics` yanıtı `horizontal_scaling_safe: false` ve `expected_gunicorn_workers: 1` olarak rapor verir.
 

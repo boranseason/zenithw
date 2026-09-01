@@ -65,7 +65,8 @@
 | Media processing | FFmpeg |
 | Frontend | Vanilla HTML/CSS/JS (no framework) |
 | Frontend hosting | [Cloudflare Pages](https://pages.cloudflare.com) |
-| Backend hosting | [Railway](https://railway.app) |
+| Backend hosting | [Amazon EC2](https://aws.amazon.com/ec2/) — Ubuntu, Nginx, systemd |
+| Edge, DNS and TLS | [Cloudflare](https://www.cloudflare.com/) |
 
 ---
 
@@ -81,7 +82,7 @@ zenithw/
 │   ├── app.py                   # Flask API — metadata, media jobs, native file handoff, health, cancellation
 │   ├── requirements.txt
 │   ├── requirements-dev.txt     # Optional local/CI tooling; excluded from production installs
-│   ├── nixpacks.toml            # Railway build config (includes ffmpeg)
+│   ├── nixpacks.toml            # Optional PaaS build config (includes ffmpeg)
 │   ├── Procfile                 # Gunicorn + geventwebsocket worker
 │   └── .gitignore
 ├── frontend/
@@ -151,7 +152,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `PORT` | No (default `5000`) | Port the server listens on |
 | `SECRET_KEY` | **Yes** (production) | Flask secret key. A random value is generated only in development mode |
 | `YOUTUBE_COOKIES` | No | Browser-exported `cookies.txt` content used to bypass YouTube bot protection |
-| `YOUTUBE_POT_PROVIDER_URL` | No | Private Railway base URL for the YouTube PO Token provider; only private Railway hosts or local loopback are accepted |
+| `YOUTUBE_POT_PROVIDER_URL` | No | Local loopback base URL for the YouTube PO Token provider on EC2/Linux deployments |
 | `FLASK_ENV` / `ALLOW_DEV_CORS` | No | Set to `development` or `1` to allow local origins via CORS |
 | `ORIGIN_SECRET` | **Yes** when origin lock is enabled | Shared secret injected by Cloudflare in the `X-Origin-Verify` header |
 | `ENABLE_ORIGIN_LOCK` | No (default enabled) | Set to `0` only when intentionally disabling the origin-secret check |
@@ -160,7 +161,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `ARIA2_ENABLED` | No | Currently ignored — aria2 is disabled for SSRF protection |
 | `DOWNLOAD_TIMEOUT_SECONDS` | No (default `600`) | Maximum time allowed for a single download |
 | `FFMPEG_TIMEOUT_SECONDS` | No (default `120`) | Maximum runtime for a single FFmpeg conversion or mute operation |
-| `FFMPEG_THREADS` | No (default `2`) | FFmpeg encoder thread ceiling shared by yt-dlp post-processing and uploaded-file conversion; use `1` on Railway Free |
+| `FFMPEG_THREADS` | No (default `2`) | FFmpeg encoder thread ceiling shared by yt-dlp post-processing and uploaded-file conversion; the production t3.small uses `1` |
 | `MAX_CONCURRENT_DOWNLOADS` | No (default `2`) | Global concurrent download limit |
 | `MAX_CONCURRENT_CONVERSIONS` | No (default `1`) | Global concurrent conversion limit |
 | `MAX_CONCURRENT_PER_IP` | No (default `5`) | Concurrent request limit per IP |
@@ -204,10 +205,11 @@ The normal control surface is **GitHub → Actions → Bakım modu → Run workf
 Choose `enable` or `disable`, optionally edit the public text/end time, and run it.
 The workflow updates the matching `backend/maintenance-config.json` and
 `frontend/maintenance-config.json` files in one commit. Existing GitHub integrations
-then deploy the same state to Railway and Cloudflare Pages, so no Cloudflare or
-Railway API tokens are stored in GitHub.
+Cloudflare Pages publishes the frontend state from GitHub. The backend release
+process pulls the matching commit to Amazon EC2 and restarts the systemd service;
+no AWS or Cloudflare API tokens are stored in the repository.
 
-Railway rejects new `/info`, `/download`, `/thumbnail`, and `/convert` work with JSON
+The backend rejects new `/info`, `/download`, `/thumbnail`, and `/convert` work with JSON
 `503`, while `/cancel`, `/files/<token>`, and `/health` remain available so in-flight
 cleanup and prepared transfers are not stranded. `MAINTENANCE_MODE=1` or `0` may
 still be used as an emergency platform-specific override; use `workflow` (or leave it
@@ -227,7 +229,7 @@ unset) for the one-button GitHub flow.
 | `/convert` | POST | Remuxes or converts an uploaded file and returns a native download URL |
 | `/cancel` | POST | Cancels an in-progress download |
 | `/health` | GET | Minimal liveness response |
-| `/ready` | GET | Railway readiness response; returns 503 when required media dependencies or disk budget are unavailable |
+| `/ready` | GET | Backend readiness response; returns 503 when required media dependencies or disk budget are unavailable |
 | `/diagnostics` | GET | Origin-protected dependency, queue, cache, transfer, and single-worker diagnostics |
 
 Normal API endpoints are rate-limited to **10 requests per minute per IP**. `/health` and `/ready` are probe endpoints, `/cancel` has a separate default **30 requests per minute** quota, and `/convert` additionally defaults to **2 conversions per 10 minutes per IP**.
@@ -236,7 +238,7 @@ Normal API endpoints are rate-limited to **10 requests per minute per IP**. `/he
 
 ## Deployment Model
 
-The backend intentionally runs as **one Gunicorn worker and one Railway replica**. Rate limits, semaphores, cancellation events, Socket.IO identifiers, metadata cache entries, prepared-file tokens, and temporary files are currently process-local.
+The backend intentionally runs as **one Gunicorn worker on one Amazon EC2 instance**. Rate limits, semaphores, cancellation events, Socket.IO identifiers, metadata cache entries, prepared-file tokens, and temporary files are currently process-local.
 
 Do not increase `--workers` or add replicas without first moving shared coordination to Redis (or an equivalent shared store), configuring a Socket.IO message queue and sticky routing, and placing prepared files in shared/object storage. The origin-protected `/diagnostics` response reports `horizontal_scaling_safe: false` and `expected_gunicorn_workers: 1` so deployment checks can detect this boundary.
 

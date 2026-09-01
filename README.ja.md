@@ -57,7 +57,8 @@
 | メディア処理 | FFmpeg |
 | フロントエンド | Vanilla HTML/CSS/JS (フレームワークなし) |
 | フロントエンドホスティング | [Cloudflare Pages](https://pages.cloudflare.com) |
-| バックエンドホスティング | [Railway](https://railway.app) |
+| バックエンドホスティング | [Amazon EC2](https://aws.amazon.com/ec2/) — Ubuntu、Nginx、systemd |
+| エッジ、DNS、TLS | [Cloudflare](https://www.cloudflare.com/) |
 
 ---
 

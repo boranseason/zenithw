@@ -83,6 +83,22 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn("data.cookies_loaded", source)
         self.assertNotIn("fetch(`${API}/health`", source)
 
+    def test_public_docs_describe_the_current_aws_architecture(self):
+        repository = FRONTEND.parent
+        public_files = [
+            repository / "README.md",
+            repository / "README.tr.md",
+            repository / "README.de.md",
+            repository / "README.fr.md",
+            repository / "README.ja.md",
+            FRONTEND / "index.html",
+            FRONTEND / "privacy.html",
+            FRONTEND / "updates-archive.07c744021db2.js",
+        ]
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in public_files)
+        self.assertIn("Amazon EC2", combined)
+        self.assertNotIn("Railway", combined)
+
 
 if __name__ == "__main__":
     unittest.main()
