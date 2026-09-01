@@ -230,6 +230,14 @@ class ClientIpTrustTests(unittest.TestCase):
         self.assertIn("MAX_TRANSCODE_DURATION_SECONDS", convert_source)
         self.assertIn('"error_code": "conversion_too_long"', convert_source)
 
+    def test_public_status_exposes_safe_runtime_capabilities(self):
+        source = function_source("public_status")
+        self.assertIn('"ffmpeg_ready": bool(FFMPEG_DIR)', source)
+        self.assertIn('"cookies_loaded": _cookie_bytes > 0', source)
+        self.assertIn('"active_downloads": _active', source)
+        self.assertNotIn("free_disk", source)
+        self.assertNotIn("ORIGIN_SECRET", source)
+
     def test_frontend_transfer_has_total_and_idle_timeouts(self):
         self.assertIn("PREPARED_TRANSFER_TIMEOUT_MS", FRONTEND_SOURCE)
         self.assertIn("PREPARED_TRANSFER_IDLE_MS", FRONTEND_SOURCE)

@@ -76,6 +76,13 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn("body.settings-page.tool-page", shell)
         self.assertIn(".settings-page.mobile-settings-index .st-content{display:none}", shell)
 
+    def test_status_page_uses_public_runtime_status_fields(self):
+        source = (FRONTEND / "status.html").read_text(encoding="utf-8")
+        self.assertIn("fetch(`${API}/status`", source)
+        self.assertIn("data.ffmpeg_ready", source)
+        self.assertIn("data.cookies_loaded", source)
+        self.assertNotIn("fetch(`${API}/health`", source)
+
 
 if __name__ == "__main__":
     unittest.main()

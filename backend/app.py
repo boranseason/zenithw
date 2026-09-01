@@ -2311,6 +2311,30 @@ def readiness():
     return response, 200 if ready else 503
 
 
+@app.route("/status")
+def public_status():
+    """Expose only the operational fields used by the public status page."""
+    with queue_lock:
+        _active = active_downloads_count
+        _waiting = queue_waiting
+    try:
+        _cookie_bytes = os.path.getsize(COOKIES_FILE)
+    except OSError:
+        _cookie_bytes = 0
+
+    response = jsonify({
+        "status": "ok",
+        "maintenance": MAINTENANCE_MODE,
+        "ffmpeg_ready": bool(FFMPEG_DIR),
+        "cookies_loaded": _cookie_bytes > 0,
+        "active_downloads": _active,
+        "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
+        "queue_waiting": _waiting,
+    })
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response, 200
+
+
 @app.route("/diagnostics")
 def diagnostics():
     # YENİ: queue_lock ile korundu, race condition önlendi
