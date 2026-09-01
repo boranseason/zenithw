@@ -18,7 +18,7 @@ KillSignal=SIGTERM
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/zenithw/backend/downloads
+ReadWritePaths=/home/ubuntu/zenithw/backend/downloads /home/ubuntu/zenithw/backend/cookies.txt
 NoNewPrivileges=true
 
 [Install]
