@@ -11,25 +11,38 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.487d49f0164d.css">
-<link rel="stylesheet" href="site-shell.css?v=14.4">
+<link rel="stylesheet" href="site-shell.css?v=14.5">
 </head>
-<body class="theme-default tool-page">
+<body class="theme-default tool-page convert-page">
 <main class="tool-page-main">
   <a class="tool-page-brand" href="/">ZenithW<span>.</span></a>
+  <section class="convert-hero" aria-labelledby="convertPageTitle">
+    <div class="convert-kicker" id="convHeroKicker">MEDYA ATÖLYESİ</div>
+    <h1 id="convertPageTitle">Dosyanı dönüştür.<br><span>Kalitesini koru.</span></h1>
+    <p id="convHeroLead">Video ve ses dosyalarını, sade bir akışla ihtiyacın olan formata çevir.</p>
+    <div class="convert-trust-row" aria-label="Dönüştürücü özellikleri">
+      <span><i aria-hidden="true"></i><b id="convTrustSize">95 MB'a kadar</b></span>
+      <span><i aria-hidden="true"></i><b id="convTrustFormats">11 çıkış formatı</b></span>
+      <span><i aria-hidden="true"></i><b id="convTrustEngine">FFmpeg motoru</b></span>
+    </div>
+  </section>
   <div class="conv-modal tool-modal tool-page-panel" aria-labelledby="convTitleTxt">
     <header class="tool-modal-header">
       <div class="tool-modal-heading">
         <span class="tool-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7h11M16 4l3 3-3 3M16 17H5M8 14l-3 3 3 3"/></svg></span>
-        <div><strong id="convTitleTxt">dönüştür</strong><small id="convModalSub">dosyanı istediğin formata çevir</small></div>
+        <div><strong id="convTitleTxt">yeni dönüştürme</strong><small id="convModalSub">dosya, format, dönüştür — hepsi bu</small></div>
       </div>
+      <div class="convert-stepper" aria-label="Dönüştürme adımları"><span class="active"><b>1</b><i id="convStepFile">dosya</i></span><em></em><span><b>2</b><i id="convStepFormat">format</i></span><em></em><span><b>3</b><i id="convStepConvert">dönüştür</i></span></div>
       <button type="button" class="tool-modal-close" aria-label="Dönüştürme penceresini kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </header>
     <div class="tool-modal-body">
-      <div class="dropzone" id="convDrop" onclick="document.getElementById('convFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleConvDrop(event)">
-        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3V9z"/></svg></div>
-        <div class="drop-title" id="convDropTitle">dosya seç veya sürükle</div><div class="drop-sub" id="convDropSub">mp4, webm, mkv, mp3, flac, wav...</div>
+      <label class="dropzone convert-dropzone" id="convDrop" for="convFileInput" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleConvDrop(event)">
+        <span class="convert-drop-glow" aria-hidden="true"></span>
+        <div class="tool-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg></div>
+        <div class="drop-title" id="convDropTitle">dosyanı buraya bırak</div><div class="drop-sub" id="convDropSub">veya bilgisayarından seç · en fazla 95 MB</div>
+        <span class="convert-file-button" id="convChooseFile">dosya seç</span>
         <input class="visually-hidden-input" type="file" id="convFileInput" accept="video/*,audio/*,.mp4,.webm,.mkv,.avi,.mov,.mp3,.flac,.wav,.ogg,.opus,.m4a" onchange="handleConvFile(this)"/>
-      </div>
+      </label>
       <div class="conv-progress" id="convProgress">
         <div class="dl-prog-top">
           <div class="dl-prog-icon" id="convProgIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg></div>
@@ -38,13 +51,16 @@
         </div>
       </div>
       <div class="conv-fmt-row">
-        <div class="conv-fmt-label" id="convFmtLabel">ÇIKIŞ FORMATINI SEÇ</div>
-        <div class="conv-chips">
-          <div class="chip" data-v="mp4" onclick="setConvFmt(this)">mp4</div><div class="chip" data-v="webm" onclick="setConvFmt(this)">webm</div><div class="chip" data-v="mkv" onclick="setConvFmt(this)">mkv</div><div class="chip" data-v="avi" onclick="setConvFmt(this)">avi</div><div class="chip" data-v="mov" onclick="setConvFmt(this)">mov</div>
-          <div class="chip active" data-v="mp3" onclick="setConvFmt(this)">mp3</div><div class="chip" data-v="flac" onclick="setConvFmt(this)">flac</div><div class="chip" data-v="wav" onclick="setConvFmt(this)">wav</div><div class="chip" data-v="ogg" onclick="setConvFmt(this)">ogg</div><div class="chip" data-v="opus" onclick="setConvFmt(this)">opus</div><div class="chip" data-v="m4a" onclick="setConvFmt(this)">m4a</div>
+        <div class="conv-fmt-head"><div><span class="conv-fmt-label" id="convFmtLabel">ÇIKIŞ FORMATINI SEÇ</span><small id="convFmtHint">hedef dosya türünü belirle</small></div><span class="conv-target-preview" id="convTargetPreview">MP3</span></div>
+        <div class="conv-format-group"><span class="conv-group-label" id="convVideoFormats">VİDEO</span><div class="conv-chips">
+          <button type="button" class="chip" data-v="mp4" aria-pressed="false" onclick="setConvFmt(this)">mp4</button><button type="button" class="chip" data-v="webm" aria-pressed="false" onclick="setConvFmt(this)">webm</button><button type="button" class="chip" data-v="mkv" aria-pressed="false" onclick="setConvFmt(this)">mkv</button><button type="button" class="chip" data-v="avi" aria-pressed="false" onclick="setConvFmt(this)">avi</button><button type="button" class="chip" data-v="mov" aria-pressed="false" onclick="setConvFmt(this)">mov</button>
+        </div></div>
+        <div class="conv-format-group"><span class="conv-group-label" id="convAudioFormats">SES</span><div class="conv-chips">
+          <button type="button" class="chip active" data-v="mp3" aria-pressed="true" onclick="setConvFmt(this)">mp3</button><button type="button" class="chip" data-v="flac" aria-pressed="false" onclick="setConvFmt(this)">flac</button><button type="button" class="chip" data-v="wav" aria-pressed="false" onclick="setConvFmt(this)">wav</button><button type="button" class="chip" data-v="ogg" aria-pressed="false" onclick="setConvFmt(this)">ogg</button><button type="button" class="chip" data-v="opus" aria-pressed="false" onclick="setConvFmt(this)">opus</button><button type="button" class="chip" data-v="m4a" aria-pressed="false" onclick="setConvFmt(this)">m4a</button>
+        </div></div>
         </div>
       </div>
-      <button class="action-btn" id="convBtn" onclick="startConvert()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg><span id="convBtnTxt">dosya seçin</span></button>
+      <button class="action-btn convert-primary-btn" id="convBtn" onclick="startConvert()" disabled><span class="convert-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7h11M16 4l3 3-3 3M16 17H5M8 14l-3 3 3 3"/></svg></span><span class="convert-btn-copy"><strong id="convBtnTxt">önce bir dosya seç</strong><small id="convBtnHint">dönüştürme seçiminin ardından başlar</small></span><span class="convert-btn-arrow" aria-hidden="true">→</span></button>
     </div>
   </div>
 </main>
@@ -64,7 +80,7 @@
     <button class="save-done" onclick="closeOverlay('saveOverlay')" id="saveDoneTxt">tamam</button>
   </div>
 </div>
-<script src="app.d4596317c4a7.js?v=14.4"></script>
+<script src="app.d4596317c4a7.js?v=14.5"></script>
 <script src="site-shell.js?v=14.3"></script>
 </body>
 </html>

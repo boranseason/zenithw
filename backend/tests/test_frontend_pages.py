@@ -99,6 +99,17 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn("Amazon EC2", combined)
         self.assertNotIn("Railway", combined)
 
+    def test_converter_has_premium_standalone_workflow(self):
+        source = (FRONTEND / "convert.html").read_text(encoding="utf-8")
+        app = next(FRONTEND.glob("app.*.js")).read_text(encoding="utf-8")
+        shell = (FRONTEND / "site-shell.css").read_text(encoding="utf-8")
+        self.assertIn('class="theme-default tool-page convert-page"', source)
+        self.assertIn('class="convert-stepper"', source)
+        self.assertIn('class="action-btn convert-primary-btn"', source)
+        self.assertIn('aria-pressed="true"', source)
+        self.assertIn("document.querySelectorAll('.conv-modal .chip')", app)
+        self.assertIn(".convert-page .tool-modal-body", shell)
+
 
 if __name__ == "__main__":
     unittest.main()

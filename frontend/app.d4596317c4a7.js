@@ -95,8 +95,9 @@ const TX={
     stLblFnfEx:'örnek formatlar',
     connecting:'bağlanıyor...',downloading:'indiriliyor...',merging:'birleştiriliyor...',queued:'sırada bekleniyor...',done:'tamamlandı!',
     found:'video bulundu ✓',downloaded:'indirildi ✓',cancelled:'iptal edildi',error:'hata',
-    convTitleTxt:'dönüştür',convModalSub:'dosyanı istediğin formata çevir',convDropTitle:'dosya seç veya sürükle',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · en fazla 95 MB',
-    convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convBtnSel:'dosya seçin',convBtnReady:'{fmt} olarak dönüştür',
+    convTitleTxt:'yeni dönüştürme',convModalSub:'dosya, format, dönüştür — hepsi bu',convDropTitle:'dosyanı buraya bırak',convDropSub:'veya bilgisayarından seç · en fazla 95 MB',
+    convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convFmtHint:'hedef dosya türünü belirle',convBtnSel:'önce bir dosya seç',convBtnReady:'{fmt} olarak dönüştür',convBtnHint:'dönüştürme seçiminin ardından başlar',
+    convHeroKicker:'MEDYA ATÖLYESİ',convertPageTitle:'Dosyanı dönüştür.<br><span>Kalitesini koru.</span>',convHeroLead:'Video ve ses dosyalarını, sade bir akışla ihtiyacın olan formata çevir.',convTrustSize:'95 MB\'a kadar',convTrustFormats:'11 çıkış formatı',convTrustEngine:'FFmpeg motoru',convChooseFile:'dosya seç',convStepFile:'dosya',convStepFormat:'format',convStepConvert:'dönüştür',convVideoFormats:'VİDEO',convAudioFormats:'SES',
     remuxTitleTxt:'remux',remuxModalSub:'konteyneri kayıpsız onar',remuxDropTitle:'dosya sürükle veya seç',remuxDropSub:'mp4, webm, mp3, ogg, opus, wav, m4a · en fazla 95 MB',
     updTitle:'güncellemeler',
     servicesChipTxt:'desteklenen servisler',servicesTitleTxt:'desteklenen platformlar',servicesModalSub:'500+ platform · tek bağlantı',
@@ -161,8 +162,9 @@ const TX={
     stLblFnfEx:'example formats',
     connecting:'connecting...',downloading:'downloading...',merging:'merging...',queued:'waiting in queue...',done:'done!',
     found:'video found ✓',downloaded:'downloaded ✓',cancelled:'cancelled',error:'error',
-    convTitleTxt:'convert',convModalSub:'convert a file to another format',convDropTitle:'select or drag file',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · up to 95 MB',
-    convFmtLabel:'SELECT OUTPUT FORMAT',convBtnSel:'select a file',convBtnReady:'convert to {fmt}',
+    convTitleTxt:'new conversion',convModalSub:'file, format, convert — that simple',convDropTitle:'drop your file here',convDropSub:'or choose from your computer · up to 95 MB',
+    convFmtLabel:'SELECT OUTPUT FORMAT',convFmtHint:'choose the target file type',convBtnSel:'choose a file first',convBtnReady:'convert to {fmt}',convBtnHint:'conversion starts after your selection',
+    convHeroKicker:'MEDIA STUDIO',convertPageTitle:'Convert your file.<br><span>Keep the quality.</span>',convHeroLead:'Turn video and audio files into the format you need with a clean, focused workflow.',convTrustSize:'up to 95 MB',convTrustFormats:'11 output formats',convTrustEngine:'FFmpeg engine',convChooseFile:'choose file',convStepFile:'file',convStepFormat:'format',convStepConvert:'convert',convVideoFormats:'VIDEO',convAudioFormats:'AUDIO',
     remuxTitleTxt:'remux',remuxModalSub:'repair the container without re-encoding',remuxDropTitle:'drag & drop or select file',remuxDropSub:'supported: mp4, webm, mp3, ogg, opus, wav, m4a · up to 95 MB',
     updTitle:'updates',
     servicesChipTxt:'supported services',servicesTitleTxt:'supported platforms',servicesModalSub:'500+ platforms · one link',
@@ -229,8 +231,9 @@ const TX={
     stLblFnfEx:'exemples de formats',
     connecting:'connexion...',downloading:'téléchargement...',merging:'fusion...',done:'terminé !',
     found:'vidéo trouvée ✓',downloaded:'téléchargé ✓',cancelled:'annulé',error:'erreur',
-    convTitleTxt:'convertir',convModalSub:'convertissez un fichier au format souhaité',convDropTitle:'choisir ou glisser un fichier',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · 95 Mo maximum',
-    convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convBtnSel:'choisir un fichier',convBtnReady:'convertir en {fmt}',
+    convTitleTxt:'nouvelle conversion',convModalSub:'fichier, format, convertir — simplement',convDropTitle:'déposez votre fichier ici',convDropSub:'ou choisissez-le sur votre ordinateur · 95 Mo max.',
+    convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convFmtHint:'choisissez le type de fichier cible',convBtnSel:'choisissez d’abord un fichier',convBtnReady:'convertir en {fmt}',convBtnHint:'la conversion démarre après votre sélection',
+    convHeroKicker:'STUDIO MÉDIA',convertPageTitle:'Convertissez votre fichier.<br><span>Préservez sa qualité.</span>',convHeroLead:'Transformez vos fichiers vidéo et audio dans le format voulu avec un flux simple.',convTrustSize:'jusqu’à 95 Mo',convTrustFormats:'11 formats de sortie',convTrustEngine:'moteur FFmpeg',convChooseFile:'choisir un fichier',convStepFile:'fichier',convStepFormat:'format',convStepConvert:'convertir',convVideoFormats:'VIDÉO',convAudioFormats:'AUDIO',
     remuxTitleTxt:'remux',remuxModalSub:'réparez le conteneur sans réencodage',remuxDropTitle:'glissez ou choisissez un fichier',remuxDropSub:'formats pris en charge : mp4, webm, mp3, ogg, opus, wav, m4a · 95 Mo maximum',
     updTitle:'nouveautés',
     servicesChipTxt:'services pris en charge',servicesTitleTxt:'plateformes prises en charge',servicesModalSub:'500+ plateformes · un seul lien',
@@ -297,8 +300,9 @@ const TX={
     stLblFnfEx:'beispielformate',
     connecting:'verbinde...',downloading:'lädt herunter...',merging:'wird zusammengeführt...',done:'fertig!',
     found:'video gefunden ✓',downloaded:'heruntergeladen ✓',cancelled:'abgebrochen',error:'fehler',
-    convTitleTxt:'konvertieren',convModalSub:'datei in das gewünschte format umwandeln',convDropTitle:'datei auswählen oder ablegen',convDropSub:'mp4, webm, mkv, mp3, flac, wav... · maximal 95 MB',
-    convFmtLabel:'AUSGABEFORMAT WÄHLEN',convBtnSel:'datei auswählen',convBtnReady:'in {fmt} konvertieren',
+    convTitleTxt:'neue konvertierung',convModalSub:'datei, format, konvertieren — ganz einfach',convDropTitle:'datei hier ablegen',convDropSub:'oder vom computer auswählen · maximal 95 MB',
+    convFmtLabel:'AUSGABEFORMAT WÄHLEN',convFmtHint:'zieldateityp festlegen',convBtnSel:'zuerst eine datei auswählen',convBtnReady:'in {fmt} konvertieren',convBtnHint:'die konvertierung startet nach der auswahl',
+    convHeroKicker:'MEDIA STUDIO',convertPageTitle:'Datei konvertieren.<br><span>Qualität behalten.</span>',convHeroLead:'Video- und Audiodateien in einem klaren Ablauf in das gewünschte Format umwandeln.',convTrustSize:'bis zu 95 MB',convTrustFormats:'11 ausgabeformate',convTrustEngine:'FFmpeg-engine',convChooseFile:'datei auswählen',convStepFile:'datei',convStepFormat:'format',convStepConvert:'konvertieren',convVideoFormats:'VIDEO',convAudioFormats:'AUDIO',
     remuxTitleTxt:'remux',remuxModalSub:'container ohne neu-encoding reparieren',remuxDropTitle:'datei per drag & drop oder auswählen',remuxDropSub:'unterstützt: mp4, webm, mp3, ogg, opus, wav, m4a · maximal 95 MB',
     updTitle:'neuigkeiten',
     servicesChipTxt:'unterstützte dienste',servicesTitleTxt:'unterstützte plattformen',servicesModalSub:'500+ plattformen · ein link',
@@ -1328,7 +1332,7 @@ function handleRemuxDrop(e){e.preventDefault();document.getElementById('remuxDro
 // ── CONVERT ───────────────────────────────────────────
 let convFile=null,convTargetFmt='mp3',convBusy=false;
 function openConvert(){openOverlay('convOverlay');}
-function setConvFmt(el){document.querySelectorAll('#convOverlay .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');convTargetFmt=el.dataset.v;_updateConvBtn();}
+function setConvFmt(el){document.querySelectorAll('.conv-modal .chip').forEach(c=>{c.classList.remove('active');c.setAttribute('aria-pressed','false');});el.classList.add('active');el.setAttribute('aria-pressed','true');convTargetFmt=el.dataset.v;const preview=document.getElementById('convTargetPreview');if(preview)preview.textContent=convTargetFmt.toUpperCase();_updateConvBtn();}
 function selectConvFile(f){if(!validateToolFile(f)){convFile=null;_updateConvBtn();return;}convFile=f;showSelectedToolFile('convDrop',f);_updateConvBtn();}
 function handleConvFile(inp){selectConvFile(inp.files[0]);}
 function handleConvDrop(e){e.preventDefault();document.getElementById('convDrop').classList.remove('drag');selectConvFile(e.dataTransfer.files[0]);}
