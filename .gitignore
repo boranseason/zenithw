@@ -3,10 +3,49 @@ venv/
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# Local secrets and credentials
 .env
+.env.*
+!.env.example
+!*.env.example
+**/cookies.txt
+**/cookies-*.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Runtime output and local data
+downloads/
 backend/download/
 backend/downloads/
-backend/cookies.txt
-cookies.txt
+tmp/
+temp/
+logs/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Dependency, coverage and tool caches
+node_modules/
+.coverage
+htmlcov/
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local editor, agent and operating-system files
+.vscode/
+.idea/
+.codex/
+.agents/
+.DS_Store
+Thumbs.db
+
+# Private working notes that are intentionally not published
 frontend/OPTIMIZATIONS.md
 backend/DEPLOYMENT.md

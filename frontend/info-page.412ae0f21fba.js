@@ -10,6 +10,8 @@
     const h1=document.getElementById('pgH1'); if(h1)h1.innerHTML=text.h1;
     const lead=document.getElementById('pgLead'); if(lead)lead.textContent=text.lead;
     const updated=document.getElementById('pgUpdated'); if(updated&&text.updated)updated.textContent=text.updated;
+    const flowFields={pgFlowSource:'flowSource',pgFlowAnalyze:'flowAnalyze',pgFlowPrepare:'flowPrepare',pgFlowDeliver:'flowDeliver',pgFlowNoAds:'flowNoAds',pgFlowNoAccount:'flowNoAccount',pgFlowNoArchive:'flowNoArchive'};
+    Object.entries(flowFields).forEach(([id,key])=>{const element=document.getElementById(id);if(element&&text[key])element.textContent=text[key];});
     const body=document.getElementById('pgBody'); if(body)body.innerHTML=text.body;
     const footer=document.getElementById('pgFooter'); if(footer)footer.innerHTML=text.footer;
     document.querySelectorAll('#langSwitch button').forEach(button=>button.classList.toggle('active',button.dataset.lang===active));
