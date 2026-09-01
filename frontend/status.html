@@ -10,9 +10,9 @@
   <meta name="theme-color" content="#060606">
   <link rel="icon" type="image/png" href="zenithw.png">
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="info.6c44eb6f52e7.css?v=14.3-status2">
+  <link rel="stylesheet" href="info.6c44eb6f52e7.css?v=14.3-status3">
 </head>
-<body class="info-page">
+<body class="info-page status-page">
   <main class="info-shell">
     <nav class="info-nav" aria-label="Sayfa navigasyonu">
       <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
@@ -33,12 +33,19 @@
 
     <article class="info-card status-card">
       <div class="status-summary" id="statusSummary" role="status" aria-live="polite">
-        <span class="status-indicator" id="statusIndicator" aria-hidden="true"></span>
+        <div class="status-orbit" aria-hidden="true">
+          <span class="status-orbit-ring"></span>
+          <span class="status-indicator" id="statusIndicator"></span>
+        </div>
         <div class="status-summary-copy">
           <span class="status-eyebrow" id="statusEyebrow">CANLI DURUM</span>
           <span class="status-main" id="statusMain">Durum kontrol ediliyor…</span>
+          <span class="status-detail" id="statusDetail">AWS origin ve medya servisleri kontrol ediliyor.</span>
         </div>
-        <button class="info-button status-refresh" id="refreshButton" type="button" onclick="checkStatus()"><span aria-hidden="true">↻</span> yenile</button>
+        <div class="status-summary-actions">
+          <span class="status-live"><i aria-hidden="true"></i> LIVE</span>
+          <button class="info-button status-refresh" id="refreshButton" type="button" onclick="checkStatus()"><span aria-hidden="true">↻</span> yenile</button>
+        </div>
       </div>
       <div class="status-grid">
         <section class="status-tile" id="apiTile">
@@ -62,14 +69,18 @@
           <p id="queueValue">—</p>
         </section>
       </div>
-      <section class="info-section">
-        <h2 id="dependencyTitle">Platforma özel kesintiler</h2>
-        <p id="dependencyText">ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.</p>
-      </section>
-      <section class="info-section">
-        <h2 id="helpTitle">Sorun devam mı ediyor?</h2>
-        <p id="helpText">Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.</p>
-      </section>
+      <div class="status-notes">
+        <section class="info-section status-note">
+          <span class="status-note-number" aria-hidden="true">01</span>
+          <h2 id="dependencyTitle">Platforma özel kesintiler</h2>
+          <p id="dependencyText">ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.</p>
+        </section>
+        <section class="info-section status-note">
+          <span class="status-note-number" aria-hidden="true">02</span>
+          <h2 id="helpTitle">Sorun devam mı ediyor?</h2>
+          <p id="helpText">Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.</p>
+        </section>
+      </div>
     </article>
     <footer class="info-footer" id="pgFooter"></footer>
   </main>
@@ -82,7 +93,7 @@
         back: '← ana sayfa', kicker: 'canlı sağlık kontrolü', h1: 'Sistem durumu.',
         lead: 'Temel servisler doğrudan API üzerinden kontrol edilir. Sonuçlar her 30 saniyede bir yenilenir.',
         initial: 'İlk kontrol hazırlanıyor…', checking: 'Durum kontrol ediliyor…', refresh: 'yenile',
-        api: 'Sunucu / API', cookie: 'YouTube Cookie', queue: 'İndirme kuyruğu', eyebrow: 'CANLI DURUM',
+        api: 'Sunucu / API', cookie: 'YouTube Cookie', queue: 'İndirme kuyruğu', eyebrow: 'CANLI DURUM', checkingDetail: 'AWS origin ve medya servisleri kontrol ediliyor.', okDetail: 'AWS origin ve medya araçları normal yanıt veriyor.', degradedDetail: 'API çalışıyor; işaretli bileşenlerden biri kontrol bekliyor.', downDetail: 'Canlı durum verisi şu anda alınamıyor.',
         dependencyTitle: 'Platforma özel kesintiler',
         dependencyText: 'ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API\'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.',
         helpTitle: 'Sorun devam mı ediyor?',
@@ -99,7 +110,7 @@
         back: '← home', kicker: 'live health check', h1: 'System status.',
         lead: 'Core services are checked directly through the API. Results refresh every 30 seconds.',
         initial: 'Preparing the first check…', checking: 'Checking system status…', refresh: 'refresh',
-        api: 'Server / API', cookie: 'YouTube Cookie', queue: 'Download queue', eyebrow: 'LIVE STATUS',
+        api: 'Server / API', cookie: 'YouTube Cookie', queue: 'Download queue', eyebrow: 'LIVE STATUS', checkingDetail: 'Checking the AWS origin and media services.', okDetail: 'The AWS origin and media tools are responding normally.', degradedDetail: 'The API is online; one marked component needs attention.', downDetail: 'Live status data is currently unavailable.',
         dependencyTitle: 'Platform-specific interruptions',
         dependencyText: 'ZenithW depends on third-party platforms such as YouTube, TikTok, and Instagram. If a platform changes its bot protection or access method, downloads from that source may be temporarily affected; a healthy API does not guarantee that every platform is available.',
         helpTitle: 'Still having trouble?',
@@ -130,6 +141,7 @@
       document.getElementById('cookieLabel').textContent = text.cookie;
       document.getElementById('queueLabel').textContent = text.queue;
       document.getElementById('statusEyebrow').textContent = text.eyebrow;
+      document.getElementById('statusDetail').textContent = text.checkingDetail;
       document.getElementById('dependencyTitle').textContent = text.dependencyTitle;
       document.getElementById('dependencyText').textContent = text.dependencyText;
       document.getElementById('helpTitle').textContent = text.helpTitle;
@@ -156,6 +168,7 @@
       refreshButton.disabled = true;
       indicator.className = 'status-indicator';
       document.getElementById('statusMain').textContent = text.checking;
+      document.getElementById('statusDetail').textContent = text.checkingDetail;
       document.getElementById('lastChecked').textContent = text.checkingMeta;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12000);
@@ -169,6 +182,7 @@
         indicator.className = data.maintenance || !allReady ? 'status-indicator' : 'status-indicator ok';
         document.getElementById('statusSummary').dataset.state = data.maintenance || !allReady ? 'warning' : 'ok';
         document.getElementById('statusMain').textContent = data.maintenance ? text.maintenance : (allReady ? text.ok : text.degraded);
+        document.getElementById('statusDetail').textContent = allReady ? text.okDetail : text.degradedDetail;
         document.getElementById('apiValue').textContent = data.maintenance ? text.apiMaintenance(latency) : text.apiActive(latency);
         document.getElementById('ffmpegValue').textContent = data.ffmpeg_ready ? text.ready : text.issue;
         document.getElementById('cookieValue').textContent = data.cookies_loaded ? text.loaded : text.notLoaded;
@@ -184,6 +198,7 @@
         indicator.className = 'status-indicator down';
         document.getElementById('statusSummary').dataset.state = 'down';
         document.getElementById('statusMain').textContent = text.down;
+        document.getElementById('statusDetail').textContent = text.downDetail;
         document.getElementById('apiValue').textContent = text.unreachable;
         document.getElementById('ffmpegValue').textContent = '—';
         document.getElementById('cookieValue').textContent = '—';
