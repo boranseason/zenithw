@@ -14,7 +14,7 @@
 
 🔗 **Canlı Site:** [zenithw.space](https://zenithw.space)
 
-🏷️ **Mevcut Sürüm:** `v14.0` — Zamana duyarlı daha sıcak bir ana sayfa, özel araç sayfaları, duyarlı ortak navigasyon, daha sakin bir ortam ve daha temiz bir sürüm deneyimi.
+🏷️ **Mevcut Sürüm:** `v14.1` — Backend artık AWS EC2 üzerinde; Ubuntu, Nginx ve systemd ile daha görünür ve doğrudan yönetilen bir çalışma ortamına geçti.
 
 ---
 
@@ -251,7 +251,7 @@ Bir güvenlik açığı mı buldunuz? Lütfen [info@zenithw.space](mailto:info@z
 
 ## Sürüm Geçmişi
 
-İki dilli tam değişiklik günlüğüne [zenithw.space/updates.html](https://zenithw.space/updates.html) adresinden ulaşılabilir. v11 serisi güvenlik sıkılaştırmasını, v12 sunum ve işleme iyileştirmelerini, v13 uçtan uca doğrulanmış teslimatı kapsar. v14.0 ise özel araç sayfaları ve ortak duyarlı navigasyon ile daha sakin bir arayüz sunar.
+İki dilli tam değişiklik günlüğüne [zenithw.space/updates.html](https://zenithw.space/updates.html) adresinden ulaşılabilir. v11 serisi güvenlik sıkılaştırmasını, v12 sunum ve işleme iyileştirmelerini, v13 uçtan uca doğrulanmış teslimatı kapsar. v14.0 özel araç sayfalarıyla daha sakin bir arayüz sunarken v14.1 backend’i AWS EC2’ye taşır.
 
 ---
 

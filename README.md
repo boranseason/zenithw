@@ -12,7 +12,7 @@
 
 🔗 **Live:** [zenithw.space](https://zenithw.space)
 
-🏷️ **Current release:** `v14.0` — a warmer time-aware home, dedicated tool pages, responsive shared navigation, calmer ambience, and a cleaner release experience
+🏷️ **Current release:** `v14.1` — the backend now runs on AWS EC2 with a more observable and directly managed Ubuntu, Nginx, and systemd runtime
 
 ---
 
@@ -274,7 +274,7 @@ Found a vulnerability? Please report it to [info@zenithw.space](mailto:info@zeni
 
 ## Release History
 
-The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers security hardening, v12 focuses on presentation and rendering improvements, and v13 follows the complete media lifecycle through verified end-to-end delivery. v14.0 gives that foundation a calmer, friendlier interface with dedicated tool pages and shared responsive navigation.
+The full bilingual changelog is available at [zenithw.space/updates.html](https://zenithw.space/updates.html). The v11 series covers security hardening, v12 focuses on presentation and rendering improvements, and v13 follows the complete media lifecycle through verified end-to-end delivery. v14.0 gives that foundation a calmer interface with dedicated tools, while v14.1 moves the backend to AWS EC2.
 
 ---
 

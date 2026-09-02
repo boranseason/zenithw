@@ -52,14 +52,14 @@ class StandaloneToolPageTests(unittest.TestCase):
         for language in ("en", "fr", "de"):
             self.assertIn(f"{language}:{{deepNight:", shell)
 
-    def test_v14_release_is_current_and_v13_8_is_archived(self):
+    def test_v14_1_release_is_current_and_v14_0_is_archived(self):
         version = (FRONTEND / "version.js").read_text(encoding="utf-8")
         updates = (FRONTEND / "updates-core.99daf4ea6088.js").read_text(encoding="utf-8")
         archive = (FRONTEND / "updates-archive.07c744021db2.js").read_text(encoding="utf-8")
-        self.assertIn("ver: 'v14.0'", version)
-        self.assertIn("Fanta molasında başlayan yeni bir ZenithW", updates)
-        self.assertIn("['v14.0', 'v13.8'", updates)
-        self.assertIn("{ver:'v13.8',latest:false", archive)
+        self.assertIn("ver: 'v14.1'", version)
+        self.assertIn("Railway’den AWS’ye: ZenithW artık kendi sunucusunda", updates)
+        self.assertIn("['v14.1', 'v14.0', 'v13.8'", updates)
+        self.assertIn("{ver:'v14.0',latest:false", archive)
 
     def test_settings_use_the_wide_workspace_layout(self):
         settings = (FRONTEND / "settings.html").read_text(encoding="utf-8")
