@@ -95,6 +95,37 @@ class SourceHealthTests(unittest.TestCase):
         self.assertIn('"429" in es or "too many requests" in es', source)
         self.assertIn("next_has_cookies and not auth_required", source)
 
+    def test_runtime_remote_components_are_disabled(self):
+        source = function_source("get_base_opts")
+        self.assertNotIn('opts["remote_components"]', source)
+
+    def test_diagnostics_requires_a_separate_bearer_token(self):
+        source = function_source("diagnostics")
+        self.assertIn('authorization.startswith("Bearer ")', source)
+        self.assertIn("hmac.compare_digest(supplied_token, DIAGNOSTICS_TOKEN)", source)
+        self.assertIn('{"error": "Not Found"}', source)
+        self.assertIn('response.headers["Cache-Control"] = "no-store, max-age=0"', source)
+
+    def test_socket_admission_is_globally_and_per_ip_bounded(self):
+        source = function_source("on_connect")
+        self.assertIn("MAX_SOCKET_CONNECTIONS", source)
+        self.assertIn("MAX_SOCKET_CONNECTIONS_PER_IP", source)
+        self.assertIn("return False", source)
+        self.assertIn('"ip": client_ip', source)
+
+    def test_log_redaction_removes_query_and_fragment(self):
+        namespace = {
+            "urlparse": __import__("urllib.parse", fromlist=["urlparse"]).urlparse,
+            "hashlib": __import__("hashlib"),
+        }
+        safe_log_url = load_function("_safe_log_url", namespace)
+        value = safe_log_url(
+            "https://user:password@example.com/watch?v=secret&token=abc#fragment"
+        )
+        self.assertEqual(value, "https://example.com/watch")
+        self.assertNotIn("secret", value)
+        self.assertNotIn("password", value)
+
 
 class ClientIpTrustTests(unittest.TestCase):
     def _call(self, *, remote, headers, trust_proxy=True, cloudflare_peer=False):
@@ -721,6 +752,7 @@ class AttemptExecutionTests(unittest.TestCase):
             "DownloadAttemptResult": _DownloadAttemptResult,
             "is_youtube": lambda url: youtube,
             "logger": _Logger(),
+            "_redact_log_text": lambda value: str(value),
             "_snapshot_child_pids": lambda: set(),
             "_reap_new_children": lambda before, download_id, filename: reap_calls.append(1),
             "cleanup_download_artifacts": lambda filename, keep_paths=None: cleanup_calls.append(
@@ -907,6 +939,8 @@ class MutePostprocessingTests(unittest.TestCase):
             "FFMPEG_TIMEOUT": 30,
             "_register_cleanup": lambda path: None,
             "_unregister_cleanup": lambda path: None,
+            "_redact_log_text": lambda value: str(value),
+            "_log_cleanup_failure": lambda action, exc: None,
         }
         return load_function("apply_mute_postprocessing", namespace)
 

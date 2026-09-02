@@ -78,7 +78,7 @@ cd zenithw/backend
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.lock
 ```
 
 ### Lokal ausführen

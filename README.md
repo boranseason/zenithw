@@ -130,7 +130,7 @@ cd zenithw/backend
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.lock
 ```
 
 ### Running locally
@@ -155,6 +155,7 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `YOUTUBE_POT_PROVIDER_URL` | No | Local loopback base URL for the YouTube PO Token provider on EC2/Linux deployments |
 | `FLASK_ENV` / `ALLOW_DEV_CORS` | No | Set to `development` or `1` to allow local origins via CORS |
 | `ORIGIN_SECRET` | **Yes** when origin lock is enabled | Shared secret injected by Cloudflare in the `X-Origin-Verify` header |
+| `DIAGNOSTICS_TOKEN` | No | Separate bearer token for `/diagnostics`; when unset, that endpoint deliberately returns `404` |
 | `ENABLE_ORIGIN_LOCK` | No (default enabled) | Set to `0` only when intentionally disabling the origin-secret check |
 | `TRUST_PROXY` | No (default enabled) | Trust Cloudflare/proxy client-IP headers; disable when serving the backend directly |
 | `PROXY_HOPS` | No (default `1`) | Number of explicitly trusted reverse-proxy hops used by `ProxyFix`; keep `1` for the supplied EC2 Nginx config |
@@ -176,6 +177,8 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `DOWNLOAD_SPOOL_RESERVATION_MB` | No (default `2048`) | Capacity reserved for each accepted download job |
 | `MAX_CONCURRENT_TRANSFERS` | No (default `2`) | Maximum simultaneous prepared-file transfers |
 | `MAX_CONCURRENT_TRANSFERS_PER_IP` | No (default `2`) | Simultaneous prepared-file transfers allowed per IP |
+| `MAX_SOCKET_CONNECTIONS` | No (default `400`) | Maximum live Socket.IO connections in the single backend process |
+| `MAX_SOCKET_CONNECTIONS_PER_IP` | No (default `20`) | Maximum live Socket.IO connections from one verified visitor IP |
 | `TRANSFER_QUEUE_WAIT_SECONDS` | No (default `120`) | Maximum wait for a native transfer slot |
 | `PREPARED_FILE_TTL` | No (default `600`) | Lifetime of an unused prepared download token, in seconds |
 | `INFO_CACHE_TTL_SECONDS` | No (default `45`) | Short metadata response-cache lifetime |
@@ -230,7 +233,7 @@ unset) for the one-button GitHub flow.
 | `/cancel` | POST | Cancels an in-progress download |
 | `/health` | GET | Minimal liveness response |
 | `/ready` | GET | Backend readiness response; returns 503 when required media dependencies or disk budget are unavailable |
-| `/diagnostics` | GET | Origin-protected dependency, queue, cache, transfer, and single-worker diagnostics |
+| `/diagnostics` | GET | Private diagnostics; requires `Authorization: Bearer <DIAGNOSTICS_TOKEN>` and returns `404` when disabled or unauthorized |
 
 Normal API endpoints are rate-limited to **10 requests per minute per IP**. `/health` and `/ready` are probe endpoints, `/cancel` has a separate default **30 requests per minute** quota, and `/convert` additionally defaults to **2 conversions per 10 minutes per IP**.
 
@@ -240,7 +243,7 @@ Normal API endpoints are rate-limited to **10 requests per minute per IP**. `/he
 
 The backend intentionally runs as **one Gunicorn worker on one Amazon EC2 instance**. Rate limits, semaphores, cancellation events, Socket.IO identifiers, metadata cache entries, prepared-file tokens, and temporary files are currently process-local.
 
-Do not increase `--workers` or add replicas without first moving shared coordination to Redis (or an equivalent shared store), configuring a Socket.IO message queue and sticky routing, and placing prepared files in shared/object storage. The origin-protected `/diagnostics` response reports `horizontal_scaling_safe: false` and `expected_gunicorn_workers: 1` so deployment checks can detect this boundary.
+Do not increase `--workers` or add replicas without first moving shared coordination to Redis (or an equivalent shared store), configuring a Socket.IO message queue and sticky routing, and placing prepared files in shared/object storage. The bearer-token-protected `/diagnostics` response reports `horizontal_scaling_safe: false` and `expected_gunicorn_workers: 1` so deployment checks can detect this boundary.
 
 Vertical scaling is safe when measurements show the current instance needs more CPU, memory, or disk headroom.
 

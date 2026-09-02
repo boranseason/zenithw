@@ -20,7 +20,7 @@ limits. Instance-local files would also be unavailable from another replica.
 
 1. Keep `--workers 1` and one Railway replica or EC2 service. Scale the existing instance
    vertically if CPU, memory, or disk measurements require more headroom.
-2. Treat `/health` values `deployment_mode`, `horizontal_scaling_safe`, and
+2. Treat authenticated `/diagnostics` values `deployment_mode`, `horizontal_scaling_safe`, and
    `expected_gunicorn_workers` as a deployment guard. Horizontal scaling is not
    safe while `horizontal_scaling_safe` is `false`.
 3. Before adding workers or replicas, move shared rate limits, cancellation,
@@ -30,15 +30,19 @@ limits. Instance-local files would also be unavailable from another replica.
 4. Add multi-worker integration tests for cancellation, token handoff, quota
    enforcement, cleanup, and Socket.IO progress before changing `Procfile`.
 
-Production dependencies are in `backend/requirements.txt`. Local and CI tests should
-install `backend/requirements-dev.txt`; test-only packages do not belong in the runtime
-image.
+Production dependency intent is in `backend/requirements.txt`; deploy from the fully
+resolved, hash-verified `backend/requirements.lock` with
+`pip install --require-hashes -r requirements.lock`. Regenerate the lock with Python
+3.12 and `pip-compile --generate-hashes` whenever a direct dependency changes. Local
+test-only packages remain in `backend/requirements-dev.txt` and do not belong in the
+runtime image.
 
 ## Maintenance operations
 
 Maintenance mode is normally coordinated by the manual GitHub Actions workflow. It
-commits identical backend/frontend JSON config files, then the existing Railway and
-Cloudflare Git integrations deploy that state. No platform API tokens are required.
+commits identical backend/frontend JSON config files. Cloudflare Pages publishes the
+frontend state; the EC2 backend update remains an explicit, controlled service release.
+No platform API tokens are required by the workflow.
 
 Environment variables remain available as emergency overrides:
 
@@ -48,9 +52,9 @@ Environment variables remain available as emergency overrides:
 - `MAINTENANCE_MESSAGE` and `MAINTENANCE_UNTIL` describe the maintenance window.
 - `MAINTENANCE_RETRY_AFTER` controls the retry hint in seconds (default 900).
 
-After a workflow run, wait for both platform deployments and verify `/health` plus
-`/maintenance-status`. Do not scale workers or replicas as part of maintenance; the
-single-process boundary still applies.
+After a workflow run, wait for the frontend deployment, update the EC2 checkout, and
+verify `/health` plus `/maintenance-status`. Do not scale workers or replicas as part
+of maintenance; the single-process boundary still applies.
 
 ## AWS EC2 deployment boundary
 
@@ -68,12 +72,16 @@ Ubuntu EC2 host:
   the optional PO Token provider on local loopback.
 
 For EC2, keep the security group limited to SSH from the administrator's current
-IP and HTTP/HTTPS from Cloudflare's official IPv4/IPv6 ranges. Keep Railway live
-until the EC2 origin passes `/health`, `/ready`, CORS, WebSocket, real-IP,
-download, conversion, cancellation, streaming, and cleanup tests through the
-public proxied hostname.
+IP and HTTP/HTTPS from Cloudflare's official IPv4/IPv6 ranges. Production traffic
+belongs on EC2 only after the origin passes `/health`, `/ready`, CORS, WebSocket,
+real-IP, download, conversion, cancellation, streaming, and cleanup tests through
+the public proxied hostname.
 
 Set Cloudflare to **Full (strict)** only after the origin certificate is installed
 and direct origin TLS has been verified with the `api.zenithw.space` hostname.
-Then change the proxied `api` DNS record to the stable EC2 public IPv4/Elastic IP.
-Do not delete Railway during cutover; retain its hostname as the rollback target.
+Then point the proxied `api` DNS record to the stable EC2 public IPv4/Elastic IP.
+
+`/diagnostics` is not a public status API. Set a separate long random
+`DIAGNOSTICS_TOKEN`, send it only in the `Authorization: Bearer ...` header, and
+leave the variable unset when private diagnostics are not needed. Unauthorized
+requests intentionally receive `404` and every diagnostics response is `no-store`.

@@ -18,6 +18,7 @@ import ipaddress
 import tempfile
 import contextvars
 import math
+import hashlib
 from collections import defaultdict, OrderedDict, deque
 from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version as package_version
@@ -134,6 +135,11 @@ MAX_CONCURRENT_TRANSFERS_PER_IP = min(
     MAX_CONCURRENT_TRANSFERS,
     _bounded_env_int("MAX_CONCURRENT_TRANSFERS_PER_IP", 2, 1, 32),
 )
+MAX_SOCKET_CONNECTIONS = _bounded_env_int("MAX_SOCKET_CONNECTIONS", 400, 10, 5000)
+MAX_SOCKET_CONNECTIONS_PER_IP = min(
+    MAX_SOCKET_CONNECTIONS,
+    _bounded_env_int("MAX_SOCKET_CONNECTIONS_PER_IP", 20, 1, 200),
+)
 TRANSFER_QUEUE_WAIT_SECONDS = _bounded_env_int("TRANSFER_QUEUE_WAIT_SECONDS", 120, 5, 900)
 PREPARED_FILE_TTL = _bounded_env_int("PREPARED_FILE_TTL", 10 * 60, 60, 3600)
 PROGRESS_EMIT_INTERVAL = _bounded_env_float("PROGRESS_EMIT_INTERVAL", 0.2, 0.05, 5.0)
@@ -154,6 +160,56 @@ def _env_flag(name, default=False):
     if raw_value is None:
         return default
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _safe_log_url(raw_url):
+    """Return a useful URL label without credentials, query, or fragment."""
+    try:
+        parsed = urlparse(str(raw_url or ""))
+    except Exception:
+        return "[invalid-url]"
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    if not hostname:
+        return "[invalid-url]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    default_port = 443 if parsed.scheme == "https" else 80 if parsed.scheme == "http" else None
+    authority = hostname if not port or port == default_port else f"{hostname}:{port}"
+    path = parsed.path or "/"
+    if len(path) > 96:
+        path = f"{path[:64]}…#{hashlib.sha256(path.encode('utf-8', 'replace')).hexdigest()[:12]}"
+    return f"{parsed.scheme or 'url'}://{authority}{path}"
+
+
+_LOG_URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
+_LOG_SECRET_RE = re.compile(
+    r"(?i)(\b(?:token|sig|signature|auth|authorization|api[_-]?key|key)=)[^&\s,;]+"
+)
+
+
+def _redact_log_text(value):
+    """Remove signed URLs and common credential parameters from journal text."""
+    text = str(value or "")
+    text = _LOG_URL_RE.sub(lambda match: _safe_log_url(match.group(0)), text)
+    return _LOG_SECRET_RE.sub(r"\1[redacted]", text)
+
+
+_CLEANUP_WARNING_INTERVAL_SECONDS = 60
+_cleanup_warning_lock = threading.Lock()
+_cleanup_warning_last = {}
+
+
+def _log_cleanup_failure(action, exc):
+    """Surface best-effort cleanup failures without flooding the journal."""
+    now = time.monotonic()
+    with _cleanup_warning_lock:
+        previous = _cleanup_warning_last.get(action, 0.0)
+        if now - previous < _CLEANUP_WARNING_INTERVAL_SECONDS:
+            return
+        _cleanup_warning_last[action] = now
+    logger.warning("[CLEANUP] %s failed: %s", action, _redact_log_text(exc)[:200])
 
 
 MAINTENANCE_DEFAULT_MESSAGE = (
@@ -296,12 +352,12 @@ def _reap_new_children(before_pids, download_id=None, file_token=None):
             p.kill()
             try:
                 p.wait(timeout=5)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_cleanup_failure("wait for reaped child", exc)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
         except Exception as e:
-            logger.error(f"[REAP ERR] {e}")
+            logger.error("[REAP ERR] %s", _redact_log_text(e))
 
 
 def _reap_all_children_on_shutdown():
@@ -324,12 +380,12 @@ def _reap_all_children_on_shutdown():
             p.kill()
             try:
                 p.wait(timeout=5)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_cleanup_failure("wait for shutdown child", exc)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
         except Exception as e:
-            logger.error(f"[SHUTDOWN REAP ERR] {e}")
+            logger.error("[SHUTDOWN REAP ERR] %s", _redact_log_text(e))
 
 
 atexit.register(_reap_all_children_on_shutdown)
@@ -362,8 +418,8 @@ if cookies_env:
 elif os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 10:
     try:
         os.chmod(COOKIES_FILE, 0o600)
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_cleanup_failure("restrict cookie-file permissions", exc)
     logger.info(f"[INIT] cookies.txt found ({os.path.getsize(COOKIES_FILE)} bytes)")
 else:
     logger.warning("[INIT] cookies.txt not found - YouTube downloads may be restricted")
@@ -501,6 +557,7 @@ _CF_NETWORKS = [ipaddress.ip_network(n) for n in CLOUDFLARE_IPV4 + CLOUDFLARE_IP
 
 ORIGIN_SECRET_HEADER = "X-Origin-Verify"
 ORIGIN_SECRET_VALUE = os.environ.get("ORIGIN_SECRET", "")
+DIAGNOSTICS_TOKEN = os.environ.get("DIAGNOSTICS_TOKEN", "").strip()
 
 if ENABLE_ORIGIN_LOCK and not ORIGIN_SECRET_VALUE:
     if os.environ.get("FLASK_ENV") == "development" or os.environ.get("ALLOW_INSECURE_ORIGIN_LOCK"):
@@ -1114,16 +1171,16 @@ def _force_cleanup(path):
         if path and os.path.exists(path):
             os.remove(path)
         removed = not path or not os.path.exists(path)
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_cleanup_failure("remove temporary file", exc)
     try:
         if removed:
             release_spool_for_path(path)
         with _pending_cleanups_lock:
             if removed:
                 _pending_cleanups.pop(path, None)
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_cleanup_failure("unregister temporary file", exc)
 
 
 def cleanup_download_artifacts(file_token, keep_paths=None):
@@ -1226,7 +1283,7 @@ def cleanup_old_files():
         for path in stale_paths:
             cleanup_path_if_not_leased(path)
     except Exception as e:
-        logger.error(f"[CLEANUP] Failed to clean old files: {e}")
+        logger.error("[CLEANUP] Failed to clean old files: %s", _redact_log_text(e))
 
 
 def periodic_cleanup():
@@ -1315,7 +1372,7 @@ def cleanup_stale_cancel_events():
 
 # ── Bağlı Socket.IO sid'leri ────────────────────────────
 # YENİ: connected_sids artık dict (sid -> timestamp), memory leak önlendi
-connected_sids = {}
+connected_sids = {}  # sid -> {last_seen, ip}
 connected_sids_lock = threading.Lock()
 
 
@@ -1325,12 +1382,16 @@ def validate_sid(sid):
     with connected_sids_lock:
         now = time.time()
         # Eski kayıtları temizle
-        stale = [s for s, ts in connected_sids.items() if now - ts > CONNECTED_SID_MAX_AGE]
+        stale = [
+            connected_sid
+            for connected_sid, entry in connected_sids.items()
+            if now - entry["last_seen"] > CONNECTED_SID_MAX_AGE
+        ]
         for s in stale:
             del connected_sids[s]
         # SID geçerli mi kontrol et
         if sid in connected_sids:
-            connected_sids[sid] = now  # timestamp güncelle
+            connected_sids[sid]["last_seen"] = now
             return sid
         return ""
 
@@ -1793,10 +1854,10 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
             opts["js_runtimes"] = {
                 "deno": {"path": _DENO_PATH},
             }
-            # The installed yt-dlp-ejs package is preferred. This official npm
-            # source is a fallback when yt-dlp rejects/misses the local script
-            # bundle after a YouTube player update.
-            opts["remote_components"] = {"ejs:npm"}
+            # Keep production execution reproducible: yt-dlp discovers the
+            # pinned yt-dlp-ejs package locally. remote_components is
+            # deliberately not enabled, so deploys never fetch executable EJS
+            # components from npm at request time.
     if FFMPEG_DIR:
         opts["ffmpeg_location"] = FFMPEG_DIR
         # Keep every yt-dlp-managed FFmpeg postprocessor within the same
@@ -2337,6 +2398,17 @@ def public_status():
 
 @app.route("/diagnostics")
 def diagnostics():
+    authorization = request.headers.get("Authorization", "")
+    supplied_token = authorization[7:].strip() if authorization.startswith("Bearer ") else ""
+    if not (
+        DIAGNOSTICS_TOKEN
+        and supplied_token
+        and hmac.compare_digest(supplied_token, DIAGNOSTICS_TOKEN)
+    ):
+        response = jsonify({"error": "Not Found"})
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response, 404
+
     # YENİ: queue_lock ile korundu, race condition önlendi
     with queue_lock:
         _active = active_downloads_count
@@ -2359,7 +2431,7 @@ def diagnostics():
         _free_disk = shutil.disk_usage(DOWNLOAD_DIR).free
     except OSError:
         _free_disk = 0
-    return jsonify({
+    response = jsonify({
         "status": "ok",
         "maintenance": MAINTENANCE_MODE,
         "maintenance_message": MAINTENANCE_MESSAGE if MAINTENANCE_MODE else "",
@@ -2386,7 +2458,9 @@ def diagnostics():
         "info_inflight": _info_inflight,
         "info_cache_hits": _info_cache_hits,
         "info_cache_misses": _info_cache_misses,
-    }), 200
+    })
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response, 200
 
 
 if os.environ.get("FLASK_ENV") == "development":
@@ -2668,7 +2742,11 @@ def get_info_with_slot(url):
 
     public_err = primary_err or last_err
     error_msg = str(public_err) if public_err else "Unknown error"
-    logger.error(f"[INFO ERR] {url[:60]}: {error_msg[:150]}")
+    logger.error(
+        "[INFO ERR] %s: %s",
+        _safe_log_url(url),
+        _redact_log_text(error_msg)[:150],
+    )
     if isinstance(last_err, TimeoutError):
         return {
             "error": "Metadata request timed out. Please try again.",
@@ -2920,7 +2998,7 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
             last_err = e
             primary_err = remember_primary_error(primary_err, e)
             es = str(e).lower()
-            logger.error(f"[DL FAIL] {es[:100]}")
+            logger.error("[DL FAIL] %s", _redact_log_text(es)[:100])
             _reap_new_children(before_pids, download_id, filename)
             cleanup_download_artifacts(filename)
             if "cookie" in es and attempt_index + 1 < len(opts_list):
@@ -2995,18 +3073,18 @@ def apply_mute_postprocessing(full_path):
             _unregister_cleanup(muted_path)
             _register_cleanup(full_path)
         else:
-            logger.error(f"[MUTE FFMPEG FAIL] {result.stderr[:200]}")
+            logger.error("[MUTE FFMPEG FAIL] %s", _redact_log_text(result.stderr)[:200])
             raise RuntimeError("Mute processing failed")
     except Exception as e:
-        logger.error(f"[MUTE FFMPEG ERR] {e}")
+        logger.error("[MUTE FFMPEG ERR] %s", _redact_log_text(e))
         raise
     finally:
         try:
             if os.path.exists(muted_path):
                 os.remove(muted_path)
                 _unregister_cleanup(muted_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_cleanup_failure("remove partial mute output", exc)
 
 
 def finalize_prepared_download(full_path, *, fmt, video_title, requested_download_name,
@@ -3041,8 +3119,8 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
             try:
                 os.remove(full_path)
                 _unregister_cleanup(full_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_cleanup_failure("remove empty prepared download", exc)
             discard_cancel_event(download_id)
             if sid:
                 emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'request_failed'})
@@ -3060,8 +3138,8 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
             try:
                 os.remove(full_path)
                 _unregister_cleanup(full_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_cleanup_failure("remove oversized prepared download", exc)
             discard_cancel_event(download_id)
             if sid:
                 emit_job_progress(sid, download_id, {'status': 'error', 'error_code': 'file_too_large'})
@@ -3317,7 +3395,7 @@ def download():
         return jsonify({"error": "cancelled"}), 409
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"[DL ERR] {error_msg[:200]}")
+        logger.error("[DL ERR] %s", _redact_log_text(error_msg)[:200])
         discard_cancel_event(download_id)
         cleanup_download_artifacts(filename)
         payload = public_error_payload(error_msg, url)
@@ -3431,7 +3509,7 @@ def download_thumbnail_with_slot(url):
 
     public_err = primary_err or last_err
     error_msg = str(public_err) if public_err else "Thumbnail could not be retrieved"
-    logger.error(f"[THUMB ERR] {error_msg[:150]}")
+    logger.error("[THUMB ERR] %s", _redact_log_text(error_msg)[:150])
     if isinstance(last_err, TimeoutError):
         return jsonify({"error": "Thumbnail request timed out. Please try again.", "error_code": "request_timeout"}), 504
     return jsonify(public_error_payload(error_msg, url)), 400
@@ -3593,7 +3671,10 @@ def convert_file_with_slot(ip, spool_reservation):
                     "error_code": "remux_incompatible",
                 }), 400
             else:
-                logger.info(f"[CONV] stream copy incompatible; transcoding: {result.stderr[:200]}")
+                logger.info(
+                    "[CONV] stream copy incompatible; transcoding: %s",
+                    _redact_log_text(result.stderr)[:200],
+                )
                 _force_cleanup(output_path)
                 _register_cleanup(output_path)
 
@@ -3644,7 +3725,10 @@ def convert_file_with_slot(ip, spool_reservation):
                     "error_code": "file_too_large",
                 }), 413
             if result.returncode != 0:
-                logger.error(f"[CONV FFMPEG ERR] {result.stderr[:300]}")
+                logger.error(
+                    "[CONV FFMPEG ERR] %s",
+                    _redact_log_text(result.stderr)[:300],
+                )
                 _force_cleanup(output_path)
                 return jsonify({
                     "error": "Conversion failed. Please check the file format.",
@@ -3674,8 +3758,8 @@ def convert_file_with_slot(ip, spool_reservation):
             if input_path and os.path.exists(input_path):
                 os.unlink(input_path)
                 _unregister_cleanup(input_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_cleanup_failure("remove conversion input", exc)
 
         download_name = safe_download_name(requested_download_name, "converted", target_format)
         token = prepare_native_download(
@@ -3709,21 +3793,21 @@ def convert_file_with_slot(ip, spool_reservation):
             if output_path and os.path.exists(output_path):
                 os.unlink(output_path)
                 _unregister_cleanup(output_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_cleanup_failure("remove timed-out conversion output", exc)
         return jsonify({
             "error": "Conversion timed out.",
             "error_code": "request_timeout",
         }), 504
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"[CONV ERR] {error_msg[:200]}")
+        logger.error("[CONV ERR] %s", _redact_log_text(error_msg)[:200])
         try:
             if output_path and os.path.exists(output_path):
                 os.unlink(output_path)
                 _unregister_cleanup(output_path)
-        except Exception:
-            pass
+        except Exception as cleanup_exc:
+            _log_cleanup_failure("remove failed conversion output", cleanup_exc)
         return jsonify({
             "error": "An error occurred during conversion.",
             "error_code": "conversion_failed",
@@ -3733,22 +3817,46 @@ def convert_file_with_slot(ip, spool_reservation):
             if input_path and os.path.exists(input_path):
                 os.unlink(input_path)
                 _unregister_cleanup(input_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_cleanup_failure("finalize conversion input cleanup", exc)
 
 # ── Socket.IO Events ──────────────────────────────────
 @socketio.on('connect')
 def on_connect():
+    client_ip = get_client_ip()
+    now = time.time()
     with connected_sids_lock:
-        connected_sids[request.sid] = time.time()
-    logger.info(f"+ {request.sid}")
+        stale = [
+            sid
+            for sid, entry in connected_sids.items()
+            if now - entry["last_seen"] > CONNECTED_SID_MAX_AGE
+        ]
+        for sid in stale:
+            connected_sids.pop(sid, None)
+
+        per_ip_count = sum(
+            1 for entry in connected_sids.values() if entry["ip"] == client_ip
+        )
+        if (
+            len(connected_sids) >= MAX_SOCKET_CONNECTIONS
+            or per_ip_count >= MAX_SOCKET_CONNECTIONS_PER_IP
+        ):
+            logger.warning(
+                "[SOCKET] connection limit reached for ip=%s active=%s per_ip=%s",
+                client_ip,
+                len(connected_sids),
+                per_ip_count,
+            )
+            return False
+        connected_sids[request.sid] = {"last_seen": now, "ip": client_ip}
+    logger.info("+ %s", request.sid)
 
 
 @socketio.on('disconnect')
 def on_disconnect():
     with connected_sids_lock:
         connected_sids.pop(request.sid, None)
-    logger.info(f"- {request.sid}")
+    logger.info("- %s", request.sid)
 
 
 if __name__ == "__main__":

@@ -132,7 +132,7 @@ cd zenithw/backend
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.lock
 ```
 
 ### Yerel Olarak Çalıştırma
@@ -157,6 +157,7 @@ Yerel frontend geliştirmesi için `frontend/` dizinindeki dosyaları açın vey
 | `YOUTUBE_POT_PROVIDER_URL` | Hayır | EC2/Linux kurulumunda YouTube PO Token sağlayıcısının yerel loopback temel URL'si |
 | `FLASK_ENV` / `ALLOW_DEV_CORS` | Hayır | CORS üzerinden yerel kaynaklara izin vermek için `development` veya `1` yapın |
 | `ORIGIN_SECRET` | Kaynak kilidi etkinken **Evet** | Cloudflare tarafından `X-Origin-Verify` başlığında gönderilen ortak gizli anahtar |
+| `DIAGNOSTICS_TOKEN` | Hayır | `/diagnostics` için ayrı bearer belirteci; ayarlanmadığında uç nokta bilinçli olarak `404` döndürür |
 | `ENABLE_ORIGIN_LOCK` | Hayır (varsayılan etkin) | Yalnızca kaynak anahtarı kontrolü kasıtlı olarak devre dışı bırakıldığında `0` yapın |
 | `TRUST_PROXY` | Hayır (varsayılan etkin) | Cloudflare/proxy istemci IP başlıklarına güvenin; backend doğrudan sunulduğunda devre dışı bırakın |
 | `ARIA2_ENABLED` | Hayır | Şu anda yoksayılıyor — SSRF koruması için aria2 devre dışı bırakılmıştır |
@@ -177,6 +178,8 @@ Yerel frontend geliştirmesi için `frontend/` dizinindeki dosyaları açın vey
 | `DOWNLOAD_SPOOL_RESERVATION_MB` | Hayır (varsayılan `2048`) | Kabul edilen her indirme görevi için ayrılan kapasite |
 | `MAX_CONCURRENT_TRANSFERS` | Hayır (varsayılan `2`) | Maksimum eşzamanlı hazırlanmış dosya aktarımı |
 | `MAX_CONCURRENT_TRANSFERS_PER_IP` | Hayır (varsayılan `2`) | IP başına izin verilen eşzamanlı hazırlanmış dosya aktarımı |
+| `MAX_SOCKET_CONNECTIONS` | Hayır (varsayılan `400`) | Tek backend sürecindeki en yüksek canlı Socket.IO bağlantısı |
+| `MAX_SOCKET_CONNECTIONS_PER_IP` | Hayır (varsayılan `20`) | Doğrulanmış tek ziyaretçi IP'sinden en yüksek canlı Socket.IO bağlantısı |
 | `TRANSFER_QUEUE_WAIT_SECONDS` | Hayır (varsayılan `120`) | Yerel aktarım yuvası için maksimum bekleme süresi |
 | `PREPARED_FILE_TTL` | Hayır (varsayılan `600`) | Saniye cinsinden kullanılmayan bir hazırlanmış indirme belirtecinin ömrü |
 | `INFO_CACHE_TTL_SECONDS` | Hayır (varsayılan `45`) | Kısa meta veri yanıt önbelleği ömrü |
@@ -216,7 +219,7 @@ Backend, yeni `/info`, `/download`, `/thumbnail` ve `/convert` isteklerini JSON 
 | `/cancel` | POST | Devam eden bir indirmeyi iptal eder |
 | `/health` | GET | Minimum canlılık kontrol yanıtı |
 | `/ready` | GET | Backend hazırlık yanıtı; gerekli medya bağımlılıkları veya disk bütçesi uygun olmadığında 503 döndürür |
-| `/diagnostics` | GET | Kaynak korumalı bağımlılık, kuyruk, önbellek, aktarım ve tek çalıştırıcı teşhis verileri |
+| `/diagnostics` | GET | Özel teşhis verileri; `Authorization: Bearer <DIAGNOSTICS_TOKEN>` ister, kapalı veya yetkisizken `404` döndürür |
 
 Normal API uç noktaları **IP başına dakikada 10 istek** ile sınırlandırılmıştır. `/health` ve `/ready` durum kontrol noktalarıdır, `/cancel` ayrı bir varsayılan **dakikada 30 istek** kotasına sahiptir ve `/convert` ek olarak **IP başına 10 dakikada 2 dönüştürme** olarak varsayılana ayarlanmıştır.
 
@@ -226,7 +229,7 @@ Normal API uç noktaları **IP başına dakikada 10 istek** ile sınırlandırı
 
 Backend kasıtlı olarak **Amazon EC2 üzerindeki tek bir Gunicorn çalıştırıcısıyla** çalışır. Hız sınırları, semaforlar, iptal olayları, Socket.IO tanımlayıcıları, meta veri önbellek girdileri, hazırlanan dosya belirteçleri ve geçici dosyalar şu anda işlem içi (process-local) olarak tutulur.
 
-Paylaşılan koordinasyonu Redis'e taşımadan `--workers` sayısını artırmayın veya kopya eklemeyin. Kaynak korumalı `/diagnostics` yanıtı `horizontal_scaling_safe: false` ve `expected_gunicorn_workers: 1` olarak rapor verir.
+Paylaşılan koordinasyonu Redis'e taşımadan `--workers` sayısını artırmayın veya kopya eklemeyin. Bearer belirteciyle korunan `/diagnostics` yanıtı `horizontal_scaling_safe: false` ve `expected_gunicorn_workers: 1` olarak rapor verir.
 
 Dikey ölçeklendirme (RAM/CPU artırma) güvenlidir.
 
