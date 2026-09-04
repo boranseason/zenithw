@@ -44,3 +44,25 @@ body.updates-page::before{display:none;}
 @media(max-width:680px){.upd-shell{width:min(calc(100% - 28px),900px);padding-top:22px;}.upd-site-header{margin-bottom:54px;}.upd-hero{padding-left:19px;}.upd-hero::before{bottom:-34px;}.upd-post-title{font-size:clamp(32px,10vw,43px);}.upd-intro{padding-left:19px;}.upd-section{padding-left:43px;}.upd-section h3{font-size:15px;}.upd-outro,.upd-signoff{margin-left:19px;}.upd-pick{margin-left:auto;}}
 @media(max-width:520px){.upd-pick{width:auto;margin:0 0 0 auto;}.upd-pick select{min-width:105px;}.upd-intro p,.upd-section p{font-size:12px;}.upd-section{padding-left:36px;}.upd-section h3::before{font-size:8px;}.upd-nav-row{grid-template-columns:1fr;}.upd-nav-link.next{text-align:left;}}
 @media(prefers-reduced-motion:reduce){.upd-hero,.upd-article{animation:none;}}
+
+/* Compact release log v2 — smaller headings, no decorative rail or hero card. */
+.upd-shell{width:min(calc(100% - 44px),820px);padding-top:34px;}
+.upd-site-header{margin-bottom:46px;}
+.upd-hero{margin-bottom:20px;padding:0 0 24px;border-bottom:1px solid rgba(255,255,255,.1);}
+.upd-hero::before{display:none;}
+.upd-top-row{margin-bottom:13px;}
+.upd-post-title{max-width:720px;font-size:clamp(23px,3vw,30px);font-weight:680;line-height:1.2;letter-spacing:-.045em;}
+.upd-cover{display:none!important;}
+.upd-intro{max-width:720px;margin:0;padding:0 0 23px;border-bottom-color:rgba(255,255,255,.085);}
+.upd-intro p{font-size:11.5px;line-height:1.75;}
+.upd-intro p:first-child{color:var(--upd-text-2);}
+#updSections{max-width:760px;}
+.upd-section{display:grid;grid-template-columns:38px minmax(0,1fr);column-gap:12px;padding:23px 0;border-bottom-color:rgba(255,255,255,.085);}
+.upd-section h3,.upd-section p{grid-column:2;}
+.upd-section h3{margin-bottom:7px;font-size:13px;font-weight:650;line-height:1.4;letter-spacing:-.02em;}
+.upd-section h3::before{top:26px;font-size:8px;}
+.upd-section p{font-size:11.5px;line-height:1.75;}
+.upd-outro{max-width:700px;margin:24px 0 0;padding:0;border:0;color:var(--upd-text-2);font-size:11.5px;line-height:1.75;}
+.upd-signoff{margin:14px 0 0;}
+.upd-nav-row{margin-top:28px;}
+@media(max-width:680px){.upd-shell{width:min(calc(100% - 28px),820px);}.upd-site-header{margin-bottom:36px;}.upd-hero{padding-left:0;}.upd-post-title{font-size:23px;}.upd-intro{padding-left:0;}.upd-section{grid-template-columns:30px minmax(0,1fr);}.upd-outro,.upd-signoff{margin-left:0;}}

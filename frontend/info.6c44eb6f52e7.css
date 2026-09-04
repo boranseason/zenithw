@@ -929,3 +929,64 @@ body.info-page::before {
 
 @media(max-width:900px){.about-page .about-reading{padding:4px 0 42px;}.about-page .about-reading::before{display:none;}.about-page .info-hero h1{font-size:clamp(30px,9vw,40px);}}
 @media(max-width:560px){.about-page .info-section{padding-left:20px;}.about-page .info-section h2{font-size:17px;}.about-page .info-section p{font-size:12px;}.signal-stack{margin-bottom:30px;padding-left:42px;}.signal-stack-label{left:0;font-size:7px;}.signal-row{grid-template-columns:35px minmax(0,1fr) 19px;gap:9px;min-height:81px;}.signal-copy small{font-size:9.5px;}}
+
+/* Compact information system v2 — quiet hierarchy, no decorative rails. */
+.about-page .about-shell{width:min(calc(100% - 44px),1080px);padding-top:34px;}
+.about-layout{grid-template-columns:210px minmax(0,760px);gap:44px;}
+.about-section-nav{gap:3px;}
+.about-section-nav h2{margin-bottom:12px;font-size:14px;font-weight:700;letter-spacing:-.02em;}
+.about-section-nav a{min-height:37px;border-radius:8px;}
+.about-section-nav a b{font-size:10px;font-weight:560;}
+.about-section-nav a.active{color:#f4f4f5;background:rgba(var(--signal-rgb),.11);box-shadow:inset 0 0 0 1px rgba(var(--signal-rgb),.16);}
+.about-section-nav a.active span{color:var(--signal);background:rgba(var(--signal-rgb),.11);box-shadow:none;}
+.about-page .about-reading{padding:0 0 64px;}
+.about-page .about-reading::before{display:none;}
+.about-page .about-hero-layout{margin:0 0 12px;padding:0 0 24px;border-bottom:1px solid rgba(255,255,255,.1);}
+.about-page .info-kicker{margin-bottom:10px;font-size:8px;letter-spacing:.12em;}
+.about-page .info-hero h1{max-width:720px;font-size:clamp(22px,2.7vw,29px);font-weight:680;line-height:1.17;letter-spacing:-.045em;}
+.about-page .info-lead{max-width:650px;margin-top:11px;font-size:11.5px;line-height:1.7;}
+.about-page .info-meta{margin-top:10px;font-size:8.5px;}
+.about-page .about-signal-strip{display:none;}
+.about-page .info-card{display:block;}
+.about-page .info-section{padding:24px 0;border-bottom:1px solid rgba(255,255,255,.075);}
+.about-page .info-section::before{display:none;}
+.about-page .info-section+.info-section{margin-top:0;}
+.about-page .info-section h2{margin-bottom:9px;font-size:15px;font-weight:650;line-height:1.35;letter-spacing:-.025em;}
+.about-page .info-section p,.about-page .info-section li{font-size:11.5px;line-height:1.78;}
+.about-page .about-story-section{display:grid;grid-template-columns:116px minmax(0,1fr);column-gap:20px;}
+.about-page .about-story-section>.about-section-index{grid-column:1;grid-row:1/span 20;margin:3px 0 0;font-size:7.5px;line-height:1.55;}
+.about-page .about-story-section>:not(.about-section-index){grid-column:2;}
+.about-page .project-grid{gap:18px;margin-top:12px;}
+.about-page .project-grid .mini-card{min-width:130px;padding:5px 0;}
+.about-page .about-trust-list{margin-top:14px!important;}
+.about-page .about-trust-list li{padding:0 0 0 20px;}
+.about-page .about-trust-list li::before{left:0;top:1px;}
+.about-page .privacy-answer-card{padding:14px 0 0;border-top:1px solid rgba(255,255,255,.08);}
+.about-page .info-footer{margin-top:22px;padding-top:16px;}
+
+.signal-stack{max-width:none;margin:0 0 10px;padding:0;border-top:0;}
+.signal-stack-label{display:none;}
+.signal-row{grid-template-columns:36px minmax(0,1fr) 18px;min-height:72px;gap:12px;border-bottom-color:rgba(255,255,255,.085);}
+.signal-row:hover{padding-left:6px;background:rgba(var(--signal-rgb),.035);}
+.signal-icon{width:30px;height:30px;border:0;border-radius:7px;background:rgba(255,255,255,.055);}
+.signal-icon img,.signal-icon svg{display:block;width:16px;height:16px;object-fit:contain;fill:currentColor;}
+.signal-row.github .signal-icon{color:#f5f5f5;}.signal-row.x .signal-icon{color:#f5f5f5;}.signal-row.instagram .signal-icon{color:#e85b7a;}
+.signal-copy strong{font-size:11.5px;font-weight:650;}
+.signal-copy small{font-size:9.5px;}
+.signal-arrow{font-size:13px;}
+.community-note{margin-top:0!important;}
+
+@media(max-width:900px){
+  .about-page .about-shell{width:min(calc(100% - 28px),760px);padding-top:22px;}
+  .about-section-nav{margin-bottom:27px;}
+  .about-page .about-hero-layout{margin-bottom:4px;}
+}
+@media(max-width:600px){
+  .about-page .info-hero h1{font-size:22px;}
+  .about-page .about-story-section{display:block;}
+  .about-page .about-story-section>.about-section-index{display:block;margin:0 0 8px;}
+  .about-page .info-section{padding:20px 0;}
+  .about-page .info-section h2{font-size:14px;}
+  .about-page .info-section p,.about-page .info-section li{font-size:11px;}
+  .signal-row{min-height:68px;}
+}
