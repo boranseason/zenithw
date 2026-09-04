@@ -228,6 +228,16 @@
       <div class="qr-hint" id="qrHint">QR kodu telefonunuzla tarayın</div>
     </div>
   </div>
+  <section class="home-activity" aria-labelledby="homeActivityTitle">
+    <div class="home-activity-head">
+      <div class="home-activity-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.4 2.1"/></svg>
+        <h2 id="homeActivityTitle">son aktiviteler</h2>
+      </div>
+      <button type="button" class="home-activity-all" onclick="openHistory()"><span id="homeActivityAllTxt">tümünü gör</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="home-activity-list" id="homeActivityList"></div>
+  </section>
 </div>
 
 <!-- SUPPORTED SERVICES POPOVER -->
