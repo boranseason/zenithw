@@ -9,7 +9,7 @@
   --btn-bg:linear-gradient(135deg,#d8d8dc,#f4f4f6);--btn-color:#0a0a0a;
   --accent-secondary-rgb:168,139,250;--ambient-a:0;--ambient-b:0;
   --theme-bg-start:#050505;--theme-bg-end:#050505;--nav-bg:rgba(8,8,8,0.94);
-  --font:'Geist Mono',monospace;
+  --font:var(--font-sans,Inter,ui-sans-serif,system-ui,sans-serif);
   --safe-bottom:env(safe-area-inset-bottom,0px);--bar-height:60px;
   --space-blue:#3b82f6;--space-purple:#a855f7;--space-cyan:#22d3ee;--space-orange:#ff9a56;
   --glass-blur:14px;--glass-shine:rgba(255,255,255,0.05);
