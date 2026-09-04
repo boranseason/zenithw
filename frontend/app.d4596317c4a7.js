@@ -71,7 +71,7 @@ function scheduleSocketDisconnect(delay){
 let LANG='tr';
 const TX={
   tr:{
-    placeholder:'bir video linki yapıştır…',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'sessiz',paste:'yapıştır',
+    placeholder:'video bağlantısını buraya bırak',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'sessiz',paste:'yapıştır',continueBtn:'devam et',homePromptTxt:'medyanı tek bağlantıyla hazırla.',homeAssistTxt:'Bağlantıyı analiz eder, en iyi seçenekleri sana bırakır.',
     vcDl:'indir',dlBtn:'indir',dlCancel:'iptal',
     bbSave:'kaydet',bbHistory:'geçmiş',bbRemux:'remux',bbConvert:'dönüştür',bbSettings:'ayarlar',bbUpdates:'güncel',bbAbout:'hakkında',bbMore:'diğer',bbDonate:'destek ol',
     accDefault:'klasik',accDefaultDesc:'buz mavisi · dengeli',accPurple:'neon mor',accPurpleDesc:'elektrik moru · derin uzay',accGray:'grafit',accGrayDesc:'nötr gri · sade',accPink:'neon pembe',accPinkDesc:'canlı pembe · sıcak',accCobalt:'cobalt mavisi',accCobaltDesc:'derin mavi · odaklı',
@@ -138,7 +138,7 @@ const TX={
     updBadge:'GÜNCEL',
   },
   en:{
-    placeholder:'paste link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'mute',paste:'paste',
+    placeholder:'drop a media link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'mute',paste:'paste',continueBtn:'continue',homePromptTxt:'prepare your media from one link.',homeAssistTxt:'We analyze the link and leave the best options to you.',
     vcDl:'download',dlBtn:'download',dlCancel:'cancel',
     bbSave:'save',bbHistory:'history',bbRemux:'remux',bbConvert:'convert',bbSettings:'settings',bbUpdates:'updates',bbAbout:'about',bbMore:'more',bbDonate:'support us',
     accDefault:'classic',accDefaultDesc:'ice blue · balanced',accPurple:'neon purple',accPurpleDesc:'electric violet · deep space',accGray:'graphite',accGrayDesc:'neutral gray · minimal',accPink:'neon pink',accPinkDesc:'vivid pink · warm',accCobalt:'cobalt blue',accCobaltDesc:'deep blue · focused',
@@ -207,7 +207,7 @@ const TX={
     updBadge:'LATEST',
   },
   fr:{
-    placeholder:'collez un lien vidéo…',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'muet',paste:'coller',
+    placeholder:'déposez un lien média ici',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'muet',paste:'coller',continueBtn:'continuer',homePromptTxt:'préparez votre média avec un seul lien.',homeAssistTxt:'Nous analysons le lien et vous laissons les meilleures options.',
     vcDl:'télécharger',dlBtn:'télécharger',dlCancel:'annuler',
     bbSave:'enregistrer',bbHistory:'historique',bbRemux:'remux',bbConvert:'convertir',bbSettings:'paramètres',bbUpdates:'nouveautés',bbAbout:'à propos',bbMore:'plus',bbDonate:'soutenir',
     accDefault:'classique',accDefaultDesc:'bleu glacier · équilibré',accPurple:'violet néon',accPurpleDesc:'violet électrique · espace',accGray:'graphite',accGrayDesc:'gris neutre · minimal',accPink:'rose néon',accPinkDesc:'rose vif · chaleureux',accCobalt:'bleu cobalt',accCobaltDesc:'bleu profond · précis',
@@ -276,7 +276,7 @@ const TX={
     updBadge:'RÉCENT',
   },
   de:{
-    placeholder:'video-link hier einfügen…',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'stumm',paste:'einfügen',
+    placeholder:'medienlink hier ablegen',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'auto',modeAudioTxt:'audio',modeMuteTxt:'stumm',paste:'einfügen',continueBtn:'weiter',homePromptTxt:'medien mit nur einem link vorbereiten.',homeAssistTxt:'Wir analysieren den Link und überlassen dir die besten Optionen.',
     vcDl:'herunterladen',dlBtn:'herunterladen',dlCancel:'abbrechen',
     bbSave:'speichern',bbHistory:'verlauf',bbRemux:'remux',bbConvert:'konvertieren',bbSettings:'einstellungen',bbUpdates:'neuigkeiten',bbAbout:'über',bbMore:'mehr',bbDonate:'unterstützen',
     accDefault:'klassisch',accDefaultDesc:'eisblau · ausgewogen',accPurple:'neon-lila',accPurpleDesc:'elektrisches lila · weltraum',accGray:'graphit',accGrayDesc:'neutrales grau · minimal',accPink:'neon-pink',accPinkDesc:'lebendiges pink · warm',accCobalt:'kobaltblau',accCobaltDesc:'tiefblau · fokussiert',

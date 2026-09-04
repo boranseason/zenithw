@@ -46,12 +46,21 @@
 }
 </script>
 <link href="/fonts.css?v=1" rel="stylesheet">
-<link rel="stylesheet" href="style.487d49f0164d.css?v=14.5">
+<link rel="stylesheet" href="style.487d49f0164d.css?v=14.7">
 <link rel="stylesheet" href="site-shell.css?v=14.4">
 <script src="version.js?v=14.0"></script>
 </head>
 <body class="home-page theme-default">
 <div class="page">
+  <div class="home-ambient" aria-hidden="true">
+    <svg viewBox="0 0 900 560" preserveAspectRatio="none">
+      <path d="M80 450C250 312 340 524 520 366S720 192 900 250"/>
+      <path d="M60 474C240 330 354 532 530 382S724 216 916 264"/>
+      <path d="M42 498C230 350 366 542 544 402S734 244 930 282"/>
+      <path d="M24 520C220 372 378 550 556 424S748 276 944 304"/>
+      <path d="M4 540C210 398 390 556 568 448S760 310 960 330"/>
+    </svg>
+  </div>
   <div class="services-chip-wrap">
     <button class="services-chip" id="servicesChip" type="button" onclick="toggleServices()" aria-expanded="false" aria-controls="servicesOverlay">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
@@ -60,8 +69,8 @@
     </button>
   </div>
   <div class="logo-wrap">
-    <span class="home-mark" aria-hidden="true">ZENITHW / MEDIA</span>
-    <h1 class="logo-name" id="timeGreeting">linkini yapıştır<span>.</span></h1>
+    <span class="home-wordmark" aria-label="ZenithW">ZenithW<span>.</span></span>
+    <h1 class="logo-name" id="homePromptTxt">medyanı tek bağlantıyla hazırla.</h1>
   </div>
   <div class="url-form">
     <div class="url-field-wrap">
@@ -75,8 +84,13 @@
         <button class="url-clear" id="urlClear" onclick="clearUrl()">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
         </button>
+        <button class="btn-paste home-paste" onclick="pasteAndFetch()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          <span id="paste">yapıştır</span>
+        </button>
         <button class="url-go-btn" onclick="fetchVideo()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" stroke-linecap="round"/></svg>
+          <span id="continueBtn">devam et</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <button class="url-help-btn" id="urlHelpBtn" onclick="openHelp()" aria-label="Yardım">
@@ -176,12 +190,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
         <span id="modeMuteTxt">sessiz</span>
       </button>
-      <div class="mode-spacer"></div>
-      <button class="btn-paste" onclick="pasteAndFetch()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-        <span id="paste">yapıştır</span>
-      </button>
     </div>
+    <p class="home-assist" id="homeAssistTxt">Bağlantıyı analiz eder, en iyi seçenekleri sana bırakır.</p>
     <div class="yt-warn" id="ytWarn">youtube desteği aktif — bazı videolar youtube erişim kısıtlamalarından etkilenebilir.</div>
     <div class="video-card" id="videoCard">
       <div class="vc-inner">
