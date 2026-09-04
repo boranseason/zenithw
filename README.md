@@ -134,7 +134,7 @@ zenithw/
 ### Installation
 
 ```bash
-git clone https://github.com/kakangeldi82-netizen/zenithw.git
+git clone https://github.com/boranseason/zenithw.git
 cd zenithw/backend
 
 python -m venv venv
