@@ -10,22 +10,26 @@
   <meta name="theme-color" content="#060606">
   <link rel="icon" type="image/png" href="zenithw.png">
   <link href="/fonts.css?v=1" rel="stylesheet">
-  <link rel="stylesheet" href="info.6c44eb6f52e7.css">
+  <link rel="stylesheet" href="info.6c44eb6f52e7.css?v=14.5">
   <link rel="stylesheet" href="site-shell.css?v=14.4">
 </head>
-<body class="info-page">
-  <main class="info-shell">
-    <nav class="info-nav" aria-label="Sayfa navigasyonu">
-      <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
-      <div class="info-actions">
-        <div class="lang-switch" id="langSwitch" aria-label="Dil seçimi">
+<body class="info-page premium-info-page about-page privacy-page">
+  <main class="info-shell about-shell">
+    <div class="about-layout">
+      <aside class="about-section-nav" aria-label="Hakkında bölümleri">
+        <h2>about</h2>
+        <a href="/about"><span aria-hidden="true">✦</span><b>ZenithW nedir?</b></a>
+        <a href="/about/community"><span aria-hidden="true">⌘</span><b>topluluk & destek</b></a>
+        <a class="active" href="/about/privacy"><span aria-hidden="true">♙</span><b>gizlilik & veri</b></a>
+        <a href="/about/terms"><span aria-hidden="true">✓</span><b>kullanım & etik</b></a>
+        <a href="/about/credit"><span aria-hidden="true">♡</span><b>emeği geçenler & lisanslar</b></a>
+        <div class="about-language lang-switch" id="langSwitch" aria-label="Dil seçimi">
           <button type="button" data-lang="tr" onclick="setPageLang('tr')">TR</button>
           <button type="button" data-lang="en" onclick="setPageLang('en')">EN</button>
         </div>
-        <a href="/" class="info-back" id="pgBack">← ana sayfa</a>
-      </div>
-    </nav>
-    <header class="info-hero">
+      </aside>
+      <div class="about-reading">
+    <header class="info-hero about-hero-layout">
       <div class="info-kicker" id="pgKicker">şeffaflık</div>
       <h1 id="pgH1">Gizlilik, sonradan eklenen bir ayar değil.</h1>
       <p class="info-lead" id="pgLead">ZenithW yalnızca hizmeti çalıştırmak ve kötüye kullanımı önlemek için gerekli olan sınırlı verileri işler.</p>
@@ -33,6 +37,8 @@
     </header>
     <article class="info-card" id="pgBody"></article>
     <footer class="info-footer" id="pgFooter"></footer>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -146,7 +152,7 @@
     };
 
   </script>
-  <div id="siteBottomNav" data-mode="info" data-active="privacy"></div>
+  <div id="siteBottomNav" data-active="about"></div>
   <script src="site-shell.js?v=14.3"></script>
   <script src="info-page.412ae0f21fba.js"></script>
 </body>
