@@ -9,7 +9,7 @@
 html{min-height:100%;background:var(--bg);overflow-x:hidden;}
 body{min-height:100vh;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden;}
 /* ══════════════════════════════════════════════════════
-   INFORMATION PAGES (about, privacy, dmca, status, thanks)
+   INFORMATION PAGES (about, privacy, dmca, status, credit)
    Scoped to .info-page so index and updates stay unchanged.
    ══════════════════════════════════════════════════════ */
 body.info-page {
