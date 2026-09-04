@@ -15,37 +15,35 @@
 <link rel="stylesheet" href="premium-pages.css?v=1.0">
 </head>
 <body class="info-page premium-info-page about-page">
-  <main class="info-shell">
-    <nav class="info-nav" aria-label="Sayfa navigasyonu">
-      <a href="/" class="info-logo" aria-label="ZenithW ana sayfa">ZenithW<span>.</span></a>
-      <div class="info-actions">
-        <div class="lang-switch" id="langSwitch" aria-label="Dil seçimi">
+  <main class="info-shell about-shell">
+    <div class="about-layout">
+      <aside class="about-section-nav" aria-label="Hakkında bölümleri">
+        <h2>about</h2>
+        <a class="active" href="/about"><span aria-hidden="true">✦</span><b>ZenithW nedir?</b></a>
+        <a href="/support.html"><span aria-hidden="true">⌘</span><b>topluluk & destek</b></a>
+        <a href="/privacy"><span aria-hidden="true">♙</span><b>gizlilik & veri</b></a>
+        <a href="/terms"><span aria-hidden="true">✓</span><b>kullanım & etik</b></a>
+        <a href="/thanks"><span aria-hidden="true">♡</span><b>teşekkürler & lisanslar</b></a>
+        <div class="about-language lang-switch" id="langSwitch" aria-label="Dil seçimi">
           <button type="button" data-lang="tr" onclick="setPageLang('tr')">TR</button>
           <button type="button" data-lang="en" onclick="setPageLang('en')">EN</button>
         </div>
-        <a href="/" class="info-back" id="pgBack">← ana sayfa</a>
-      </div>
-    </nav>
+      </aside>
 
-    <header class="info-hero about-hero-layout">
+      <div class="about-reading">
+        <header class="info-hero about-hero-layout">
       <div class="about-hero-copy">
         <div class="info-kicker" id="pgKicker">açık kaynak · reklamsız</div>
         <h1 id="pgH1">Bağlantıyı bırak.<br>Gerisini ZenithW halletsin.</h1>
         <p class="info-lead" id="pgLead">ZenithW, video ve sesi gereksiz yönlendirmeler olmadan indirilebilir dosyalara dönüştüren bağımsız bir web aracıdır.</p>
         <p class="info-meta" id="pgUpdated">Son güncelleme: 17 Ağustos 2026</p>
       </div>
-      <div class="about-system-card" aria-label="ZenithW işlem mimarisi">
-        <div class="about-system-head"><span>SYSTEM / FLOW</span><i>LIVE</i></div>
-        <div class="about-flow-node"><b>01</b><div><strong>URL</strong><small id="pgFlowSource">kaynak bağlantı</small></div><em>→</em></div>
-        <div class="about-flow-node"><b>02</b><div><strong>ANALYZE</strong><small id="pgFlowAnalyze">format ve kalite keşfi</small></div><em>→</em></div>
-        <div class="about-flow-node"><b>03</b><div><strong>PREPARE</strong><small id="pgFlowPrepare">yt-dlp + FFmpeg</small></div><em>→</em></div>
-        <div class="about-flow-node"><b>04</b><div><strong>DELIVER</strong><small id="pgFlowDeliver">geçici HTTPS aktarımı</small></div></div>
-        <div class="about-system-foot"><span id="pgFlowNoAds">reklam yok</span><span id="pgFlowNoAccount">üyelik yok</span><span id="pgFlowNoArchive">kalıcı arşiv yok</span></div>
-      </div>
-    </header>
+        </header>
 
-    <article class="info-card" id="pgBody"></article>
-    <footer class="info-footer" id="pgFooter"></footer>
+        <article class="info-card" id="pgBody"></article>
+        <footer class="info-footer" id="pgFooter"></footer>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -170,7 +168,7 @@
       }
     };
 </script>
-  <div id="siteBottomNav" data-mode="info" data-active="about"></div>
+  <div id="siteBottomNav" data-active="about"></div>
   <script src="info-page.412ae0f21fba.js?v=1.1"></script>
 <script src="site-shell.js?v=14.3"></script>
 </body>
