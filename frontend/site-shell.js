@@ -2,10 +2,10 @@
   const host=document.getElementById('siteBottomNav');
   const active=host?.dataset.active||'home';
   const labels={
-    tr:{home:'ana sayfa',history:'geçmiş',updates:'güncel',convert:'dönüştür',more:'diğer',remux:'remux',settings:'ayarlar',about:'hakkında',support:'destek ol'},
-    en:{home:'home',history:'history',updates:'updates',convert:'convert',more:'more',remux:'remux',settings:'settings',about:'about',support:'support us'},
-    fr:{home:'accueil',history:'historique',updates:'nouveautés',convert:'convertir',more:'plus',remux:'remux',settings:'paramètres',about:'à propos',support:'soutenir'},
-    de:{home:'start',history:'verlauf',updates:'updates',convert:'konvertieren',more:'mehr',remux:'remux',settings:'einstellungen',about:'über uns',support:'unterstützen'}
+    tr:{home:'ana sayfa',history:'geçmiş',updates:'güncel',convert:'dönüştür',more:'diğer',remux:'remux',settings:'ayarlar',about:'hakkında',support:'destek ol',privacy:'gizlilik',terms:'koşullar',thanks:'teşekkürler',status:'durum'},
+    en:{home:'home',history:'history',updates:'updates',convert:'convert',more:'more',remux:'remux',settings:'settings',about:'about',support:'support us',privacy:'privacy',terms:'terms',thanks:'thanks',status:'status'},
+    fr:{home:'accueil',history:'historique',updates:'nouveautés',convert:'convertir',more:'plus',remux:'remux',settings:'paramètres',about:'à propos',support:'soutenir',privacy:'confidentialité',terms:'conditions',thanks:'merci',status:'statut'},
+    de:{home:'start',history:'verlauf',updates:'updates',convert:'konvertieren',more:'mehr',remux:'remux',settings:'einstellungen',about:'über uns',support:'unterstützen',privacy:'datenschutz',terms:'bedingungen',thanks:'danke',status:'status'}
   };
   function currentLang(){
     try{const saved=localStorage.getItem('zw_lang');if(labels[saved])return saved;}catch(e){}
@@ -21,11 +21,18 @@
     remux:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>',
     settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
     about:'<circle cx="12" cy="12" r="10"/><path d="M12 11v5M12 8h.01"/>',
-    support:'<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 00-.1-7.8z"/>'
+    support:'<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 00-.1-7.8z"/>',
+    privacy:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/>',
+    terms:'<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>',
+    thanks:'<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 00-.1-7.8z"/><path d="M8 12h8"/>',
+    status:'<path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/>'
   };
   const svg=name=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${icon[name]}</svg>`;
   if(host){
-    host.innerHTML=`
+    if(host.dataset.mode==='info'){
+      const infoItems=[['about','/about'],['support','/support.html'],['privacy','/privacy'],['terms','/terms'],['thanks','/thanks'],['status','/status']];
+      host.innerHTML=`<nav class="bottom-bar info-bottom-bar" aria-label="ZenithW bilgi sayfaları">${infoItems.map(([name,href])=>`<a class="bar-btn ${active===name?'active':''}" href="${href}" aria-current="${active===name?'page':'false'}">${svg(name)}<span data-info-label="${name}"></span></a>`).join('')}</nav>`;
+    }else{host.innerHTML=`
       <nav class="bottom-bar" aria-label="ZenithW">
         <a class="bar-btn ${active==='home'?'active':''}" href="/" aria-current="${active==='home'?'page':'false'}">${svg('home')}<span id="bbSave"></span></a>
         <a class="bar-btn ${active==='remux'?'active':''}" href="/remux.html" aria-current="${active==='remux'?'page':'false'}">${svg('remux')}<span id="bbRemux"></span></a>
@@ -40,12 +47,13 @@
         <a class="more-item ${active==='history'?'active':''}" href="/history.html">${svg('history')}<span id="moreItemHistory"></span></a>
         <a class="more-item ${active==='convert'?'active':''}" href="/convert.html">${svg('convert')}<span id="moreItemConvert"></span></a>
         <a class="more-item ${active==='about'?'active':''}" href="/about">${svg('about')}<span id="moreItemAbout"></span></a>
-      </div>`;
+      </div>`;}
   }
   function applyShellLanguage(){
     const lang=currentLang(),copy=labels[lang];
     const map={bbSave:'home',bbRemux:'remux',bbSettings:'settings',bbSupport:'support',bbUpdates:'updates',bbHistoryMobile:'history',bbConvertMobile:'convert',bbAboutMobile:'about',moreItemHistory:'history',moreItemConvert:'convert',moreItemAbout:'about'};
     Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=copy[key];});
+    document.querySelectorAll('[data-info-label]').forEach(el=>{el.textContent=copy[el.dataset.infoLabel]||el.dataset.infoLabel;});
     if(window.matchMedia('(max-width:900px)').matches){requestAnimationFrame(()=>document.querySelector('.bottom-bar .bar-btn.active')?.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'}));}
     updateTimeGreeting();
   }
