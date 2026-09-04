@@ -1066,7 +1066,7 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
 .home-page .page::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.11;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(110deg,transparent 8%,#000 60%,transparent 96%);}
 .home-ambient{position:fixed;right:-4vw;bottom:2vh;width:min(72vw,1120px);height:min(72vh,720px);z-index:-1;pointer-events:none;opacity:.8;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 24%);transform-origin:78% 70%;animation:homeAmbientDrift 18s ease-in-out infinite alternate;will-change:transform;}
 .home-ambient svg{width:100%;height:100%;overflow:visible;}
-.home-ambient path{fill:none;stroke:rgba(139,112,255,.38);stroke-width:1;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px rgba(115,90,220,.12));}
+.home-ambient path{fill:none;stroke:rgba(139,112,255,.45);stroke-width:1.15;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px rgba(115,90,220,.12));}
 .home-ambient path:nth-child(2){stroke:rgba(180,171,255,.19)}
 .home-ambient path:nth-child(3){stroke:rgba(111,88,210,.22)}
 .home-ambient path:nth-child(4){stroke:rgba(225,225,235,.09)}
@@ -1092,11 +1092,14 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
 .home-page .home-paste:hover{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.055);color:#ececf0;}
 .home-page .url-go-btn{display:inline-flex;width:auto;height:48px;margin:0;gap:10px;padding:0 21px;border:1px solid rgba(163,137,255,.32);border-radius:10px;color:#f2efff;background:linear-gradient(135deg,#3b354d,#59468d);font:650 12px var(--font);box-shadow:0 9px 28px rgba(66,48,116,.28),inset 0 1px rgba(255,255,255,.11);}
 .home-page .url-go-btn:hover{opacity:1;background:linear-gradient(135deg,#454052,#66519d);}
-.home-page .mode-row{align-self:flex-start;display:grid;grid-template-columns:repeat(4,1fr);width:min(720px,100%);gap:0;padding:3px;border:1px solid rgba(255,255,255,.095);border-radius:11px;background:rgba(13,14,16,.8);}
+.home-page .mode-row{align-self:flex-start;display:grid;grid-template-columns:repeat(5,1fr);width:min(740px,100%);gap:0;padding:3px;border:1px solid rgba(255,255,255,.095);border-radius:11px;background:rgba(13,14,16,.8);}
 .home-page .mode-btn,.home-page .bulk-toggle{min-height:42px;margin:0;padding:0 16px;border:0;border-radius:8px;background:transparent;color:rgba(236,236,240,.42);font-size:11px;justify-content:center;}
-.home-page .mode-btn+.mode-btn{border-left:1px solid rgba(255,255,255,.06);border-top-left-radius:0;border-bottom-left-radius:0;}
+.home-page .mode-btn+.mode-btn,.home-page .bulk-toggle{border-left:1px solid rgba(255,255,255,.06);border-top-left-radius:0;border-bottom-left-radius:0;}
+.home-page .bulk-toggle{display:inline-flex;align-items:center;gap:7px;}
+.home-page .bulk-toggle svg{width:14px;height:14px;flex:none;}
 .home-page .mode-btn:hover,.home-page .bulk-toggle:hover{background:rgba(255,255,255,.04);color:rgba(236,236,240,.68);}
 .home-page .mode-btn.active,.home-page .mode-btn#modeAuto.active,.home-page .mode-btn#modeAudio.active,.home-page .mode-btn#modeMute.active,.home-page .bulk-toggle.active{border:0;color:#e9e7ef;background:rgba(255,255,255,.075);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.home-page .mode-btn.active{color:#c6b4ff;background:linear-gradient(135deg,rgba(107,73,223,.25),rgba(83,55,171,.13));box-shadow:inset 0 0 0 1px rgba(146,111,255,.8),0 0 20px rgba(112,76,230,.1);}
 .home-page .mode-btn.active svg{filter:none!important;}
 .home-assist{margin-top:0;color:rgba(236,236,240,.4);font-size:11px;line-height:1.5;}
 .home-page .url-form.bulk-mode .home-paste,.home-page .url-form.bulk-mode .url-go-btn{display:none;}
@@ -1144,7 +1147,7 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
   .home-page .home-paste span{display:none;}
   .home-page .url-go-btn{width:38px;height:38px;padding:0;justify-content:center;}
   .home-page .url-go-btn span{display:none;}
-  .home-page .mode-row{align-self:stretch;display:grid;grid-template-columns:repeat(4,1fr);}
+  .home-page .mode-row{align-self:stretch;display:grid;grid-template-columns:repeat(5,1fr);}
   .home-page .mode-btn,.home-page .bulk-toggle{min-width:0;padding:0 6px;justify-content:center;}
   .home-page .mode-btn svg{display:none;}
   .home-assist{text-align:center;font-size:9.5px;}
