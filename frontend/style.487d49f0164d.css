@@ -1073,9 +1073,11 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
 .home-ambient path:nth-child(5){stroke:rgba(104,83,190,.18)}
 .home-page .services-chip-wrap{left:50%;right:auto;transform:translateX(-50%);}
 .home-page .url-form{position:relative;z-index:1;width:min(920px,100%);max-width:920px;}
-.home-page .logo-wrap{position:fixed;top:52px;left:calc(92px + 84px);z-index:2;width:auto;align-items:flex-start;gap:8px;margin:0;}
+.home-page .logo-wrap{position:fixed;top:52px;left:calc(92px + 84px);z-index:2;width:auto;display:flex;flex-direction:row;align-items:center;gap:18px;margin:0;}
 .home-wordmark{color:#f0f0f2;font-size:25px;font-weight:720;line-height:1;letter-spacing:-.045em;}
 .home-wordmark span{color:#8e79df;}
+.home-page .home-status{display:inline-flex;align-items:center;gap:8px;color:rgba(235,235,241,.56);font-size:12px;font-weight:560;letter-spacing:-.08px;white-space:nowrap;}
+.home-page .home-status i{width:7px;height:7px;border-radius:50%;background:#31c878;box-shadow:0 0 0 4px rgba(49,200,120,.08),0 0 14px rgba(49,200,120,.48);}
 .home-page .logo-name{color:rgba(236,236,240,.52);font-size:11px;font-weight:500;letter-spacing:-.005em;text-align:left;}
 .home-page .url-form{gap:12px;}
 .home-page .url-field{min-height:74px;padding:7px;border-color:rgba(255,255,255,.16);border-radius:16px;background:linear-gradient(180deg,rgba(25,26,29,.92),rgba(14,15,17,.94));box-shadow:0 24px 80px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.05);backdrop-filter:none;-webkit-backdrop-filter:none;}
@@ -1109,6 +1111,8 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
   .home-page .services-chip-wrap{right:auto;left:50%;transform:translateX(-50%);}
   .home-page .logo-wrap{gap:6px;margin-bottom:14px;}
   .home-wordmark{font-size:19px;}
+  .home-page .home-status{font-size:10px;gap:6px;}
+  .home-page .home-status i{width:6px;height:6px;}
   .home-page .logo-name{font-size:11px;}
   .home-page .url-field{min-height:60px;padding:5px;border-radius:13px;}
   .home-page .url-spinner-wrap{width:35px;}
