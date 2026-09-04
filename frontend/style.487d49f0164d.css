@@ -1071,6 +1071,8 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
 .home-ambient path:nth-child(3){stroke:rgba(111,88,210,.22)}
 .home-ambient path:nth-child(4){stroke:rgba(225,225,235,.09)}
 .home-ambient path:nth-child(5){stroke:rgba(104,83,190,.18)}
+.home-ambient path:nth-child(6){stroke:rgba(106,139,255,.25)}
+.home-ambient path:nth-child(7){stroke:rgba(127,93,238,.18)}
 .home-page .services-chip-wrap{left:50%;right:auto;transform:translateX(-50%);}
 .home-page .url-form{position:relative;z-index:1;width:min(920px,100%);max-width:920px;}
 .home-page .logo-wrap{position:fixed;top:52px;left:calc(92px + 84px);z-index:2;width:auto;display:flex;flex-direction:row;align-items:center;gap:18px;margin:0;}
