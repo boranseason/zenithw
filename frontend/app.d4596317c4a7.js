@@ -531,62 +531,6 @@ function fireRadar(){
   ring.classList.remove('fire');
   void ring.offsetWidth; // restart animation
   ring.classList.add('fire');
-  // The cat gets briefly excited too — big eyes, perked ears
-  const wrap=document.getElementById('urlCatWrap');
-  if(wrap){
-    wrap.classList.remove('bored','rare-yawn','rare-lookback');
-    wrap.classList.add('excited');
-    setTimeout(()=>wrap.classList.remove('excited'),900);
-  }
-}
-
-// ── CAT BORED (10s Idle Paw Nibble Easter Egg) ──
-let catIdleTimer = null;
-function resetCatTimer(){
-  const wrap=document.getElementById('urlCatWrap');
-  if(wrap)wrap.classList.remove('bored','rare-yawn','rare-lookback');
-  if(catIdleTimer)clearTimeout(catIdleTimer);
-  catIdleTimer=setTimeout(()=>{
-    const val=document.getElementById('urlInput')?.value.trim();
-    if(val||!wrap)return;
-    const roll=Math.random();
-    // ~2% of the time, something rarer than the usual paw-nibble shows up
-    if(roll<0.01)wrap.classList.add('rare-yawn');
-    else if(roll<0.02)wrap.classList.add('rare-lookback');
-    else wrap.classList.add('bored');
-  },10000); // 10 seconds
-}
-
-// ── CAT SPEECH BUBBLE (click to hear something) ──
-const CAT_LINES={
-  tr:['miyav 🐾','linki at, ben hallederim','beni okşadın mı şimdi?','pat pat istiyorum','hazır mısın?','naaav','şşt, bir link kokusu alıyorum'],
-  en:['meow 🐾','paste a link, i got this','did you just pet me?','pspsps','ready when you are','psst, i smell a link']
-};
-let catBubbleTimer=null;
-function catSpeak(){
-  const bubble=document.getElementById('catBubble');
-  if(!bubble)return;
-  const lines=CAT_LINES[LANG]||CAT_LINES.en;
-  bubble.textContent=lines[Math.floor(Math.random()*lines.length)];
-  // Balon varsayılan olarak kedinin tam ortasına hizalanıyor (CSS: left:50%),
-  // ama kedi sağ kenara yakın oturduğu için uzun/geniş bir replik ekranın
-  // dışına taşabilir. Animasyon başlamadan ÖNCE gerçek genişliğe göre ölçüp
-  // `left`'i içeri çekiyoruz (transform'a değil left'e dokunuyoruz, çünkü
-  // pop animasyonu zaten kendi transform'unu kullanıyor — böylece ne bir
-  // "sıçrama" oluyor ne de html/body seviyesinde yatay taşma kalıyor,
-  // eskiden navbar/chip'in kaymasına sebep olan da buydu).
-  bubble.style.left='50%';
-  const r=bubble.getBoundingClientRect();
-  const margin=8;
-  let shift=0;
-  if(r.right>innerWidth-margin)shift=(innerWidth-margin)-r.right;
-  else if(r.left<margin)shift=margin-r.left;
-  bubble.style.left=shift?`calc(50% + ${shift}px)`:'50%';
-  bubble.classList.remove('show');
-  void bubble.offsetWidth; // restart animation
-  bubble.classList.add('show');
-  if(catBubbleTimer)clearTimeout(catBubbleTimer);
-  catBubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1600);
 }
 
 // ── URL ───────────────────────────────────────────────
@@ -595,7 +539,6 @@ function isValidUrl(u){try{const p=new URL(u);return p.protocol==='http:'||p.pro
 function onInput(){
   if(infoController){infoController.abort();infoController=null;}
   infoSequence++;
-  resetCatTimer();
   const v=document.getElementById('urlInput').value;
   document.getElementById('urlClear').classList.toggle('vis',v.length>0);
   document.getElementById('ytWarn').classList.toggle('show',isYT(v));

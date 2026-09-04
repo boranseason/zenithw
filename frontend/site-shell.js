@@ -107,6 +107,11 @@
   }
   function updateTimeGreeting(force){
     const title=document.getElementById('timeGreeting');if(!title)return;
+    if(document.body.classList.contains('home-page')){
+      const text=currentLang()==='tr'?'linkini yapıştır':'paste a link';
+      title.replaceChildren(document.createTextNode(text),Object.assign(document.createElement('span'),{textContent:'.'}));
+      return;
+    }
     const lang=currentLang(),period=greetingPeriod(new Date().getHours()),key=lang+':'+period;
     if(!force&&greetingState.key===key)return;
     const choice=chooseGreeting(lang,period);greetingState.key=key;greetingState.text=choice.text;

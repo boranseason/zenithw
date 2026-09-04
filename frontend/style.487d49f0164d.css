@@ -92,6 +92,7 @@ body.modal-open{position:fixed;right:0;left:0;width:100%;height:100%;}
 .services-tag{min-width:0;min-height:33px;display:flex;align-items:center;gap:7px;padding:0 9px;color:var(--text2);background:var(--chip-bg);border:1px solid var(--border);border-radius:8px;font-size:9.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .services-tag::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.72;flex:0 0 auto;}
 .services-tag-more{color:var(--text);border-color:rgba(var(--accent-rgb),.28);background:rgba(var(--accent-rgb),.08);}
+.services-tag.has-logo::before{display:none;}.services-tag.has-logo svg{width:13px;height:13px;flex:0 0 auto;fill:currentColor;opacity:.92;}
 .services-note{font-size:10.5px;color:var(--text3);line-height:1.6;background:var(--chip-bg);border:1px solid var(--border);border-radius:9px;padding:10px 11px;margin:0;display:flex;gap:8px;align-items:flex-start;}
 .services-note::before{content:"i";width:16px;height:16px;border:1px solid var(--border2);border-radius:50%;display:grid;place-items:center;flex:0 0 auto;color:var(--text3);font-size:9px;font-weight:700;line-height:1;}
 @media(max-width:520px){.services-tags{grid-template-columns:repeat(3,minmax(0,1fr));}.services-modal .tool-modal-body{padding:14px;}}
@@ -102,6 +103,20 @@ body.modal-open{position:fixed;right:0;left:0;width:100%;height:100%;}
 .logo-name{width:min(620px,92vw);font-size:24px;font-weight:700;line-height:1.22;letter-spacing:-1px;color:var(--text);text-align:center;text-wrap:balance;}
 .logo-name span{color:var(--accent);}
 @media(max-width:600px){.logo-wrap{margin-bottom:17px}.logo-name{width:min(330px,88vw);font-size:18px;line-height:1.28;letter-spacing:-.55px}}
+
+/* Home is an instrument panel: one calm prompt, then the link. */
+.home-page .page{justify-content:center;padding-top:68px;}
+.home-page .logo-wrap{gap:8px;margin-bottom:16px;}
+.home-mark{color:var(--text3);font-family:var(--font-mono,"Geist Mono",monospace);font-size:8px;font-weight:700;letter-spacing:.17em;}
+.home-page .logo-name{width:auto;max-width:100%;color:var(--text2);font-size:15px;font-weight:560;line-height:1.2;letter-spacing:-.025em;text-shadow:none;}
+.home-page .logo-name span{color:var(--accent);}
+.home-page .url-form{max-width:620px;gap:10px;}
+.home-page .url-field{min-height:58px;border-radius:11px;background:rgba(18,19,21,.76);box-shadow:0 16px 46px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);}
+.home-page .url-input{padding-top:18px;padding-bottom:18px;font-size:14px;font-weight:500;}
+.home-page .url-spinner-wrap{width:42px;}.home-page .url-go-btn{width:38px;height:38px;border-radius:8px;}
+.home-page .mode-row{margin-top:1px;}.home-page .yt-warn{margin-top:2px;}
+.home-page .url-cat-wrap{display:none!important;}
+@media(max-width:600px){.home-page .page{padding-top:58px;}.home-page .logo-wrap{margin-bottom:13px;}.home-page .logo-name{font-size:14px;}.home-page .url-field{min-height:54px;}.home-page .url-input{padding-top:16px;padding-bottom:16px;}.home-page .url-spinner-wrap{width:38px;}}
 
 /* URL FORM */
 .url-form{width:100%;max-width:560px;display:flex;flex-direction:column;gap:8px;}
