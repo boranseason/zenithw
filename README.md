@@ -183,6 +183,10 @@ For local frontend development, open the files in the `frontend/` directory or s
 | `PREPARED_FILE_TTL` | No (default `600`) | Lifetime of an unused prepared download token, in seconds |
 | `INFO_CACHE_TTL_SECONDS` | No (default `45`) | Short metadata response-cache lifetime |
 | `INFO_CACHE_MAX_SIZE` | No (default `256`) | Maximum number of sanitized metadata responses retained in memory |
+| `RATE_LIMIT_WINDOW` | No (default `60`) | Per-IP window in seconds for metadata, thumbnail, and job-start quotas |
+| `RATE_LIMIT_MAX_REQUESTS` | No (default `8`) | Download and conversion job starts allowed per IP during the normal window |
+| `INFO_RATE_LIMIT_MAX_REQUESTS` | No (default `24`) | Metadata lookups allowed per IP during the normal window |
+| `THUMBNAIL_RATE_LIMIT_MAX_REQUESTS` | No (default `15`) | Thumbnail requests allowed per IP during the normal window |
 | `CONVERSION_RATE_LIMIT_WINDOW` | No (default `600`) | Per-IP conversion quota window in seconds |
 | `CONVERSION_RATE_LIMIT_MAX_REQUESTS` | No (default `2`) | Conversions allowed per IP during the conversion quota window |
 | `CANCEL_RATE_LIMIT_WINDOW` | No (default `60`) | Separate cancellation quota window in seconds |

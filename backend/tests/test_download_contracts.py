@@ -106,6 +106,20 @@ class SourceHealthTests(unittest.TestCase):
         self.assertIn('{"error": "Not Found"}', source)
         self.assertIn('response.headers["Cache-Control"] = "no-store, max-age=0"', source)
 
+    def test_public_liveness_probe_has_no_payload(self):
+        source = function_source("health")
+        self.assertIn("app.response_class(status=204)", source)
+        self.assertNotIn("jsonify", source)
+        self.assertIn('response.headers["X-Robots-Tag"] = "noindex, nofollow"', source)
+
+    def test_public_status_hides_operational_capacity_and_secrets(self):
+        source = function_source("public_status")
+        self.assertIn('"components"', source)
+        self.assertIn('"media_processing"', source)
+        self.assertNotIn("COOKIES_FILE", source)
+        self.assertNotIn("MAX_CONCURRENT_DOWNLOADS", source)
+        self.assertNotIn("queue_waiting", source)
+
     def test_socket_admission_is_globally_and_per_ip_bounded(self):
         source = function_source("on_connect")
         self.assertIn("MAX_SOCKET_CONNECTIONS", source)
@@ -263,9 +277,12 @@ class ClientIpTrustTests(unittest.TestCase):
 
     def test_public_status_exposes_safe_runtime_capabilities(self):
         source = function_source("public_status")
-        self.assertIn('"ffmpeg_ready": bool(FFMPEG_DIR)', source)
-        self.assertIn('"cookies_loaded": _cookie_bytes > 0', source)
-        self.assertIn('"active_downloads": _active', source)
+        self.assertIn('"components"', source)
+        self.assertIn('"media_processing"', source)
+        self.assertIn('"job_intake"', source)
+        self.assertNotIn("COOKIES_FILE", source)
+        self.assertNotIn("active_downloads", source)
+        self.assertNotIn("MAX_CONCURRENT_DOWNLOADS", source)
         self.assertNotIn("free_disk", source)
         self.assertNotIn("ORIGIN_SECRET", source)
 

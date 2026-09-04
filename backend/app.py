@@ -143,8 +143,15 @@ MAX_SOCKET_CONNECTIONS_PER_IP = min(
 TRANSFER_QUEUE_WAIT_SECONDS = _bounded_env_int("TRANSFER_QUEUE_WAIT_SECONDS", 120, 5, 900)
 PREPARED_FILE_TTL = _bounded_env_int("PREPARED_FILE_TTL", 10 * 60, 60, 3600)
 PROGRESS_EMIT_INTERVAL = _bounded_env_float("PROGRESS_EMIT_INTERVAL", 0.2, 0.05, 5.0)
-RATE_LIMIT_WINDOW = 60  # saniye
-RATE_LIMIT_MAX_REQUESTS = 10  # istek/dakika
+RATE_LIMIT_WINDOW = _bounded_env_int("RATE_LIMIT_WINDOW", 60, 10, 600)
+# Heavy job starts remain deliberately bounded, while metadata and thumbnails
+# receive their own friendlier quotas below. This avoids making a normal user
+# wait after a couple of harmless paste/edit retries.
+RATE_LIMIT_MAX_REQUESTS = _bounded_env_int("RATE_LIMIT_MAX_REQUESTS", 8, 2, 60)
+INFO_RATE_LIMIT_MAX_REQUESTS = _bounded_env_int("INFO_RATE_LIMIT_MAX_REQUESTS", 24, 4, 120)
+THUMBNAIL_RATE_LIMIT_MAX_REQUESTS = _bounded_env_int(
+    "THUMBNAIL_RATE_LIMIT_MAX_REQUESTS", 15, 2, 60
+)
 CONVERSION_RATE_LIMIT_WINDOW = _bounded_env_int("CONVERSION_RATE_LIMIT_WINDOW", 600, 60, 86400)
 CONVERSION_RATE_LIMIT_MAX_REQUESTS = _bounded_env_int("CONVERSION_RATE_LIMIT_MAX_REQUESTS", 2, 1, 100)
 CANCEL_RATE_LIMIT_WINDOW = _bounded_env_int("CANCEL_RATE_LIMIT_WINDOW", 60, 10, 600)
@@ -487,11 +494,34 @@ class TTLCache:
                 self._data.popitem(last=False)
             return True
 
+    def retry_after(self, key):
+        """Return the remaining sliding-window wait for one rate-limit key."""
+        now = time.time()
+        with self._lock:
+            timestamps = self._data.get(key)
+            if not timestamps:
+                return 1
+            while timestamps and now - timestamps[0] >= self.ttl:
+                timestamps.popleft()
+            if not timestamps or len(timestamps) < self.max_requests:
+                return 1
+            return max(1, math.ceil(self.ttl - (now - timestamps[0])))
+
 
 rate_limiter = TTLCache(
     ttl=RATE_LIMIT_WINDOW,
     max_size=10000,
     max_requests=RATE_LIMIT_MAX_REQUESTS,
+)
+info_rate_limiter = TTLCache(
+    ttl=RATE_LIMIT_WINDOW,
+    max_size=10000,
+    max_requests=INFO_RATE_LIMIT_MAX_REQUESTS,
+)
+thumbnail_rate_limiter = TTLCache(
+    ttl=RATE_LIMIT_WINDOW,
+    max_size=10000,
+    max_requests=THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
 )
 conversion_rate_limiter = TTLCache(
     ttl=CONVERSION_RATE_LIMIT_WINDOW,
@@ -537,6 +567,15 @@ def get_client_ip():
 
 def check_rate_limit(ip):
     return rate_limiter.add(ip)
+
+
+def rate_limit_response(limiter, ip, message="Too many requests. Please wait a moment."):
+    """Return a cache-safe, client-friendly quota response."""
+    response = jsonify({"error": message, "error_code": "rate_limited"})
+    response.status_code = 429
+    response.headers["Retry-After"] = str(limiter.retry_after(ip))
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
 
 # ── Cloudflare bypass koruması ──────────────────────────
 ENABLE_ORIGIN_LOCK = os.environ.get("ENABLE_ORIGIN_LOCK", "1") != "0"
@@ -2351,9 +2390,12 @@ def prepared_transfer_status(token):
 
 @app.route("/health")
 def health():
-    response = jsonify({"status": "ok"})
+    # Liveness is intentionally payload-free. Detailed readiness belongs to
+    # /ready and private diagnostics, never to the public probe endpoint.
+    response = app.response_class(status=204)
     response.headers["Cache-Control"] = "no-store, max-age=0"
-    return response, 200
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 @app.route("/ready")
@@ -2375,22 +2417,14 @@ def readiness():
 @app.route("/status")
 def public_status():
     """Expose only the operational fields used by the public status page."""
-    with queue_lock:
-        _active = active_downloads_count
-        _waiting = queue_waiting
-    try:
-        _cookie_bytes = os.path.getsize(COOKIES_FILE)
-    except OSError:
-        _cookie_bytes = 0
-
+    media_ready = bool(FFMPEG_DIR)
     response = jsonify({
-        "status": "ok",
-        "maintenance": MAINTENANCE_MODE,
-        "ffmpeg_ready": bool(FFMPEG_DIR),
-        "cookies_loaded": _cookie_bytes > 0,
-        "active_downloads": _active,
-        "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
-        "queue_waiting": _waiting,
+        "status": "maintenance" if MAINTENANCE_MODE else "operational",
+        "components": {
+            "api": "operational",
+            "media_processing": "operational" if media_ready else "degraded",
+            "job_intake": "maintenance" if MAINTENANCE_MODE else "operational",
+        },
     })
     response.headers["Cache-Control"] = "no-store, max-age=0"
     return response, 200
@@ -2599,8 +2633,8 @@ def _finish_info_work(cache_key, event):
 @app.route("/info", methods=["POST"])
 def get_info():
     ip = get_client_ip()
-    if not check_rate_limit(ip):
-        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+    if not info_rate_limiter.add(ip):
+        return rate_limit_response(info_rate_limiter, ip, "Too many metadata requests. Please wait a moment.")
     data = request.json or {}
     url = data.get("url", "").strip()
     if not url:
@@ -3194,7 +3228,7 @@ def finalize_prepared_download(full_path, *, fmt, video_title, requested_downloa
 def download():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+        return rate_limit_response(rate_limiter, ip, "Too many download requests. Please wait a moment.")
     # NOT: cleanup_old_files() burada senkron çağrılmıyor artık -- zaten
     # periodic_cleanup() arka plan thread'i FILE_CLEANUP_INTERVAL'de bir
     # aynı işi yapıyor. Her /download isteğinde tüm DOWNLOAD_DIR'i
@@ -3416,8 +3450,8 @@ def download():
 @app.route("/thumbnail", methods=["POST"])
 def download_thumbnail():
     ip = get_client_ip()
-    if not check_rate_limit(ip):
-        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+    if not thumbnail_rate_limiter.add(ip):
+        return rate_limit_response(thumbnail_rate_limiter, ip, "Too many thumbnail requests. Please wait a moment.")
     data = request.json or {}
     url = data.get("url", "").strip()
     if not url:
@@ -3543,14 +3577,13 @@ def safe_input_suffix(original_filename):
 def convert_file():
     ip = get_client_ip()
     if not check_rate_limit(ip):
-        return jsonify({"error": "Too many requests. Please wait 1 minute."}), 429
+        return rate_limit_response(rate_limiter, ip, "Too many conversion requests. Please wait a moment.")
     if not conversion_rate_limiter.add(ip):
-        response = jsonify({
-            "error": "Conversion quota exceeded. Please try again later."
-        })
-        response.status_code = 429
-        response.headers["Retry-After"] = str(CONVERSION_RATE_LIMIT_WINDOW)
-        return response
+        return rate_limit_response(
+            conversion_rate_limiter,
+            ip,
+            "Conversion quota exceeded. Please try again later.",
+        )
     # Slot, request.files multipart gövdesini parse edip diske almadan önce
     # ayrılır; dolu sunucu maksimum boyuta kadar gereksiz upload kabul etmez.
     if not conversion_slots.acquire(blocking=False):

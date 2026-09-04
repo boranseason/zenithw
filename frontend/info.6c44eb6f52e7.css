@@ -513,6 +513,7 @@ body.info-page::before {
 .status-tile[data-state="ok"]::after { background: #4dcc80; }
 .status-tile[data-state="warning"]::after { background: #f2b84b; }
 .status-tile[data-state="down"]::after { background: #ff5d62; }
+.status-tile[data-state="neutral"]::after { background: #8aa0b8; }
 
 .status-tile-top {
   display: flex;
@@ -549,6 +550,7 @@ body.info-page::before {
 .status-tile[data-state="ok"] .status-pill { color: #78dea0; background: rgba(77,204,128,.09); }
 .status-tile[data-state="warning"] .status-pill { color: #f5c86c; background: rgba(242,184,75,.09); }
 .status-tile[data-state="down"] .status-pill { color: #ff8589; background: rgba(255,93,98,.09); }
+.status-tile[data-state="neutral"] .status-pill { color: #b9c8d7; background: rgba(138,160,184,.1); }
 
 .status-tile h2 {
   margin: 0 0 7px;

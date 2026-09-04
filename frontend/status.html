@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title id="pgTitle">Sistem Durumu — ZenithW</title>
-  <meta name="description" id="pgDesc" content="ZenithW API, FFmpeg, platform erişimi ve indirme kuyruğu için canlı sistem durumu.">
+  <meta name="description" id="pgDesc" content="ZenithW temel hizmetlerinin sade, canlı ve gizlilik odaklı durum görünümü.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://zenithw.space/status">
   <meta name="theme-color" content="#060606">
@@ -25,9 +25,9 @@
       </div>
     </nav>
     <header class="info-hero">
-      <div class="info-kicker" id="pgKicker">canlı sağlık kontrolü</div>
+      <div class="info-kicker" id="pgKicker">canlı servis görünümü</div>
       <h1 id="pgH1">Sistem durumu.</h1>
-      <p class="info-lead" id="pgLead">Temel servisler doğrudan API üzerinden kontrol edilir. Sonuçlar her 30 saniyede bir yenilenir.</p>
+      <p class="info-lead" id="pgLead">Temel ZenithW bileşenleri, hassas operasyon verisi göstermeden her 30 saniyede bir kontrol edilir.</p>
       <p class="info-meta" id="lastChecked">İlk kontrol hazırlanıyor…</p>
     </header>
 
@@ -40,7 +40,7 @@
         <div class="status-summary-copy">
           <span class="status-eyebrow" id="statusEyebrow">CANLI DURUM</span>
           <span class="status-main" id="statusMain">Durum kontrol ediliyor…</span>
-          <span class="status-detail" id="statusDetail">AWS origin ve medya servisleri kontrol ediliyor.</span>
+          <span class="status-detail" id="statusDetail">Temel bileşenler kontrol ediliyor.</span>
         </div>
         <div class="status-summary-actions">
           <span class="status-live"><i aria-hidden="true"></i> LIVE</span>
@@ -50,30 +50,30 @@
       <div class="status-grid">
         <section class="status-tile" id="apiTile">
           <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">API</span><span class="status-pill" id="apiState">—</span></div>
-          <h2 id="apiLabel">Sunucu / API</h2>
+          <h2 id="apiLabel">Public API</h2>
           <p id="apiValue">—</p>
         </section>
         <section class="status-tile" id="ffmpegTile">
-          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">FF</span><span class="status-pill" id="ffmpegState">—</span></div>
-          <h2>FFmpeg</h2>
+          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">MX</span><span class="status-pill" id="ffmpegState">—</span></div>
+          <h2 id="ffmpegLabel">Medya işleme</h2>
           <p id="ffmpegValue">—</p>
         </section>
-        <section class="status-tile" id="cookieTile">
-          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">YT</span><span class="status-pill" id="cookieState">—</span></div>
-          <h2 id="cookieLabel">YouTube Cookie</h2>
-          <p id="cookieValue">—</p>
+        <section class="status-tile" id="sourceTile">
+          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">SRC</span><span class="status-pill" id="sourceState">—</span></div>
+          <h2 id="sourceLabel">Kaynak platformları</h2>
+          <p id="sourceValue">—</p>
         </section>
-        <section class="status-tile" id="queueTile">
-          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">Q</span><span class="status-pill" id="queueState">—</span></div>
-          <h2 id="queueLabel">İndirme kuyruğu</h2>
-          <p id="queueValue">—</p>
+        <section class="status-tile" id="intakeTile">
+          <div class="status-tile-top"><span class="status-glyph" aria-hidden="true">IN</span><span class="status-pill" id="intakeState">—</span></div>
+          <h2 id="intakeLabel">İş kabulü</h2>
+          <p id="intakeValue">—</p>
         </section>
       </div>
       <div class="status-notes">
         <section class="info-section status-note">
           <span class="status-note-number" aria-hidden="true">01</span>
-          <h2 id="dependencyTitle">Platforma özel kesintiler</h2>
-          <p id="dependencyText">ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.</p>
+          <h2 id="dependencyTitle">Bu sayfa neyi ölçer?</h2>
+          <p id="dependencyText">Public API, medya işleme ve iş kabulü doğrudan ölçülür. Kaynak platformları ise yalnızca gerçek bir kullanıcı isteği sırasında doğrulanır; bu yüzden sayfa üçüncü taraf servisler için yanıltıcı bir “tam erişim” vaadi vermez.</p>
         </section>
         <section class="info-section status-note">
           <span class="status-note-number" aria-hidden="true">02</span>
@@ -89,36 +89,34 @@
     const API = 'https://api.zenithw.space';
     const COPY = {
       tr: {
-        title: 'Sistem Durumu — ZenithW', desc: 'ZenithW API, FFmpeg, platform erişimi ve indirme kuyruğu için canlı sistem durumu.',
-        back: '← ana sayfa', kicker: 'canlı sağlık kontrolü', h1: 'Sistem durumu.',
-        lead: 'Temel servisler doğrudan API üzerinden kontrol edilir. Sonuçlar her 30 saniyede bir yenilenir.',
+        title: 'Sistem Durumu — ZenithW', desc: 'ZenithW temel hizmetlerinin sade, canlı ve gizlilik odaklı durum görünümü.',
+        back: '← ana sayfa', kicker: 'canlı servis görünümü', h1: 'Sistem durumu.',
+        lead: 'Temel ZenithW bileşenleri, hassas operasyon verisi göstermeden her 30 saniyede bir kontrol edilir.',
         initial: 'İlk kontrol hazırlanıyor…', checking: 'Durum kontrol ediliyor…', refresh: 'yenile',
-        api: 'Sunucu / API', cookie: 'YouTube Cookie', queue: 'İndirme kuyruğu', eyebrow: 'CANLI DURUM', checkingDetail: 'AWS origin ve medya servisleri kontrol ediliyor.', okDetail: 'AWS origin ve medya araçları normal yanıt veriyor.', degradedDetail: 'API çalışıyor; işaretli bileşenlerden biri kontrol bekliyor.', downDetail: 'Canlı durum verisi şu anda alınamıyor.',
-        dependencyTitle: 'Platforma özel kesintiler',
-        dependencyText: 'ZenithW; YouTube, TikTok ve Instagram gibi üçüncü taraf platformlara bağlıdır. Bir platformun bot koruması veya erişim yöntemi değiştiğinde yalnızca o kaynaktaki indirmeler geçici olarak etkilenebilir; API\'nin çalışıyor görünmesi tüm platformların sorunsuz olduğu anlamına gelmez.',
+        api: 'Public API', media: 'Medya işleme', sources: 'Kaynak platformları', intake: 'İş kabulü', eyebrow: 'CANLI DURUM', checkingDetail: 'Temel bileşenler kontrol ediliyor.', okDetail: 'Tüm temel ZenithW bileşenleri normal yanıt veriyor.', degradedDetail: 'API erişilebilir; işaretli bileşenlerden biri kontrol bekliyor.', downDetail: 'Canlı durum verisi şu anda alınamıyor.',
+        dependencyTitle: 'Bu sayfa neyi ölçer?',
+        dependencyText: 'Public API, medya işleme ve iş kabulü doğrudan ölçülür. Kaynak platformları ise yalnızca gerçek bir kullanıcı isteği sırasında doğrulanır; bu yüzden sayfa üçüncü taraf servisler için yanıltıcı bir “tam erişim” vaadi vermez.',
         helpTitle: 'Sorun devam mı ediyor?',
         helpText: 'Durum çalışıyor görünmesine rağmen hata alıyorsanız, kullandığınız kaynak bağlantısını ve gördüğünüz hata mesajını <a href="mailto:info@zenithw.space?subject=ZenithW%20Sorun%20Bildirimi">info@zenithw.space</a> adresine gönderebilirsiniz.',
         checkingMeta: 'kontrol ediliyor…', ok: 'Tüm temel sistemler çalışıyor', degraded: 'Bazı bileşenler kontrol edilmeli', maintenance: 'Planlı bakım sürüyor', down: 'Sunucuya şu anda ulaşılamıyor',
-        apiActive: ms => `Yanıt süresi ${ms} ms`, apiMaintenance: ms => `Bakım modu · ${ms} ms`, unreachable: 'Sunucuya ulaşılamadı', ready: 'Hazır ve kullanılabilir', issue: 'Kurulum kontrol edilmeli', loaded: 'Cookie dosyası yüklü', notLoaded: 'Cookie dosyası bulunamadı',
-        stateOnline: 'ÇALIŞIYOR', stateReady: 'HAZIR', stateLoaded: 'YÜKLÜ', stateIdle: 'BOŞTA', stateBusy: 'AKTİF', stateIssue: 'SORUN', stateDown: 'KAPALI', stateMaintenance: 'BAKIM',
-        queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} aktif · ${waiting} bekliyor` : `${active}/${max} aktif`,
+        apiActive: ms => `Yanıt süresi ${ms} ms`, apiMaintenance: ms => `Bakım modu · ${ms} ms`, unreachable: 'Sunucuya ulaşılamadı', ready: 'Hazır ve kullanılabilir', issue: 'Kontrol bekliyor', onDemand: 'İstek anında doğrulanır', intakeReady: 'Yeni işler kabul ediliyor', intakeMaintenance: 'Yeni işler geçici olarak bekletiliyor',
+        stateOnline: 'ÇALIŞIYOR', stateReady: 'HAZIR', stateOnDemand: 'İSTEKLE', stateIssue: 'SORUN', stateDown: 'KAPALI', stateMaintenance: 'BAKIM',
         checked: 'son kontrol: ', locale: 'tr-TR',
         footer: '<a href="/about">hakkında</a><a href="/privacy">gizlilik</a><a href="/terms">kullanım koşulları</a><a href="/dmca">telif</a>'
       },
       en: {
-        title: 'System Status — ZenithW', desc: 'Live status for the ZenithW API, FFmpeg, platform access, and download queue.',
-        back: '← home', kicker: 'live health check', h1: 'System status.',
-        lead: 'Core services are checked directly through the API. Results refresh every 30 seconds.',
+        title: 'System Status — ZenithW', desc: 'A simple, live, privacy-aware view of ZenithW core services.',
+        back: '← home', kicker: 'live service view', h1: 'System status.',
+        lead: 'Core ZenithW components are checked every 30 seconds without exposing sensitive operational data.',
         initial: 'Preparing the first check…', checking: 'Checking system status…', refresh: 'refresh',
-        api: 'Server / API', cookie: 'YouTube Cookie', queue: 'Download queue', eyebrow: 'LIVE STATUS', checkingDetail: 'Checking the AWS origin and media services.', okDetail: 'The AWS origin and media tools are responding normally.', degradedDetail: 'The API is online; one marked component needs attention.', downDetail: 'Live status data is currently unavailable.',
-        dependencyTitle: 'Platform-specific interruptions',
-        dependencyText: 'ZenithW depends on third-party platforms such as YouTube, TikTok, and Instagram. If a platform changes its bot protection or access method, downloads from that source may be temporarily affected; a healthy API does not guarantee that every platform is available.',
+        api: 'Public API', media: 'Media processing', sources: 'Source platforms', intake: 'Job intake', eyebrow: 'LIVE STATUS', checkingDetail: 'Checking core components.', okDetail: 'All core ZenithW components are responding normally.', degradedDetail: 'The API is reachable; one marked component needs attention.', downDetail: 'Live status data is currently unavailable.',
+        dependencyTitle: 'What does this page measure?',
+        dependencyText: 'The public API, media processing, and job intake are measured directly. Source platforms are verified only during a real user request, so this page does not make a misleading promise of full third-party availability.',
         helpTitle: 'Still having trouble?',
         helpText: 'If the status is healthy but you still receive an error, send the source link and the error message to <a href="mailto:info@zenithw.space?subject=ZenithW%20Issue%20Report">info@zenithw.space</a>.',
         checkingMeta: 'checking…', ok: 'All core systems operational', degraded: 'Some components need attention', maintenance: 'Scheduled maintenance in progress', down: 'The server is currently unreachable',
-        apiActive: ms => `Response time ${ms} ms`, apiMaintenance: ms => `Maintenance mode · ${ms} ms`, unreachable: 'Server is unreachable', ready: 'Ready and available', issue: 'Setup needs attention', loaded: 'Cookie file is loaded', notLoaded: 'Cookie file is missing',
-        stateOnline: 'ONLINE', stateReady: 'READY', stateLoaded: 'LOADED', stateIdle: 'IDLE', stateBusy: 'ACTIVE', stateIssue: 'ISSUE', stateDown: 'DOWN', stateMaintenance: 'MAINTENANCE',
-        queueValue: (active, max, waiting) => waiting > 0 ? `${active}/${max} active · ${waiting} waiting` : `${active}/${max} active`,
+        apiActive: ms => `Response time ${ms} ms`, apiMaintenance: ms => `Maintenance mode · ${ms} ms`, unreachable: 'Server is unreachable', ready: 'Ready and available', issue: 'Needs attention', onDemand: 'Verified on demand', intakeReady: 'Accepting new jobs', intakeMaintenance: 'New jobs are temporarily paused',
+        stateOnline: 'ONLINE', stateReady: 'READY', stateOnDemand: 'ON DEMAND', stateIssue: 'ISSUE', stateDown: 'DOWN', stateMaintenance: 'MAINTENANCE',
         checked: 'last checked: ', locale: 'en-US',
         footer: '<a href="/about">about</a><a href="/privacy">privacy</a><a href="/terms">terms</a><a href="/dmca">copyright</a>'
       }
@@ -138,8 +136,9 @@
       document.getElementById('pgLead').textContent = text.lead;
       document.getElementById('refreshButton').innerHTML = `<span aria-hidden="true">↻</span> ${text.refresh}`;
       document.getElementById('apiLabel').textContent = text.api;
-      document.getElementById('cookieLabel').textContent = text.cookie;
-      document.getElementById('queueLabel').textContent = text.queue;
+      document.getElementById('ffmpegLabel').textContent = text.media;
+      document.getElementById('sourceLabel').textContent = text.sources;
+      document.getElementById('intakeLabel').textContent = text.intake;
       document.getElementById('statusEyebrow').textContent = text.eyebrow;
       document.getElementById('statusDetail').textContent = text.checkingDetail;
       document.getElementById('dependencyTitle').textContent = text.dependencyTitle;
@@ -178,22 +177,22 @@
         const latency = Math.round(performance.now() - startedAt);
         if (!response.ok) throw new Error('health check failed');
         const data = await response.json();
-        const allReady = Boolean(data.ffmpeg_ready && data.cookies_loaded);
-        indicator.className = data.maintenance || !allReady ? 'status-indicator' : 'status-indicator ok';
-        document.getElementById('statusSummary').dataset.state = data.maintenance || !allReady ? 'warning' : 'ok';
-        document.getElementById('statusMain').textContent = data.maintenance ? text.maintenance : (allReady ? text.ok : text.degraded);
+        const components = data.components || {};
+        const maintenance = data.status === 'maintenance' || components.job_intake === 'maintenance';
+        const mediaReady = components.media_processing === 'operational';
+        const allReady = !maintenance && components.api === 'operational' && mediaReady;
+        indicator.className = maintenance || !allReady ? 'status-indicator' : 'status-indicator ok';
+        document.getElementById('statusSummary').dataset.state = maintenance || !allReady ? 'warning' : 'ok';
+        document.getElementById('statusMain').textContent = maintenance ? text.maintenance : (allReady ? text.ok : text.degraded);
         document.getElementById('statusDetail').textContent = allReady ? text.okDetail : text.degradedDetail;
-        document.getElementById('apiValue').textContent = data.maintenance ? text.apiMaintenance(latency) : text.apiActive(latency);
-        document.getElementById('ffmpegValue').textContent = data.ffmpeg_ready ? text.ready : text.issue;
-        document.getElementById('cookieValue').textContent = data.cookies_loaded ? text.loaded : text.notLoaded;
-        document.getElementById('queueValue').textContent = Number.isFinite(data.active_downloads) && Number.isFinite(data.max_concurrent_downloads)
-          ? text.queueValue(data.active_downloads, data.max_concurrent_downloads, data.queue_waiting || 0)
-          : '—';
-        setTileState('apiTile', 'apiState', data.maintenance ? 'warning' : 'ok', data.maintenance ? text.stateMaintenance : text.stateOnline);
-        setTileState('ffmpegTile', 'ffmpegState', data.ffmpeg_ready ? 'ok' : 'down', data.ffmpeg_ready ? text.stateReady : text.stateIssue);
-        setTileState('cookieTile', 'cookieState', data.cookies_loaded ? 'ok' : 'warning', data.cookies_loaded ? text.stateLoaded : text.stateIssue);
-        const queueBusy = (data.active_downloads || 0) > 0 || (data.queue_waiting || 0) > 0;
-        setTileState('queueTile', 'queueState', queueBusy ? 'warning' : 'ok', queueBusy ? text.stateBusy : text.stateIdle);
+        document.getElementById('apiValue').textContent = maintenance ? text.apiMaintenance(latency) : text.apiActive(latency);
+        document.getElementById('ffmpegValue').textContent = mediaReady ? text.ready : text.issue;
+        document.getElementById('sourceValue').textContent = text.onDemand;
+        document.getElementById('intakeValue').textContent = maintenance ? text.intakeMaintenance : text.intakeReady;
+        setTileState('apiTile', 'apiState', maintenance ? 'warning' : 'ok', maintenance ? text.stateMaintenance : text.stateOnline);
+        setTileState('ffmpegTile', 'ffmpegState', mediaReady ? 'ok' : 'down', mediaReady ? text.stateReady : text.stateIssue);
+        setTileState('sourceTile', 'sourceState', 'neutral', text.stateOnDemand);
+        setTileState('intakeTile', 'intakeState', maintenance ? 'warning' : 'ok', maintenance ? text.stateMaintenance : text.stateOnline);
       } catch (_) {
         indicator.className = 'status-indicator down';
         document.getElementById('statusSummary').dataset.state = 'down';
@@ -201,12 +200,12 @@
         document.getElementById('statusDetail').textContent = text.downDetail;
         document.getElementById('apiValue').textContent = text.unreachable;
         document.getElementById('ffmpegValue').textContent = '—';
-        document.getElementById('cookieValue').textContent = '—';
-        document.getElementById('queueValue').textContent = '—';
+        document.getElementById('sourceValue').textContent = '—';
+        document.getElementById('intakeValue').textContent = '—';
         setTileState('apiTile', 'apiState', 'down', text.stateDown);
         setTileState('ffmpegTile', 'ffmpegState', 'unknown', '—');
-        setTileState('cookieTile', 'cookieState', 'unknown', '—');
-        setTileState('queueTile', 'queueState', 'unknown', '—');
+        setTileState('sourceTile', 'sourceState', 'unknown', '—');
+        setTileState('intakeTile', 'intakeState', 'unknown', '—');
       } finally {
         clearTimeout(timeout);
         document.getElementById('lastChecked').textContent = text.checked + new Date().toLocaleTimeString(text.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
