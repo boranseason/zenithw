@@ -1,2 +1,15 @@
-/thanks  /credit  301
-/thanks.html  /credit  301
+/thanks          /about/credit     301
+/thanks.html     /about/credit     301
+/privacy         /about/privacy    301
+/privacy.html    /about/privacy    301
+/terms           /about/terms      301
+/terms.html      /about/terms      301
+/credit          /about/credit     301
+/credit.html     /about/credit     301
+/community       /about/community  301
+/community.html  /about/community  301
+
+/about/privacy    /privacy    200
+/about/terms      /terms      200
+/about/credit     /credit     200
+/about/community  /community  200

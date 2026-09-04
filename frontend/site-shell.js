@@ -30,7 +30,7 @@
   const svg=name=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${icon[name]}</svg>`;
   if(host){
     if(host.dataset.mode==='info'){
-      const infoItems=[['about','/about'],['support','/support.html'],['privacy','/privacy'],['terms','/terms'],['credits','/credit'],['status','/status']];
+      const infoItems=[['about','/about'],['support','/about/community'],['privacy','/about/privacy'],['terms','/about/terms'],['credits','/about/credit'],['status','/status']];
       host.innerHTML=`<nav class="bottom-bar info-bottom-bar" aria-label="ZenithW bilgi sayfaları">${infoItems.map(([name,href])=>`<a class="bar-btn ${active===name?'active':''}" href="${href}" aria-current="${active===name?'page':'false'}">${svg(name)}<span data-info-label="${name}"></span></a>`).join('')}</nav>`;
     }else{host.innerHTML=`
       <nav class="bottom-bar" aria-label="ZenithW">
