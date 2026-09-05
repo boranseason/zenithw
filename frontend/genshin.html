@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080910">
+  <meta name="description" content="ZenithW Genshin Advisor — transparent F2P and premium team, build, artifact, talent, and investment guidance.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://zenithw.space/genshin">
+  <link rel="icon" type="image/png" href="/zenithw.png">
+  <link rel="stylesheet" href="/fonts.css?v=1">
+  <link rel="stylesheet" href="/genshin.css?v=0.7">
+  <title>Genshin Advisor — ZenithW</title>
+</head>
+<body class="genshin-page">
+  <div class="advisor-ambient" aria-hidden="true"></div>
+  <header class="advisor-header">
+    <a class="advisor-brand" href="/" aria-label="ZenithW home">
+      <svg viewBox="0 0 32 28" aria-hidden="true"><path d="M3 4l7 20 6-13 6 13 7-20"/><path d="M11 4l5 13L21 4"/></svg>
+      <span>ZenithW</span><i>/</i><b>Genshin Advisor</b>
+    </a>
+    <div class="advisor-head-actions">
+      <span class="data-stamp" id="dataStamp" aria-live="polite">loading data…</span>
+      <div class="language-switch" role="group" aria-label="Language">
+        <button type="button" data-language="en" aria-pressed="true">EN</button>
+        <button type="button" data-language="tr" aria-pressed="false">TR</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="advisor-main">
+    <section class="advisor-hero" aria-labelledby="advisorTitle">
+      <div>
+        <p class="eyebrow" data-i18n="eyebrow">PATCH-AWARE BUILD INTELLIGENCE</p>
+        <h1 id="advisorTitle" data-i18n="title">Build around your account,<br><span>not a generic tier list.</span></h1>
+        <p class="hero-copy" data-i18n="subtitle">Choose a character to compare F2P and premium teams, realistic investment targets, artifacts, talent priorities and the actual trade-off between C1 and a signature weapon.</p>
+      </div>
+      <div class="hero-promise">
+        <span class="promise-dot" aria-hidden="true"></span>
+        <div><strong data-i18n="promiseTitle">Transparent by design</strong><p data-i18n="promiseText">Every estimate carries its assumptions. Unreviewed characters never get invented pull advice.</p></div>
+      </div>
+    </section>
+
+    <section class="advisor-controls" aria-label="Character discovery">
+      <label class="character-search" for="characterSearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+        <input id="characterSearch" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="search" placeholder="Search a character…">
+        <kbd>⌘ K</kbd>
+      </label>
+      <div class="element-filters" id="elementFilters" aria-label="Element filter"></div>
+      <label class="owned-only"><input type="checkbox" id="ownedOnly"><span data-i18n="ownedOnly">Owned only</span></label>
+    </section>
+
+    <section class="advisor-layout">
+      <aside class="character-library" aria-labelledby="libraryTitle">
+        <div class="library-head"><div><p class="section-kicker" data-i18n="libraryKicker">ROSTER DATABASE</p><h2 id="libraryTitle" data-i18n="library">Characters</h2></div><span id="characterCount"></span></div>
+        <div class="character-grid" id="characterGrid" aria-live="polite"></div>
+      </aside>
+
+      <section class="character-workspace" id="characterWorkspace" aria-live="polite">
+        <div class="loading-state"><i></i><span data-i18n="loading">Loading the game-data snapshot…</span></div>
+      </section>
+    </section>
+
+    <section class="advisor-footnotes" aria-labelledby="methodTitle">
+      <div><p class="section-kicker" data-i18n="methodKicker">METHOD</p><h2 id="methodTitle" data-i18n="methodTitle">Useful advice needs declared assumptions.</h2><p data-i18n="methodText">DPS ranges describe an expected team rotation under the listed level, artifact, weapon and target assumptions. They are not a damage promise or a substitute for a full account optimizer.</p></div>
+      <div class="source-notes">
+        <a href="https://github.com/theBowja/genshin-db" target="_blank" rel="noopener noreferrer">Game-data source ↗</a>
+        <a href="https://genshin-impact-helper-team.github.io/genshin-builds/en/" target="_blank" rel="noopener noreferrer">Community build research ↗</a>
+        <span data-i18n="disclaimer">Unofficial fan tool. Genshin Impact and its assets belong to HoYoverse and their respective owners.</span>
+        <a href="mailto:support@zenithw.space?subject=Genshin%20Advisor%20feedback"><span data-i18n="reportIssue">Report an issue</span> · support@zenithw.space</a>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="kit-dialog" id="kitDialog" aria-labelledby="kitDialogTitle">
+    <div class="dialog-head"><div><p class="section-kicker" data-i18n="kitSource">VERIFIED GAME TEXT</p><h2 id="kitDialogTitle"></h2></div><button type="button" class="dialog-close" id="closeKit" aria-label="Close">×</button></div>
+    <div class="kit-dialog-content" id="kitDialogContent"></div>
+  </dialog>
+
+  <script src="/genshin.js?v=0.7" defer></script>
+</body>
+</html>
