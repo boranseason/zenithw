@@ -1072,15 +1072,10 @@ function openDlModal(){
   document.getElementById('dlVTitle').textContent=videoInfo.title||'video';
   const m=Math.floor((videoInfo.duration||0)/60),s=String((videoInfo.duration||0)%60).padStart(2,'0');
   document.getElementById('dlVMeta').textContent=(videoInfo.uploader||'')+(videoInfo.duration?' · '+m+':'+s:'');
-  document.getElementById('dlAnalysisKicker').textContent=t('dlAnalysisKicker');
   document.getElementById('dlAnalysisTitle').textContent=t('dlAnalysisTitle');
   document.getElementById('dlAnalysisDesc').textContent=t('dlAnalysisDesc');
   document.getElementById('dlThumbActionTxt').textContent=t('dlThumbActionTxt');
   document.getElementById('dlSettingsTxt').textContent=t('dlSettingsTxt');
-  const stageMode=document.getElementById('dlStageMode');
-  const stageTxt=document.getElementById('dlStageTxt');
-  if(stageMode)stageMode.textContent=DL_MODE==='audio'?t('modeAudio'):DL_MODE==='mute'?t('modeMute'):t('modeAuto');
-  if(stageTxt)stageTxt.textContent=t('dlAnalysisKicker');
   resetProgress();openOverlay('dlOverlay');
 }
 function setProgress(pct,label,speed,done){
@@ -1089,7 +1084,6 @@ function setProgress(pct,label,speed,done){
   document.getElementById('dlProgPct').textContent=pct+'%';
   document.getElementById('dlProgLabel').textContent=label;
   document.getElementById('dlProgSpeed').textContent=speed||'';
-  const stage=document.getElementById('dlStageTxt');if(stage)stage.textContent=label||t('downloading');
   if(done){document.getElementById('dlProgIcon').classList.add('done');document.getElementById('dlProgIcon').innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>';document.getElementById('dlCancel').classList.remove('vis');}
 }
 function resetProgress(){
