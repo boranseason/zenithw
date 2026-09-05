@@ -46,9 +46,9 @@
 }
 </script>
 <link href="/fonts.css?v=1" rel="stylesheet">
-<link rel="stylesheet" href="style.487d49f0164d.css?v=15.0">
+<link rel="stylesheet" href="style.487d49f0164d.css?v=15.1">
 <link rel="stylesheet" href="site-shell.css?v=14.5">
-<script src="version.js?v=14.0"></script>
+<script src="/version.js?v=14.2"></script>
 </head>
 <body class="home-page theme-default">
 <div class="page">
@@ -183,10 +183,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         <span id="modeAutoTxt">auto</span>
       </button>
-      <button class="mode-btn" id="modeVideo" onclick="setMode('video')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2v8l-4-2" stroke-linejoin="round"/></svg>
-        <span id="modeVideoTxt">video</span>
-      </button>
       <button class="mode-btn" id="modeAudio" onclick="setMode('audio')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="modeAudioTxt">audio</span>
@@ -240,7 +236,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.4 2.1"/></svg>
         <h2 id="homeActivityTitle">son aktiviteler</h2>
       </div>
-      <button type="button" class="home-activity-all" onclick="openHistory()"><span id="homeActivityAllTxt">tümünü gör</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l7 7-7 7"/></svg></button>
+      <a class="home-activity-all" href="/history.html"><span id="homeActivityAllTxt">tümünü gör</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l7 7-7 7"/></svg></a>
     </div>
     <div class="home-activity-list" id="homeActivityList"></div>
   </section>
@@ -335,7 +331,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"
         integrity="sha512-Xm9qbB6Pu06k3PUwPj785dyTl6oHxgsv9nHp7ej7nCpAqGZT3OZpsELuCYX05DdonFpTlBpXMOxjavIAIUwr0w=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="app.d4596317c4a7.js?v=14.7"></script>
+<script src="app.d4596317c4a7.js?v=14.8"></script>
 <script src="site-shell.js?v=14.6"></script>
 </body>
 </html>

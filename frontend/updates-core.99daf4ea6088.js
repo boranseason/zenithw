@@ -1,5 +1,29 @@
 const LATEST_UPDATE=
-{ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,cover:'zenithw.png',coverAltTr:'ZenithW v14.1 kapak görseli',coverAltEn:'ZenithW v14.1 cover image',
+{ver:ZW_VERSION.ver,latest:true,dateTr:ZW_VERSION.dateTr,dateEn:ZW_VERSION.dateEn,cover:null,
+titleTr:'Daha sakin, daha net, daha ZenithW',
+titleEn:'calmer, clearer, unmistakably ZenithW',
+introTr:[
+'v14.2, ZenithW’nin arayüzünü yalnızca boyamadı; ana ekranı, bilgi sayfalarını ve sürüm notlarını aynı görsel dilde yeniden düzenledi. Daha az gürültü, daha belirgin eylemler ve ihtiyaç duyulan bilginin doğru yerde görünmesi bu sürümün ana fikri.',
+'Değişiklikler masaüstü ve mobil navigasyonu korurken arayüzü hafifletti. Gösterişli ama işlevsiz parçalar yerine gerçek durumu, geçmiş işlemleri ve anlaşılır seçimleri öne çıkardık.'
+],
+introEn:[
+'v14.2 did more than repaint ZenithW. It brought the home screen, information pages, and release notes into one visual system. Less noise, clearer actions, and useful information in the right place define this release.',
+'The update keeps desktop and mobile navigation familiar while making the interface lighter. Decorative clutter gives way to real service state, local activity, and choices that explain themselves.'
+],
+sections:[
+{hTr:'Ana ekran artık bir komuta merkezi',hEn:'the home screen is now a command center',pTr:'Bağlantı alanı daha güçlü bir odak noktası oldu; yapıştırma ve devam etme eylemleri netleşti. Otomatik, ses, sessiz ve çoklu indirme seçenekleri tek bir kompakt kontrol grubunda toplandı. Gereksiz video seçeneği kaldırıldı; otomatik mod zaten video için doğru varsayılanı kullanıyor.',pEn:'The URL field is now a stronger focal point with clearer paste and continue actions. Automatic, audio, muted, and multiple-download modes live in one compact control group. The redundant video mode is gone because automatic mode already provides the right video default.'},
+{hTr:'Hafif atmosfer, ağır efekt yok',hEn:'atmosphere without heavy effects',pTr:'Koyu zemin; ince ızgara, ölçülü mor ışık ve düşük maliyetli hareketlerle derinlik kazandı. Animasyonlar yalnızca dönüşüm ve saydamlık üzerinden çalışıyor, azaltılmış hareket tercihini izliyor ve düşük güçlü cihazlarda gereksiz yük oluşturmuyor.',pEn:'The dark canvas gains depth through a fine grid, restrained violet light, and inexpensive motion. Animations use only transforms and opacity, respect reduced-motion preferences, and avoid unnecessary work on lower-powered devices.'},
+{hTr:'Hakkında bölümü gerçekten bir bütün',hEn:'About is now a complete suite',pTr:'ZenithW, topluluk, gizlilik, kullanım koşulları ve emeği geçenler sayfaları /about altında ortak bir yapıya taşındı. Seçili durumda kaybolmayan özgün SVG ikonlar, daha sakin tipografi, okunabilir metin genişliği ve masaüstü ile mobilde kalıcı gezinme eklendi.',pEn:'The project, community, privacy, terms, and credits pages now share one structure under /about. Custom SVG icons stay legible when selected, while calmer typography, readable line lengths, and persistent desktop and mobile navigation make the suite coherent.'},
+{hTr:'Gizlilik ve koşullar yeniden görünür',hEn:'privacy and terms are visible again',pTr:'İç içe /about rotalarında sayfa metnini yükleyen dosyanın yanlış adresten istenmesine yol açan yol çözümleme hatası giderildi. Böylece başlık görünüp içeriğin boş kaldığı durum düzeltildi ve önbellek anahtarları yenilendi.',pEn:'A path-resolution bug that requested the content script from the wrong location on nested /about routes has been fixed. Privacy and terms no longer show a heading with an empty body, and their cache keys have been refreshed.'},
+{hTr:'Ayarlar artık seçimlerin sonucunu söylüyor',hEn:'settings now explain the trade-offs',pTr:'Bitrate alanı, yüksek bir değerin düşük kaliteli kaynağı sihirli biçimde iyileştirmediğini açıkça belirtiyor. MP4 ve WebM seçenekleri de kalite ve uyumluluk farkını kısa açıklamalarla anlatıyor.',pEn:'The bitrate control now makes it clear that a higher number cannot magically improve a low-quality source. MP4 and WebM choices also explain their quality and compatibility trade-offs in plain language.'},
+{hTr:'Sürüm notları baştan düzenlendi',hEn:'release notes, rebuilt',pTr:'Updates sayfası büyük manşetler ve uzun dekoratif çizgiler yerine kompakt bir sürüm başlığı, okunabilir özet ve taranabilir değişiklik kartları kullanıyor. Eski sürümler erişilebilir kalıyor; v14.1’in AWS geçiş notları aynen korunuyor.',pEn:'The Updates page replaces oversized headlines and long decorative rails with a compact release header, readable summary, and scannable change cards. Older releases remain available, including the complete v14.1 AWS migration notes.'}
+],
+outroTr:'v14.2’nin hedefi basit: kullanıcı arayüzü fark etmeden ne yapacağını anlasın; fark ettiğinde de “bu özenli yapılmış” desin.',
+outroEn:'The goal of v14.2 is simple: make the interface obvious when it needs to disappear—and polished enough to reward a closer look.'
+};
+
+const UPDATE_V14_1=
+{ver:'v14.1',latest:false,dateTr:'2 eylül 2026',dateEn:'September 2, 2026',cover:'zenithw.png',coverAltTr:'ZenithW v14.1 kapak görseli',coverAltEn:'ZenithW v14.1 cover image',
 titleTr:'Railway’den AWS’ye: ZenithW artık kendi sunucusunda',
 titleEn:'from Railway to AWS: ZenithW now runs on its own server',
 introTr:[
@@ -21,20 +45,22 @@ sections:[
 outroTr:'Kısacası v14.1, yönetilen bir platformun rahatlığından kendi sunucumuzun kontrolüne geçiş sürümü. Daha fazla görünürlük ve özgürlük kazandık; karşılığında bakım, maliyet ve erişilebilirlik sorumluluğunu da üstlendik.',
 outroEn:'In short, v14.1 moves ZenithW from the convenience of a managed platform to the control of its own server. We gained visibility and freedom while taking on maintenance, cost, and availability responsibilities.'
 };
-const UPDATE_VERSIONS=['v14.1', 'v14.0', 'v13.8', 'v13.7', 'v13.6', 'v13.5', 'v13.4', 'v13.3', 'v13.2', 'v13.1', 'v13.0', 'v12.9', 'v12.8', 'v12.7', 'v12.6', 'v12.5', 'v12.4', 'v12.3', 'v12.2', 'v12.1', 'v12.0', 'v11.7', 'v11.6', 'v11.5', 'v11.4', 'v11.3', 'v11.2', 'v11.1', 'v11.0', 'v10.9', 'v10.8', 'v10.7', 'v10.6', 'v10.5', 'v10.4', 'v10.3', 'v10.2', 'v10.1', 'v10.0', 'v9.0', 'v8.1', 'v8.0', 'v7.3', 'v7.2', 'v7.1', 'v7.0', 'v6.1', 'v6.0', 'v5.6', 'v5.5', 'v5.4', 'v5.3', 'v5.2', 'v5.1', 'v5.0', 'v4.0'];
-let UPDATES=[LATEST_UPDATE];
+const UPDATE_VERSIONS=['v14.2', 'v14.1', 'v14.0', 'v13.8', 'v13.7', 'v13.6', 'v13.5', 'v13.4', 'v13.3', 'v13.2', 'v13.1', 'v13.0', 'v12.9', 'v12.8', 'v12.7', 'v12.6', 'v12.5', 'v12.4', 'v12.3', 'v12.2', 'v12.1', 'v12.0', 'v11.7', 'v11.6', 'v11.5', 'v11.4', 'v11.3', 'v11.2', 'v11.1', 'v11.0', 'v10.9', 'v10.8', 'v10.7', 'v10.6', 'v10.5', 'v10.4', 'v10.3', 'v10.2', 'v10.1', 'v10.0', 'v9.0', 'v8.1', 'v8.0', 'v7.3', 'v7.2', 'v7.1', 'v7.0', 'v6.1', 'v6.0', 'v5.6', 'v5.5', 'v5.4', 'v5.3', 'v5.2', 'v5.1', 'v5.0', 'v4.0'];
+const CURRENT_RELEASES=[LATEST_UPDATE,UPDATE_V14_1];
+let UPDATES=[...CURRENT_RELEASES];
 let archivePromise=null;
+let archiveLoaded=false;
 
 function loadUpdateArchive(){
-  if(UPDATES.length>1)return Promise.resolve(UPDATES);
-  if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[LATEST_UPDATE,...window.ZW_UPDATE_ARCHIVE];return Promise.resolve(UPDATES);}
+  if(archiveLoaded)return Promise.resolve(UPDATES);
+  if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[...CURRENT_RELEASES,...window.ZW_UPDATE_ARCHIVE];archiveLoaded=true;return Promise.resolve(UPDATES);}
   if(archivePromise)return archivePromise;
   archivePromise=new Promise((resolve,reject)=>{
     const s=document.createElement('script');
-    s.src='updates-archive.07c744021db2.js?v=14.1';
+    s.src='updates-archive.07c744021db2.js?v=14.2';
     s.async=true;
     s.onload=()=>{
-      if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[LATEST_UPDATE,...window.ZW_UPDATE_ARCHIVE];resolve(UPDATES);}
+      if(Array.isArray(window.ZW_UPDATE_ARCHIVE)){UPDATES=[...CURRENT_RELEASES,...window.ZW_UPDATE_ARCHIVE];archiveLoaded=true;resolve(UPDATES);}
       else reject(new Error('update archive payload missing'));
     };
     s.onerror=()=>reject(new Error('update archive failed to load'));

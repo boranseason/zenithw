@@ -71,7 +71,7 @@ function scheduleSocketDisconnect(delay){
 let LANG='tr';
 const TX={
   tr:{
-    placeholder:'video bağlantısını buraya bırak',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'otomatik',modeVideoTxt:'video',modeAudioTxt:'ses',modeMuteTxt:'sessiz',bulkToggleTxt:'çoklu indirme',paste:'yapıştır',continueBtn:'devam et',homeStatusTxt:'hizmet aktif',homeActivityTitle:'son aktiviteler',homeActivityAllTxt:'tümünü gör',homeActivityEmpty:'henüz bu tarayıcıda bir indirme yok',
+    placeholder:'video bağlantısını buraya bırak',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'otomatik',modeAudioTxt:'ses',modeMuteTxt:'sessiz',bulkToggleTxt:'çoklu indirme',paste:'yapıştır',continueBtn:'devam et',homeStatusTxt:'hizmet aktif',homeActivityTitle:'son aktiviteler',homeActivityAllTxt:'tümünü gör',homeActivityEmpty:'henüz bu tarayıcıda bir indirme yok',
     vcDl:'indir',dlBtn:'indir',dlCancel:'iptal',
     bbSave:'kaydet',bbHistory:'geçmiş',bbRemux:'remux',bbConvert:'dönüştür',bbSettings:'ayarlar',bbUpdates:'güncel',bbAbout:'hakkında',bbMore:'diğer',bbDonate:'destek ol',
     accDefault:'klasik',accDefaultDesc:'buz mavisi · dengeli',accPurple:'neon mor',accPurpleDesc:'elektrik moru · derin uzay',accGray:'grafit',accGrayDesc:'nötr gri · sade',accPink:'neon pembe',accPinkDesc:'canlı pembe · sıcak',accCobalt:'cobalt mavisi',accCobaltDesc:'derin mavi · odaklı',
@@ -138,7 +138,7 @@ const TX={
     updBadge:'GÜNCEL',
   },
   en:{
-    placeholder:'drop a media link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'automatic',modeVideoTxt:'video',modeAudioTxt:'audio',modeMuteTxt:'mute',bulkToggleTxt:'bulk',paste:'paste',continueBtn:'continue',homeStatusTxt:'service active',homeActivityTitle:'recent activity',homeActivityAllTxt:'view all',homeActivityEmpty:'no downloads in this browser yet',
+    placeholder:'drop a media link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'automatic',modeAudioTxt:'audio',modeMuteTxt:'mute',bulkToggleTxt:'bulk',paste:'paste',continueBtn:'continue',homeStatusTxt:'service active',homeActivityTitle:'recent activity',homeActivityAllTxt:'view all',homeActivityEmpty:'no downloads in this browser yet',
     vcDl:'download',dlBtn:'download',dlCancel:'cancel',
     bbSave:'save',bbHistory:'history',bbRemux:'remux',bbConvert:'convert',bbSettings:'settings',bbUpdates:'updates',bbAbout:'about',bbMore:'more',bbDonate:'support us',
     accDefault:'classic',accDefaultDesc:'ice blue · balanced',accPurple:'neon purple',accPurpleDesc:'electric violet · deep space',accGray:'graphite',accGrayDesc:'neutral gray · minimal',accPink:'neon pink',accPinkDesc:'vivid pink · warm',accCobalt:'cobalt blue',accCobaltDesc:'deep blue · focused',
@@ -207,7 +207,7 @@ const TX={
     updBadge:'LATEST',
   },
   fr:{
-    placeholder:'déposez un lien média ici',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'automatique',modeVideoTxt:'vidéo',modeAudioTxt:'audio',modeMuteTxt:'muet',bulkToggleTxt:'lot',paste:'coller',continueBtn:'continuer',homeStatusTxt:'service actif',homeActivityTitle:'activité récente',homeActivityAllTxt:'tout voir',homeActivityEmpty:'aucun téléchargement dans ce navigateur pour le moment',
+    placeholder:'déposez un lien média ici',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'automatique',modeAudioTxt:'audio',modeMuteTxt:'muet',bulkToggleTxt:'lot',paste:'coller',continueBtn:'continuer',homeStatusTxt:'service actif',homeActivityTitle:'activité récente',homeActivityAllTxt:'tout voir',homeActivityEmpty:'aucun téléchargement dans ce navigateur pour le moment',
     vcDl:'télécharger',dlBtn:'télécharger',dlCancel:'annuler',
     bbSave:'enregistrer',bbHistory:'historique',bbRemux:'remux',bbConvert:'convertir',bbSettings:'paramètres',bbUpdates:'nouveautés',bbAbout:'à propos',bbMore:'plus',bbDonate:'soutenir',
     accDefault:'classique',accDefaultDesc:'bleu glacier · équilibré',accPurple:'violet néon',accPurpleDesc:'violet électrique · espace',accGray:'graphite',accGrayDesc:'gris neutre · minimal',accPink:'rose néon',accPinkDesc:'rose vif · chaleureux',accCobalt:'bleu cobalt',accCobaltDesc:'bleu profond · précis',
@@ -276,7 +276,7 @@ const TX={
     updBadge:'RÉCENT',
   },
   de:{
-    placeholder:'medienlink hier ablegen',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'automatisch',modeVideoTxt:'video',modeAudioTxt:'audio',modeMuteTxt:'stumm',bulkToggleTxt:'stapel',paste:'einfügen',continueBtn:'weiter',homeStatusTxt:'dienst aktiv',homeActivityTitle:'letzte aktivitäten',homeActivityAllTxt:'alle ansehen',homeActivityEmpty:'noch keine downloads in diesem browser',
+    placeholder:'medienlink hier ablegen',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'automatisch',modeAudioTxt:'audio',modeMuteTxt:'stumm',bulkToggleTxt:'stapel',paste:'einfügen',continueBtn:'weiter',homeStatusTxt:'dienst aktiv',homeActivityTitle:'letzte aktivitäten',homeActivityAllTxt:'alle ansehen',homeActivityEmpty:'noch keine downloads in diesem browser',
     vcDl:'herunterladen',dlBtn:'herunterladen',dlCancel:'abbrechen',
     bbSave:'speichern',bbHistory:'verlauf',bbRemux:'remux',bbConvert:'konvertieren',bbSettings:'einstellungen',bbUpdates:'neuigkeiten',bbAbout:'über',bbMore:'mehr',bbDonate:'unterstützen',
     accDefault:'klassisch',accDefaultDesc:'eisblau · ausgewogen',accPurple:'neon-lila',accPurpleDesc:'elektrisches lila · weltraum',accGray:'graphit',accGrayDesc:'neutrales grau · minimal',accPink:'neon-pink',accPinkDesc:'lebendiges pink · warm',accCobalt:'kobaltblau',accCobaltDesc:'tiefblau · fokussiert',
@@ -494,7 +494,7 @@ socket.on('progress',d=>{
 // ── MODE ──────────────────────────────────────────────
 let DL_MODE='auto';
 let BULK_MODE=false;
-function setMode(m){DL_MODE=m;['Auto','Video','Audio','Mute'].forEach(n=>{const b=document.getElementById('mode'+n);if(b)b.classList.toggle('active',n.toLowerCase()===m);});if(videoInfo.url)openDlModal();}
+function setMode(m){DL_MODE=m;['Auto','Audio','Mute'].forEach(n=>{const b=document.getElementById('mode'+n);if(b)b.classList.toggle('active',n.toLowerCase()===m);});if(videoInfo.url)openDlModal();}
 function toggleBulkMode(){
   BULK_MODE=!BULK_MODE;
   const form=document.querySelector('.url-form');

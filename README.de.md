@@ -1,103 +1,44 @@
-<p align="center">
-  <a href="./README.md">English</a> •
-  <a href="./README.tr.md">Türkçe</a> •
-  <a href="./README.fr.md">Français</a> •
-  <a href="./README.ja.md">日本語</a> •
-  <a href="./README.de.md">Deutsch</a>
-</p>
-
----
-
 # ZenithW
 
-**Kostenloser, werbefreier und wasserzeichenfreier Medien-Downloader.** Laden Sie Videos und Audiodateien von YouTube, TikTok, Instagram, X/Twitter, Reddit und mehr mit einem einzigen Klick herunter.
+> Ein ruhiger, werbefreier Medien-Arbeitsbereich zum Herunterladen, Konvertieren und Remuxen erlaubter Inhalte.
 
-🔗 **Live-Website:** [zenithw.space](https://zenithw.space)
+[Web-App](https://zenithw.space) · [Status](https://zenithw.space/status) · [Updates](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [日本語](README.ja.md)
 
-🏷️ **Aktuelle Version:** `v14.0` — Überarbeitete Benutzeroberfläche, dedizierte Tool-Seiten, responsive Navigation und ein noch flüssigeres Nutzererlebnis.
-
----
-
-## Inhaltsverzeichnis
-
-- [Funktionen](#funktionen)
-- [Technologie-Stack](#technologie-stack)
-- [Projektstruktur](#projektstruktur)
-- [Erste Schritte](#erste-schritte)
-- [Umgebungsvariablen](#umgebungsvariablen)
-- [API-Referenz](#api-referenz)
-- [Sicherheit](#sicherheit)
-- [Lizenz](#lizenz)
-- [Kontakt](#kontakt)
-
----
+Aktuelle Version: **v14.2**
 
 ## Funktionen
 
-- 🎬 **Multi-Plattform-Unterstützung** — YouTube, TikTok, Instagram, X/Twitter, Reddit und viele andere Quellen (powered by yt-dlp)
-- 🎵 **Video oder Audio** — Videoformate wie mp4/webm/mkv, Audioformate wie mp3/flac/wav/ogg/opus/m4a
-- 🔇 **Stumm-Modus** — Video ohne Tonspur herunterladen
-- 📃 **Batch- / Playlist-Downloads** — Bis zu 10 eingefügte Links verarbeiten oder Playlists mit bis zu 50 Elementen analysieren
-- ⏭️ **SponsorBlock-Integration** — Sponsor-Segmente, Intros, Outros und mehr automatisch überspringen oder entfernen
-- 🖼️ **Thumbnail-Downloads** — Cover-Bilder zusammen mit den Medien oder separat herunterladen
-- 📝 **Untertitel- und Metadaten-Unterstützung** — Verfügbare Untertitel herunterladen und Metadaten einbetten
-- 🌍 **4 Sprachen unterstützt** — Türkisch, Englisch, Französisch, Deutsch
-- 🎨 **Anpassbare Benutzeroberfläche** — Hell-/Dunkel-Themes, Akzentfarben, flüssige Animationen
-- 🔒 **Kein serverseitiger Verlauf** — Der Download-Verlauf wird nur lokal auf dem Gerät (localStorage) gespeichert
-- ⚡ **Echtzeit-Fortschritt** — Live-Download-Status über Socket.IO
+- YouTube, TikTok, Instagram, X, Reddit und weitere yt-dlp-kompatible Quellen.
+- Video, Audio, stummes Video, Playlists und kleine Link-Stapel.
+- FFmpeg-Konvertierung und Remuxen kompatibler Streams ohne unnötiges Neucodieren.
+- Untertitel, Metadaten, Vorschaubilder, SponsorBlock, Abbruch und Live-Fortschritt.
+- Lokaler Browserverlauf statt serverseitigem Benutzerkonto.
 
----
+## Architektur
 
-## Technologie-Stack
-
-| Schicht | Technologie |
+| Ebene | Technik |
 |---|---|
-| Backend | Python, Flask, Flask-SocketIO (gevent) |
-| Download-Engine | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
-| Medienverarbeitung | FFmpeg |
-| Frontend | Vanilla HTML/CSS/JS (ohne Framework) |
-| Frontend-Hosting | [Cloudflare Pages](https://pages.cloudflare.com) |
-| Backend-Hosting | [Amazon EC2](https://aws.amazon.com/ec2/) — Ubuntu, Nginx, systemd |
-| Edge, DNS und TLS | [Cloudflare](https://www.cloudflare.com/) |
+| Frontend | HTML, CSS und JavaScript auf Cloudflare Pages |
+| Backend | Flask, Gunicorn, gevent und Socket.IO auf AWS EC2 |
+| Medien | yt-dlp, FFmpeg und Deno/EJS |
+| Netzwerk | Cloudflare, Nginx, striktes TLS und Origin-Prüfung |
 
----
+Das Backend läuft bewusst mit **einem Worker**. Mehrere Worker benötigen zuerst gemeinsamen Status, Socket.IO-Routing und gemeinsamen Speicher.
 
-## Erste Schritte
-
-### Voraussetzungen
-
-- Python 3.10+
-- FFmpeg installiert und im `PATH` verfügbar
-
-### Installation
+## Lokale Entwicklung
 
 ```bash
 git clone https://github.com/boranseason/zenithw.git
 cd zenithw/backend
-
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-
+python -m venv .venv
 pip install --require-hashes -r requirements.lock
-```
-
-### Lokal ausführen
-
-```bash
 python app.py
 ```
 
-Der Server startet standardmäßig unter `http://localhost:5000`.
+Benötigt werden Python 3.10+ und FFmpeg. Geheimnisse gehören nicht in Git; gelockerte CORS-Regeln sind nur für lokale Entwicklung gedacht.
 
----
+## Sicherheit und Nutzung
 
-## Lizenz
+ZenithW blockiert private Netzwerkziele, begrenzt Jobs und temporären Speicher und liefert Dateien über kurzlebige Token aus. Nutze den Dienst nur für Inhalte, die dir gehören oder die du herunterladen darfst. ZenithW ist mit keiner unterstützten Plattform verbunden.
 
-[MIT](./LICENSE)
-
----
-
-## Kontakt
-
-- Entwickler: [@boranseason](https://www.instagram.com/boranseason)
-- E-Mail: [info@zenithw.space](mailto:info@zenithw.space)
+Reproduzierbare Fehler bitte ohne private Daten oder Geheimnisse über [GitHub Issues](https://github.com/boranseason/zenithw/issues) melden. Lizenz: [LICENSE](LICENSE).

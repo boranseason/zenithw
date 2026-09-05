@@ -1,103 +1,44 @@
-<p align="center">
-  <a href="./README.md">English</a> •
-  <a href="./README.tr.md">Türkçe</a> •
-  <a href="./README.fr.md">Français</a> •
-  <a href="./README.ja.md">日本語</a> •
-  <a href="./README.de.md">Deutsch</a>
-</p>
-
----
-
 # ZenithW
 
-**無料、広告なし、ウォーターマークなしのメディアダウンローダー。** YouTube、TikTok、Instagram、X/Twitter、Redditなどからワンクリックで動画や音声ファイルをダウンロードできます。
+> 利用許可のあるメディアをダウンロード、変換、リマックスするための、広告のないシンプルなワークスペースです。
 
-🔗 **ライブサイト:** [zenithw.space](https://zenithw.space)
+[Web アプリ](https://zenithw.space) · [稼働状況](https://zenithw.space/status) · [更新履歴](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [Deutsch](README.de.md)
 
-🏷️ **現在のリリース:** `v14.0` — 専用ツールページ、レスポンシブな共通ナビゲーション、より洗練されたUI体験を提供します。
+現在のバージョン: **v14.2**
 
----
+## 主な機能
 
-## 目次
+- YouTube、TikTok、Instagram、X、Reddit など、yt-dlp 対応ソースの解析。
+- 動画、音声、無音動画、プレイリスト、少数のリンク一括処理。
+- FFmpeg による変換と、互換ストリームの不要な再エンコードを避けたリマックス。
+- 字幕、メタデータ、サムネイル、SponsorBlock、キャンセル、リアルタイム進捗。
+- サーバー側アカウントではなく、ブラウザー内に保存される履歴。
 
-- [特徴](#特徴)
-- [使用技術](#使用技術)
-- [プロジェクト構造](#プロジェクト構造)
-- [セットアップ](#セットアップ)
-- [環境変数](#環境変数)
-- [APIリファレンス](#apiリファレンス)
-- [セキュリティ](#セキュリティ)
-- [ライセンス](#ライセンス)
-- [お問い合わせ](#お問い合わせ)
-
----
-
-## 特徴
-
-- 🎬 **マルチプラットフォーム対応** — YouTube、TikTok、Instagram、X/Twitter、Redditなど多数対応 (yt-dlpを使用)
-- 🎵 **動画および音声** — mp4/webm/mkvなどの動画フォーマット、mp3/flac/wav/ogg/opus/m4aなどの音声フォーマット
-- 🔇 **ミュートモード** — 音声なしで動画のみをダウンロード
-- 📃 **一括 / プレイリストダウンロード** — 最大10個のリンクを同時処理、または最大50項目のプレイリストを解析
-- ⏭️ **SponsorBlock統合** — スポンサー枠、イントロ、アウトロなどを自動的にスキップまたは削除
-- 🖼️ **サムネイルダウンロード** — カバー画像をメディアと一緒に、または単体でダウンロード
-- 📝 **字幕およびメタデータ対応** — 利用可能な字幕のダウンロードおよび動画メタデータの埋め込み
-- 🌍 **4言語対応** — トルコ語、英語、フランス語、ドイツ語
-- 🎨 **カスタマイズ可能なUI** — ライト/ダークテーマ、スムーズなアニメーション
-- 🔒 **サーバー側に履歴を残さない** — 履歴はデバイスローカル (localStorage) にのみ保存
-- ⚡ **リアルタイム進行状況** — Socket.IOによるライブ進捗表示
-
----
-
-## 使用技術
+## 構成
 
 | レイヤー | 技術 |
 |---|---|
-| バックエンド | Python, Flask, Flask-SocketIO (gevent) |
-| ダウンロードエンジン | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
-| メディア処理 | FFmpeg |
-| フロントエンド | Vanilla HTML/CSS/JS (フレームワークなし) |
-| フロントエンドホスティング | [Cloudflare Pages](https://pages.cloudflare.com) |
-| バックエンドホスティング | [Amazon EC2](https://aws.amazon.com/ec2/) — Ubuntu、Nginx、systemd |
-| エッジ、DNS、TLS | [Cloudflare](https://www.cloudflare.com/) |
+| フロントエンド | Cloudflare Pages 上の HTML、CSS、JavaScript |
+| バックエンド | AWS EC2 上の Flask、Gunicorn、gevent、Socket.IO |
+| メディア処理 | yt-dlp、FFmpeg、Deno/EJS |
+| ネットワーク | Cloudflare、Nginx、厳格な TLS、オリジン検証 |
 
----
+バックエンドは意図的に **1 worker** で動作します。worker を増やす前に、共有状態、Socket.IO ルーティング、共有ストレージが必要です。
 
-## セットアップ
-
-### 必須条件
-
-- Python 3.10+
-- FFmpegがインストールされ、`PATH`が通っていること
-
-### インストール
+## ローカル開発
 
 ```bash
 git clone https://github.com/boranseason/zenithw.git
 cd zenithw/backend
-
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-
+python -m venv .venv
 pip install --require-hashes -r requirements.lock
-```
-
-### ローカルでの実行
-
-```bash
 python app.py
 ```
 
-サーバーはデフォルトで `http://localhost:5000` で起動します。
+Python 3.10+ と FFmpeg が必要です。秘密情報を Git に追加せず、CORS の緩和はローカル開発だけで使用してください。
 
----
+## 安全性と利用条件
 
-## ライセンス
+ZenithW はプライベートネットワーク宛ての接続を拒否し、同時処理数と一時保存量を制限し、短時間だけ有効なトークンでファイルを配信します。所有権またはダウンロード許可のあるコンテンツにのみ使用してください。ZenithW は対応プラットフォームと提携していません。
 
-[MIT](./LICENSE)
-
----
-
-## お問い合わせ
-
-- 開発者: [@boranseason](https://www.instagram.com/boranseason)
-- メール: [info@zenithw.space](mailto:info@zenithw.space)
+再現可能な不具合は、個人情報や秘密情報を含めずに [GitHub Issues](https://github.com/boranseason/zenithw/issues) へ報告してください。ライセンス: [LICENSE](LICENSE)。

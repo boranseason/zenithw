@@ -39,26 +39,27 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn("instagram", source)
         self.assertIn("info@zenithw.space", source)
 
-    def test_greeting_is_time_and_language_aware(self):
+    def test_home_command_center_has_current_identity_and_modes(self):
         index = (FRONTEND / "index.html").read_text(encoding="utf-8")
-        shell = (FRONTEND / "site-shell.js").read_text(encoding="utf-8")
-        self.assertIn('id="timeGreeting"', index)
+        app = (FRONTEND / "app.d4596317c4a7.js").read_text(encoding="utf-8")
+        self.assertIn('class="home-wordmark"', index)
+        self.assertIn('id="homeStatusTxt"', index)
+        self.assertIn('id="modeAuto"', index)
+        self.assertIn('id="modeAudio"', index)
+        self.assertIn('id="modeMute"', index)
+        self.assertNotIn('id="modeVideo"', index)
+        self.assertIn('href="/history.html"', index)
         self.assertNotIn('class="logo-wrap" onclick=', index)
-        self.assertIn("const TR_GREETING_COUNT=110", shell)
-        for period in ("deepNight", "morning", "noon", "evening", "lateNight"):
-            self.assertIn(f"{period}:", shell)
-        for tier in ("common", "rare", "epic", "legendary"):
-            self.assertIn(f"{tier}:", shell)
-        for language in ("en", "fr", "de"):
-            self.assertIn(f"{language}:{{deepNight:", shell)
+        self.assertIn("['Auto','Audio','Mute']", app)
 
-    def test_v14_1_release_is_current_and_v14_0_is_archived(self):
+    def test_v14_2_release_is_current_and_v14_1_is_preserved(self):
         version = (FRONTEND / "version.js").read_text(encoding="utf-8")
         updates = (FRONTEND / "updates-core.99daf4ea6088.js").read_text(encoding="utf-8")
         archive = (FRONTEND / "updates-archive.07c744021db2.js").read_text(encoding="utf-8")
-        self.assertIn("ver: 'v14.1'", version)
+        self.assertIn("ver: 'v14.2'", version)
+        self.assertIn("Daha sakin, daha net, daha ZenithW", updates)
         self.assertIn("Railway’den AWS’ye: ZenithW artık kendi sunucusunda", updates)
-        self.assertIn("['v14.1', 'v14.0', 'v13.8'", updates)
+        self.assertIn("['v14.2', 'v14.1', 'v14.0'", updates)
         self.assertIn("{ver:'v14.0',latest:false", archive)
 
     def test_settings_use_the_wide_workspace_layout(self):
