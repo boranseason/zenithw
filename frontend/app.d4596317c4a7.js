@@ -1,7 +1,7 @@
 const API="https://api.zenithw.space";
 async function downloadThumbnail(){
   if(!videoInfo||!videoInfo.url) return;
-  const button=document.getElementById('dlThumbAction')||document.getElementById('vcThumbDl');
+  const button=document.getElementById('dlThumbAction');
   if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
   try{
     const res=await fetch(API+'/thumbnail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url})});
@@ -555,9 +555,7 @@ function onInput(){
   infoSequence++;
   const v=document.getElementById('urlInput').value;
   document.getElementById('urlClear').classList.toggle('vis',v.length>0);
-  document.getElementById('ytWarn').classList.toggle('show',isYT(v));
   document.getElementById('errorWrap').classList.remove('show');
-  document.getElementById('videoCard').classList.remove('show');
   document.getElementById('playlistCard').classList.remove('show');
   hideQR();videoInfo={};
   document.getElementById('urlSpinWrap').innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text3)"><circle cx="12" cy="12" r="10"/></svg>';
@@ -709,7 +707,6 @@ async function fetchVideo(opts){
   const sequence=++infoSequence;
   infoController=controller;
   document.getElementById('urlSpinWrap').innerHTML='<div class="spinner"></div>';
-  document.getElementById('videoCard').classList.remove('show');
   document.getElementById('playlistCard').classList.remove('show');
   document.getElementById('errorWrap').classList.remove('show');
   hideQR();
@@ -727,10 +724,6 @@ async function fetchVideo(opts){
       return true;
     }
 
-    const m=Math.floor((d.duration||0)/60),s=String((d.duration||0)%60).padStart(2,'0');
-    document.getElementById('vcTitle').textContent=d.title||'video';
-    document.getElementById('vcMeta').textContent=(d.uploader||'')+(d.duration?' · '+m+':'+s:'');
-    const th=document.getElementById('vcThumb');th.innerHTML=safeThumbHtml(d.thumbnail);
     videoInfo={url,title:d.title,thumbnail:d.thumbnail,uploader:d.uploader,duration:d.duration};
     // Analiz sonucu küçük bir kartta kaybolmak yerine doğrudan karar modalında
     // gösterilir; kullanıcı indirmenin hangi medya için başlayacağını doğrular.
