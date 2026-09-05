@@ -23,6 +23,7 @@ from collections import defaultdict, OrderedDict, deque
 from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version as package_version
 from urllib.parse import urlparse
+from urllib.request import Request as UrlRequest, urlopen
 
 from flask import Flask, request, jsonify, send_file, g
 from flask_cors import CORS
@@ -114,6 +115,7 @@ INFO_TIMEOUT_SECONDS = _bounded_env_int("INFO_TIMEOUT_SECONDS", 45, 5, 300)
 INFO_CACHE_TTL_SECONDS = _bounded_env_int("INFO_CACHE_TTL_SECONDS", 45, 5, 3600)
 INFO_CACHE_MAX_SIZE = _bounded_env_int("INFO_CACHE_MAX_SIZE", 256, 16, 4096)
 THUMBNAIL_TIMEOUT_SECONDS = _bounded_env_int("THUMBNAIL_TIMEOUT_SECONDS", 60, 5, 300)
+MAX_THUMBNAIL_BYTES = _bounded_env_int("MAX_THUMBNAIL_MB", 12, 1, 32) * 1024 * 1024
 MAX_VIDEO_DURATION_SECONDS = _bounded_env_int("MAX_VIDEO_DURATION_SECONDS", 90 * 60, 60, 6 * 3600)
 MAX_TRANSCODE_DURATION_SECONDS = _bounded_env_int("MAX_TRANSCODE_DURATION_SECONDS", 10 * 60, 30, 3600)
 MAX_DOWNLOAD_SIZE_BYTES = _bounded_env_int("MAX_DOWNLOAD_SIZE_MB", 1536, 16, 10240) * 1024 * 1024
@@ -3461,6 +3463,7 @@ def download_thumbnail():
         return rate_limit_response(thumbnail_rate_limiter, ip, "Too many thumbnail requests. Please wait a moment.")
     data = request.json or {}
     url = data.get("url", "").strip()
+    thumbnail_url = data.get("thumbnail_url", "").strip()
     if not url:
         return jsonify({"error": "URL required"}), 400
     if not thumbnail_slots.acquire(blocking=False):
@@ -3472,11 +3475,71 @@ def download_thumbnail():
             return jsonify({"error": "Live streams are not currently supported."}), 400
         if is_unsupported_domain(url):
             return jsonify({"error": "This platform is not supported."}), 400
+        # The analysis response already carries an extractor-provided image URL.
+        # Prefer it: fetching this small static asset should not require a second
+        # metadata extraction (which video platforms increasingly block on cloud
+        # IPs). The same SSRF guard protects this public URL as every other
+        # outbound request.
+        if thumbnail_url:
+            if not is_safe_url(thumbnail_url):
+                return jsonify({"error": "Invalid thumbnail URL."}), 400
+            return download_thumbnail_from_url(thumbnail_url)
         if not FFMPEG_DIR:
             return jsonify({"error": "FFmpeg required"}), 400
         return download_thumbnail_with_slot(url)
     finally:
         thumbnail_slots.release()
+
+
+def download_thumbnail_from_url(thumbnail_url):
+    """Download an already-extracted public thumbnail with bounded streaming.
+
+    This deliberately accepts only image responses and writes to the existing
+    per-request download workspace, so the normal delayed cleanup path and the
+    systemd writable-directory boundary remain intact.
+    """
+    filename = str(uuid.uuid4())
+    content_type = ""
+    try:
+        request_obj = UrlRequest(
+            thumbnail_url,
+            headers={"User-Agent": "ZenithW/1.0 (thumbnail fetch)"},
+        )
+        with urlopen(request_obj, timeout=min(THUMBNAIL_TIMEOUT_SECONDS, 20)) as upstream:
+            content_type = (upstream.headers.get_content_type() or "").lower()
+            if not content_type.startswith("image/"):
+                raise ValueError("Thumbnail source did not return an image")
+            subtype = content_type.split("/", 1)[1].split(";", 1)[0]
+            extension = {"jpeg": "jpg", "jpg": "jpg", "png": "png", "webp": "webp", "gif": "gif"}.get(subtype)
+            if not extension:
+                raise ValueError("Thumbnail image format is not supported")
+            full_path = os.path.join(DOWNLOAD_DIR, f"{filename}.{extension}")
+            total = 0
+            with open(full_path, "wb") as output:
+                while True:
+                    chunk = upstream.read(64 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_THUMBNAIL_BYTES:
+                        raise ValueError("Thumbnail image is too large")
+                    output.write(chunk)
+        if not total:
+            raise ValueError("Thumbnail image was empty")
+        _register_cleanup(full_path)
+        response = send_file(full_path, as_attachment=True, download_name=f"thumbnail.{extension}")
+        response.direct_passthrough = False
+
+        @response.call_on_close
+        def _cleanup_direct_thumb():
+            _force_cleanup(full_path)
+
+        return response
+    except Exception as exc:
+        if 'full_path' in locals():
+            _force_cleanup(full_path)
+        logger.error("[THUMB DIRECT ERR] %s", _redact_log_text(str(exc))[:150])
+        return jsonify(public_error_payload(str(exc), thumbnail_url)), 400
 
 
 def download_thumbnail_with_slot(url):

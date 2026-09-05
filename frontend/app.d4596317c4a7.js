@@ -4,7 +4,7 @@ async function downloadThumbnail(){
   const button=document.getElementById('dlThumbAction');
   if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
   try{
-    const res=await fetch(API+'/thumbnail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url})});
+    const res=await fetch(API+'/thumbnail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url,thumbnail_url:videoInfo.thumbnail||''})});
     if(!res.ok){
       const payload=await res.json().catch(()=>({error_code:'request_failed'}));
       showPublicError(payload,res.status,videoInfo.url,false);
