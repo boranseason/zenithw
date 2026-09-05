@@ -407,6 +407,12 @@ socketio = SocketIO(app, cors_allowed_origins=ALLOWED_ORIGINS, async_mode='geven
 
 DOWNLOAD_DIR = "./downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# systemd production unit deliberately has a read-only home directory. Keep
+# yt-dlp's player/signature cache in the already writable download workspace,
+# so modern YouTube extraction can reuse verified JS data instead of emitting a
+# cache write failure for every request.
+YTDLP_CACHE_DIR = os.path.join(DOWNLOAD_DIR, ".yt-dlp-cache")
+os.makedirs(YTDLP_CACHE_DIR, exist_ok=True)
 
 # ── Cookies ───────────────────────────────────────────
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
@@ -1870,6 +1876,7 @@ def get_base_opts(url, use_cookies=True, youtube_player_clients=None):
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         },
+        "cachedir": YTDLP_CACHE_DIR,
     }
     if POT_PROVIDER_URL and is_youtube(url):
         # Keep provider failures visible in Railway logs while public clients

@@ -421,9 +421,9 @@ flask-cors==6.0.1 \
     --hash=sha256:c7b2cbfb1a31aa0d2e5341eea03a6805349f7a61647daee1a15c46bbe981494c \
     --hash=sha256:d81bcb31f07b0985be7f48406247e9243aced229b7747219160a0559edd678db
     # via -r backend/requirements.txt
-flask-socketio==5.6.0 \
-    --hash=sha256:42a7bc552013633875ad320e39462323b4f7334594f1658d72b6ffed99940d4c \
-    --hash=sha256:894ad031d9440ca3fad388dd301ca33d13b301a2563933ca608d30979ef0a7c1
+flask-socketio==5.6.1 \
+    --hash=sha256:51a3f71b28b4476c650829607e3a993e076034db6c3cc31f718f0a4b45939d42 \
+    --hash=sha256:fe5bd995c3ed4da9a98f335d0d830fa1a19d84a64789f6265642a671fdacaeac
     # via -r backend/requirements.txt
 gevent==25.9.1 \
     --hash=sha256:012a44b0121f3d7c800740ff80351c897e85e76a7e4764690f35c5ad9ec17de5 \

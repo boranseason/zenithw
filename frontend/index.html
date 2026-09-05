@@ -46,7 +46,7 @@
 }
 </script>
 <link href="/fonts.css?v=1" rel="stylesheet">
-<link rel="stylesheet" href="style.487d49f0164d.css?v=15.3">
+  <link rel="stylesheet" href="style.487d49f0164d.css?v=15.4">
 <link rel="stylesheet" href="site-shell.css?v=14.5">
 <script src="/version.js?v=14.2"></script>
 </head>
@@ -247,8 +247,8 @@
     <div class="dl-analysis-kicker" id="dlAnalysisKicker">hazır</div>
     <div class="dl-header">
       <div class="dl-video-info">
-        <div class="dl-thumb" id="dlThumb">🎬</div>
-        <div><div class="dl-vtitle" id="dlVTitle"></div><div class="dl-vmeta" id="dlVMeta"></div></div>
+        <div class="dl-thumb-wrap"><div class="dl-thumb" id="dlThumb">🎬</div><span class="dl-media-badge">media</span></div>
+        <div class="dl-video-copy"><div class="dl-vtitle" id="dlVTitle"></div><div class="dl-vmeta" id="dlVMeta"></div></div>
       </div>
       <button class="dl-close" onclick="closeOverlay('dlOverlay')" aria-label="Kapat"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
     </div>
@@ -267,6 +267,12 @@
           <span id="dlSettingsTxt">ayarlar</span>
         </a>
       </div>
+      <div class="dl-stage" id="dlStage" aria-live="polite">
+        <span class="dl-stage-dot"></span>
+        <span id="dlStageTxt">dosya hazırlanıyor</span>
+        <span class="dl-stage-rule"></span>
+        <span id="dlStageMode">otomatik</span>
+      </div>
       <div class="dl-prog-wrap" id="dlProgWrap">
         <div class="dl-prog-top">
           <div class="dl-prog-icon" id="dlProgIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -274,6 +280,7 @@
           <div class="dl-prog-pct" id="dlProgPct">0%</div>
         </div>
         <div class="dl-bar-track"><div class="dl-bar-fill" id="dlBarFill"></div></div>
+        <div class="dl-progress-scale"><span>0</span><span>50</span><span>100</span></div>
       </div>
       <button class="dl-btn" id="dlBtn" onclick="startDownload()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -322,7 +329,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"
         integrity="sha512-Xm9qbB6Pu06k3PUwPj785dyTl6oHxgsv9nHp7ej7nCpAqGZT3OZpsELuCYX05DdonFpTlBpXMOxjavIAIUwr0w=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="app.d4596317c4a7.js?v=14.9"></script>
+<script src="app.d4596317c4a7.js?v=15.0"></script>
 <script src="site-shell.js?v=14.6"></script>
 </body>
 </html>
