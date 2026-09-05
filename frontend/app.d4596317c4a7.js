@@ -1515,7 +1515,7 @@ async function reDownload(url){
   applyLang(); // LAST — after all functions are defined
   renderHomeActivity();
   if(document.body.classList.contains('settings-page')&&window.matchMedia('(max-width:900px)').matches)showMobileSettingsHome();
-  resetCatTimer();
+  if(typeof resetCatTimer==='function')resetCatTimer();
   window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(S.theme==='auto')setTheme('auto');});
   // Bazı mobil tarayıcılar (özellikle iOS Safari) sayfayı geri/ileri
   // gezinmede bfcache'den eski DOM durumuyla geri getirebiliyor. Bu durumda
