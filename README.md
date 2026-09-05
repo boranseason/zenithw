@@ -6,6 +6,8 @@
 
 Current release: **v14.2**
 
+![ZenithW web interface](docs/assets/zenithw-preview.png)
+
 ## What it does
 
 - Resolves media from YouTube, TikTok, Instagram, X, Reddit, and other yt-dlp-compatible sources.
@@ -78,6 +80,6 @@ Report reproducible bugs through [GitHub Issues](https://github.com/boranseason/
 
 ## License
 
-ZenithW is licensed under the **GNU Affero General Public License v3.0 only (`AGPL-3.0-only`)**. If you modify ZenithW and make that modified version available for users to interact with over a network, the AGPL requires you to offer those users access to the corresponding source code of that version.
-
-See [LICENSE](LICENSE). Third-party components remain under their respective licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- ZenithW: AGPL-3.0-only
+- Third-party dependencies: their respective licenses
+- Details: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
