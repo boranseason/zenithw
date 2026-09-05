@@ -48,9 +48,11 @@ class StandaloneToolPageTests(unittest.TestCase):
         self.assertIn('id="modeAudio"', index)
         self.assertIn('id="modeMute"', index)
         self.assertNotIn('id="modeVideo"', index)
-        self.assertIn('href="/history.html"', index)
+        self.assertNotIn('class="home-activity"', index)
         self.assertNotIn('class="logo-wrap" onclick=', index)
         self.assertIn("['Auto','Audio','Mute']", app)
+        self.assertIn("const payload=await res.json().catch", app)
+        self.assertIn("showPublicError(payload,res.status,videoInfo.url,false)", app)
 
     def test_v14_2_release_is_current_and_v14_1_is_preserved(self):
         version = (FRONTEND / "version.js").read_text(encoding="utf-8")

@@ -1,10 +1,17 @@
 const API="https://api.zenithw.space";
 async function downloadThumbnail(){
   if(!videoInfo||!videoInfo.url) return;
+  const button=document.getElementById('dlThumbAction')||document.getElementById('vcThumbDl');
+  if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
   try{
     const res=await fetch(API+'/thumbnail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:videoInfo.url})});
-    if(!res.ok){ return; }
+    if(!res.ok){
+      const payload=await res.json().catch(()=>({error_code:'request_failed'}));
+      showPublicError(payload,res.status,videoInfo.url,false);
+      return;
+    }
     const blob=await res.blob();
+    if(!blob.size){throw new Error('Empty thumbnail response');}
     const a=document.createElement('a');
     const objectUrl=URL.createObjectURL(blob);
     a.href=objectUrl;
@@ -13,7 +20,13 @@ async function downloadThumbnail(){
     a.click();
     a.remove();
     setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
-  }catch(e){ console.error('thumb dl err',e); }
+    toast(t('thumbnailDownloaded'),'#3bba64');
+  }catch(e){
+    console.error('thumb dl err',e);
+    showPublicError({error_code:'network_error'},0,videoInfo.url,false);
+  }finally{
+    if(button){button.disabled=false;button.removeAttribute('aria-busy');}
+  }
 }
 
 // ── XSS güvenliği: uzak sitelerden gelen title/thumbnail/url innerHTML'e
@@ -72,7 +85,7 @@ let LANG='tr';
 const TX={
   tr:{
     placeholder:'video bağlantısını buraya bırak',bulkPlaceholder:'linkleri her satıra bir tane olacak şekilde yapıştır... (Enter ile indir, Shift+Enter ile yeni satır)',modeAutoTxt:'otomatik',modeAudioTxt:'ses',modeMuteTxt:'sessiz',bulkToggleTxt:'çoklu indirme',paste:'yapıştır',continueBtn:'devam et',homeStatusTxt:'hizmet aktif',homeActivityTitle:'son aktiviteler',homeActivityAllTxt:'tümünü gör',homeActivityEmpty:'henüz bu tarayıcıda bir indirme yok',
-    vcDl:'indir',dlBtn:'indir',dlCancel:'iptal',
+    vcDl:'indir',dlBtn:'indir',dlCancel:'iptal',dlAnalysisKicker:'hazır',dlAnalysisTitle:'İndirmeye hazır',dlAnalysisDesc:'Bağlantı analiz edildi. Kalite ve ses tercihlerini Ayarlar’dan değiştirebilirsin.',dlThumbActionTxt:'kapak görseli',dlSettingsTxt:'ayarlar',
     bbSave:'kaydet',bbHistory:'geçmiş',bbRemux:'remux',bbConvert:'dönüştür',bbSettings:'ayarlar',bbUpdates:'güncel',bbAbout:'hakkında',bbMore:'diğer',bbDonate:'destek ol',
     accDefault:'klasik',accDefaultDesc:'buz mavisi · dengeli',accPurple:'neon mor',accPurpleDesc:'elektrik moru · derin uzay',accGray:'grafit',accGrayDesc:'nötr gri · sade',accPink:'neon pembe',accPinkDesc:'canlı pembe · sıcak',accCobalt:'cobalt mavisi',accCobaltDesc:'derin mavi · odaklı',
     saveTitleTxt:'nasıl kaydetmek istersin?',saveDlTxt:'indir',saveShareTxt:'paylaş',saveCopyTxt:'kopyala',
@@ -94,7 +107,7 @@ const TX={
     stLblFnf:'dosya adı formatı',stNoteFnf:'İndirme başlamadan önce dosya adı bu formata göre oluşturulur.',
     stLblFnfEx:'örnek formatlar',
     connecting:'bağlanıyor...',downloading:'indiriliyor...',merging:'birleştiriliyor...',queued:'sırada bekleniyor...',done:'tamamlandı!',
-    found:'video bulundu ✓',downloaded:'indirildi ✓',cancelled:'iptal edildi',error:'hata',
+    found:'video bulundu ✓',downloaded:'indirildi ✓',thumbnailDownloaded:'kapak görseli indirildi',cancelled:'iptal edildi',error:'hata',
     convTitleTxt:'yeni dönüştürme',convModalSub:'dosya, format, dönüştür — hepsi bu',convDropTitle:'dosyanı buraya bırak',convDropSub:'veya bilgisayarından seç · en fazla 95 MB',
     convFmtLabel:'ÇIKIŞ FORMATINI SEÇ',convFmtHint:'hedef dosya türünü belirle',convBtnSel:'önce bir dosya seç',convBtnReady:'{fmt} olarak dönüştür',convBtnHint:'dönüştürme seçiminin ardından başlar',
     convHeroKicker:'MEDYA ATÖLYESİ',convertPageTitle:'Dosyanı dönüştür.<br><span>Kalitesini koru.</span>',convHeroLead:'Video ve ses dosyalarını, sade bir akışla ihtiyacın olan formata çevir.',convTrustSize:'95 MB\'a kadar',convTrustFormats:'11 çıkış formatı',convTrustEngine:'FFmpeg motoru',convChooseFile:'dosya seç',convStepFile:'dosya',convStepFormat:'format',convStepConvert:'dönüştür',convVideoFormats:'VİDEO',convAudioFormats:'SES',
@@ -139,7 +152,7 @@ const TX={
   },
   en:{
     placeholder:'drop a media link here',bulkPlaceholder:'paste links, one per line... (Enter to download, Shift+Enter for a new line)',modeAutoTxt:'automatic',modeAudioTxt:'audio',modeMuteTxt:'mute',bulkToggleTxt:'bulk',paste:'paste',continueBtn:'continue',homeStatusTxt:'service active',homeActivityTitle:'recent activity',homeActivityAllTxt:'view all',homeActivityEmpty:'no downloads in this browser yet',
-    vcDl:'download',dlBtn:'download',dlCancel:'cancel',
+    vcDl:'download',dlBtn:'download',dlCancel:'cancel',dlAnalysisKicker:'ready',dlAnalysisTitle:'Ready to download',dlAnalysisDesc:'The link has been analyzed. You can adjust quality and audio preferences in Settings.',dlThumbActionTxt:'cover image',dlSettingsTxt:'settings',
     bbSave:'save',bbHistory:'history',bbRemux:'remux',bbConvert:'convert',bbSettings:'settings',bbUpdates:'updates',bbAbout:'about',bbMore:'more',bbDonate:'support us',
     accDefault:'classic',accDefaultDesc:'ice blue · balanced',accPurple:'neon purple',accPurpleDesc:'electric violet · deep space',accGray:'graphite',accGrayDesc:'neutral gray · minimal',accPink:'neon pink',accPinkDesc:'vivid pink · warm',accCobalt:'cobalt blue',accCobaltDesc:'deep blue · focused',
     saveTitleTxt:'choose how to save',saveDlTxt:'download',saveShareTxt:'share',saveCopyTxt:'copy',
@@ -161,7 +174,7 @@ const TX={
     stLblFnf:'filename format',stNoteFnf:'File will be named using this template before download.',
     stLblFnfEx:'example formats',
     connecting:'connecting...',downloading:'downloading...',merging:'merging...',queued:'waiting in queue...',done:'done!',
-    found:'video found ✓',downloaded:'downloaded ✓',cancelled:'cancelled',error:'error',
+    found:'video found ✓',downloaded:'downloaded ✓',thumbnailDownloaded:'thumbnail downloaded',cancelled:'cancelled',error:'error',
     convTitleTxt:'new conversion',convModalSub:'file, format, convert — that simple',convDropTitle:'drop your file here',convDropSub:'or choose from your computer · up to 95 MB',
     convFmtLabel:'SELECT OUTPUT FORMAT',convFmtHint:'choose the target file type',convBtnSel:'choose a file first',convBtnReady:'convert to {fmt}',convBtnHint:'conversion starts after your selection',
     convHeroKicker:'MEDIA STUDIO',convertPageTitle:'Convert your file.<br><span>Keep the quality.</span>',convHeroLead:'Turn video and audio files into the format you need with a clean, focused workflow.',convTrustSize:'up to 95 MB',convTrustFormats:'11 output formats',convTrustEngine:'FFmpeg engine',convChooseFile:'choose file',convStepFile:'file',convStepFormat:'format',convStepConvert:'convert',convVideoFormats:'VIDEO',convAudioFormats:'AUDIO',
@@ -208,7 +221,7 @@ const TX={
   },
   fr:{
     placeholder:'déposez un lien média ici',bulkPlaceholder:'collez les liens, un par ligne... (Entrée pour télécharger, Maj+Entrée pour une nouvelle ligne)',modeAutoTxt:'automatique',modeAudioTxt:'audio',modeMuteTxt:'muet',bulkToggleTxt:'lot',paste:'coller',continueBtn:'continuer',homeStatusTxt:'service actif',homeActivityTitle:'activité récente',homeActivityAllTxt:'tout voir',homeActivityEmpty:'aucun téléchargement dans ce navigateur pour le moment',
-    vcDl:'télécharger',dlBtn:'télécharger',dlCancel:'annuler',
+    vcDl:'télécharger',dlBtn:'télécharger',dlCancel:'annuler',dlAnalysisKicker:'prêt',dlAnalysisTitle:'Prêt à télécharger',dlAnalysisDesc:'Le lien a été analysé. Vous pouvez modifier la qualité et le son dans les paramètres.',dlThumbActionTxt:'image de couverture',dlSettingsTxt:'paramètres',
     bbSave:'enregistrer',bbHistory:'historique',bbRemux:'remux',bbConvert:'convertir',bbSettings:'paramètres',bbUpdates:'nouveautés',bbAbout:'à propos',bbMore:'plus',bbDonate:'soutenir',
     accDefault:'classique',accDefaultDesc:'bleu glacier · équilibré',accPurple:'violet néon',accPurpleDesc:'violet électrique · espace',accGray:'graphite',accGrayDesc:'gris neutre · minimal',accPink:'rose néon',accPinkDesc:'rose vif · chaleureux',accCobalt:'bleu cobalt',accCobaltDesc:'bleu profond · précis',
     saveTitleTxt:'comment voulez-vous enregistrer ?',saveDlTxt:'télécharger',saveShareTxt:'partager',saveCopyTxt:'copier',
@@ -230,7 +243,7 @@ const TX={
     stLblFnf:'format du nom de fichier',stNoteFnf:'le nom du fichier sera généré selon ce modèle avant le téléchargement.',
     stLblFnfEx:'exemples de formats',
     connecting:'connexion...',downloading:'téléchargement...',merging:'fusion...',done:'terminé !',
-    found:'vidéo trouvée ✓',downloaded:'téléchargé ✓',cancelled:'annulé',error:'erreur',
+    found:'vidéo trouvée ✓',downloaded:'téléchargé ✓',thumbnailDownloaded:'miniature téléchargée',cancelled:'annulé',error:'erreur',
     convTitleTxt:'nouvelle conversion',convModalSub:'fichier, format, convertir — simplement',convDropTitle:'déposez votre fichier ici',convDropSub:'ou choisissez-le sur votre ordinateur · 95 Mo max.',
     convFmtLabel:'CHOISIR LE FORMAT DE SORTIE',convFmtHint:'choisissez le type de fichier cible',convBtnSel:'choisissez d’abord un fichier',convBtnReady:'convertir en {fmt}',convBtnHint:'la conversion démarre après votre sélection',
     convHeroKicker:'STUDIO MÉDIA',convertPageTitle:'Convertissez votre fichier.<br><span>Préservez sa qualité.</span>',convHeroLead:'Transformez vos fichiers vidéo et audio dans le format voulu avec un flux simple.',convTrustSize:'jusqu’à 95 Mo',convTrustFormats:'11 formats de sortie',convTrustEngine:'moteur FFmpeg',convChooseFile:'choisir un fichier',convStepFile:'fichier',convStepFormat:'format',convStepConvert:'convertir',convVideoFormats:'VIDÉO',convAudioFormats:'AUDIO',
@@ -277,7 +290,7 @@ const TX={
   },
   de:{
     placeholder:'medienlink hier ablegen',bulkPlaceholder:'links einfügen, einen pro Zeile... (Enter zum Herunterladen, Umschalt+Enter für neue Zeile)',modeAutoTxt:'automatisch',modeAudioTxt:'audio',modeMuteTxt:'stumm',bulkToggleTxt:'stapel',paste:'einfügen',continueBtn:'weiter',homeStatusTxt:'dienst aktiv',homeActivityTitle:'letzte aktivitäten',homeActivityAllTxt:'alle ansehen',homeActivityEmpty:'noch keine downloads in diesem browser',
-    vcDl:'herunterladen',dlBtn:'herunterladen',dlCancel:'abbrechen',
+    vcDl:'herunterladen',dlBtn:'herunterladen',dlCancel:'abbrechen',dlAnalysisKicker:'bereit',dlAnalysisTitle:'Bereit zum Herunterladen',dlAnalysisDesc:'Der Link wurde analysiert. Qualität und Audio lassen sich in den Einstellungen anpassen.',dlThumbActionTxt:'Vorschaubild',dlSettingsTxt:'Einstellungen',
     bbSave:'speichern',bbHistory:'verlauf',bbRemux:'remux',bbConvert:'konvertieren',bbSettings:'einstellungen',bbUpdates:'neuigkeiten',bbAbout:'über',bbMore:'mehr',bbDonate:'unterstützen',
     accDefault:'klassisch',accDefaultDesc:'eisblau · ausgewogen',accPurple:'neon-lila',accPurpleDesc:'elektrisches lila · weltraum',accGray:'graphit',accGrayDesc:'neutrales grau · minimal',accPink:'neon-pink',accPinkDesc:'lebendiges pink · warm',accCobalt:'kobaltblau',accCobaltDesc:'tiefblau · fokussiert',
     saveTitleTxt:'wie möchtest du speichern?',saveDlTxt:'herunterladen',saveShareTxt:'teilen',saveCopyTxt:'kopieren',
@@ -299,7 +312,7 @@ const TX={
     stLblFnf:'dateinamenformat',stNoteFnf:'der dateiname wird vor dem download nach diesem muster erstellt.',
     stLblFnfEx:'beispielformate',
     connecting:'verbinde...',downloading:'lädt herunter...',merging:'wird zusammengeführt...',done:'fertig!',
-    found:'video gefunden ✓',downloaded:'heruntergeladen ✓',cancelled:'abgebrochen',error:'fehler',
+    found:'video gefunden ✓',downloaded:'heruntergeladen ✓',thumbnailDownloaded:'vorschaubild heruntergeladen',cancelled:'abgebrochen',error:'fehler',
     convTitleTxt:'neue konvertierung',convModalSub:'datei, format, konvertieren — ganz einfach',convDropTitle:'datei hier ablegen',convDropSub:'oder vom computer auswählen · maximal 95 MB',
     convFmtLabel:'AUSGABEFORMAT WÄHLEN',convFmtHint:'zieldateityp festlegen',convBtnSel:'zuerst eine datei auswählen',convBtnReady:'in {fmt} konvertieren',convBtnHint:'die konvertierung startet nach der auswahl',
     convHeroKicker:'MEDIA STUDIO',convertPageTitle:'Datei konvertieren.<br><span>Qualität behalten.</span>',convHeroLead:'Video- und Audiodateien in einem klaren Ablauf in das gewünschte Format umwandeln.',convTrustSize:'bis zu 95 MB',convTrustFormats:'11 ausgabeformate',convTrustEngine:'FFmpeg-engine',convChooseFile:'datei auswählen',convStepFile:'datei',convStepFormat:'format',convStepConvert:'konvertieren',convVideoFormats:'VIDEO',convAudioFormats:'AUDIO',
@@ -718,8 +731,10 @@ async function fetchVideo(opts){
     document.getElementById('vcTitle').textContent=d.title||'video';
     document.getElementById('vcMeta').textContent=(d.uploader||'')+(d.duration?' · '+m+':'+s:'');
     const th=document.getElementById('vcThumb');th.innerHTML=safeThumbHtml(d.thumbnail);
-    document.getElementById('videoCard').classList.add('show');
     videoInfo={url,title:d.title,thumbnail:d.thumbnail,uploader:d.uploader,duration:d.duration};
+    // Analiz sonucu küçük bir kartta kaybolmak yerine doğrudan karar modalında
+    // gösterilir; kullanıcı indirmenin hangi medya için başlayacağını doğrular.
+    openDlModal();
     if(!opts.silent){toast(t('found'),'#3bba64');showQR(url);}
     return true;
   }catch(e){
@@ -1064,6 +1079,11 @@ function openDlModal(){
   document.getElementById('dlVTitle').textContent=videoInfo.title||'video';
   const m=Math.floor((videoInfo.duration||0)/60),s=String((videoInfo.duration||0)%60).padStart(2,'0');
   document.getElementById('dlVMeta').textContent=(videoInfo.uploader||'')+(videoInfo.duration?' · '+m+':'+s:'');
+  document.getElementById('dlAnalysisKicker').textContent=t('dlAnalysisKicker');
+  document.getElementById('dlAnalysisTitle').textContent=t('dlAnalysisTitle');
+  document.getElementById('dlAnalysisDesc').textContent=t('dlAnalysisDesc');
+  document.getElementById('dlThumbActionTxt').textContent=t('dlThumbActionTxt');
+  document.getElementById('dlSettingsTxt').textContent=t('dlSettingsTxt');
   resetProgress();openOverlay('dlOverlay');
 }
 function setProgress(pct,label,speed,done){
