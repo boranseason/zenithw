@@ -55,6 +55,43 @@
     const map={bbSave:'home',bbRemux:'remux',bbSettings:'settings',bbSupport:'support',bbUpdates:'updates',bbHistoryMobile:'history',bbConvertMobile:'convert',bbAboutMobile:'about',moreItemHistory:'history',moreItemConvert:'convert',moreItemAbout:'about'};
     Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=copy[key];});
     document.querySelectorAll('[data-info-label]').forEach(el=>{el.textContent=copy[el.dataset.infoLabel]||el.dataset.infoLabel;});
+    const aboutNav={
+      tr:{
+        '/about':'ZenithW nedir?',
+        '/about/community':'topluluk & destek',
+        '/about/privacy':'gizlilik & veri',
+        '/about/terms':'kullanım & etik',
+        '/about/credit':'emeği geçenler & lisanslar'
+      },
+      en:{
+        '/about':'What is ZenithW?',
+        '/about/community':'community & support',
+        '/about/privacy':'privacy & data',
+        '/about/terms':'usage & ethics',
+        '/about/credit':'contributors & licenses'
+      },
+      fr:{
+        '/about':'Qu’est-ce que ZenithW ?',
+        '/about/community':'communauté & support',
+        '/about/privacy':'confidentialité & données',
+        '/about/terms':'utilisation & éthique',
+        '/about/credit':'contributeurs & licences'
+      },
+      de:{
+        '/about':'Was ist ZenithW?',
+        '/about/community':'Community & Support',
+        '/about/privacy':'Datenschutz & Daten',
+        '/about/terms':'Nutzung & Ethik',
+        '/about/credit':'Mitwirkende & Lizenzen'
+      }
+    };
+    const aboutLabels=aboutNav[lang]||aboutNav.en;
+    document.querySelectorAll('.about-section-nav a').forEach(link=>{
+      const labelText=aboutLabels[new URL(link.href,location.href).pathname];
+      const label=link.querySelector('b');
+      if(labelText&&label)label.textContent=labelText;
+    });
+    document.querySelectorAll('.about-section-nav').forEach(nav=>nav.setAttribute('aria-label',lang==='tr'?'Hakkında bölümleri':lang==='fr'?'Sections à propos':lang==='de'?'Über-uns-Bereiche':'About sections'));
     if(window.matchMedia('(max-width:900px)').matches){requestAnimationFrame(()=>document.querySelector('.bottom-bar .bar-btn.active')?.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'}));}
     updateTimeGreeting();
   }
