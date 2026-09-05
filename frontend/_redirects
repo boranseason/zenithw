@@ -9,8 +9,7 @@
 /community       /about/community  301
 /community.html  /about/community  301
 
-/about/privacy    /privacy    200
-/about/terms      /terms      200
-/about/credit     /credit     200
-/about/community  /community  200
-/genshin          /genshin.html  200
+/about/privacy    /privacy.html    200
+/about/terms      /terms.html      200
+/about/credit     /credit.html     200
+/about/community  /community.html  200
