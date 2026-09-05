@@ -2,7 +2,7 @@
 
 > Kullanım hakkınız bulunan medyaları indirmek, dönüştürmek ve remux etmek için sade, reklamsız bir çalışma alanı.
 
-[Canlı uygulama](https://zenithw.space) · [Durum](https://zenithw.space/status) · [Güncellemeler](https://zenithw.space/updates) · [English](README.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
+[Canlı uygulama](https://zenithw.space) · [Genshin Advisor](https://zenithw.space/genshin) · [Durum](https://zenithw.space/status) · [Güncellemeler](https://zenithw.space/updates) · [English](README.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
 
 Güncel sürüm: **v14.2**
 
@@ -14,6 +14,17 @@ Güncel sürüm: **v14.2**
 - Altyazı, metadata, kapak görseli, SponsorBlock, iptal ve canlı ilerleme desteği sunar.
 - İndirme geçmişini sunucu hesabında değil, kullanıcının tarayıcısında tutar.
 - Türkçe, İngilizce, Fransızca ve Almanca duyarlı arayüz sağlar.
+
+## Genshin Advisor
+
+[Genshin Advisor’ı aç](https://zenithw.space/genshin)
+
+ZenithW ayrıca Genshin Impact build rehberliği için ayrı bir statik yüzey içerir. Kullanılabilir tüm kadro için takım çekirdekleri, artifact ve stat hedefleri, talent öncelikleri, doğrulanmış kit metni, constellation bağlamı ve görselli silah sıralamaları sunar.
+
+- Her incelenmiş topluluk profilinde en güçlü uyumdan en yakın alternatife doğru ayrı 4 F2P/erişilebilir ve 4 premium silah gösterilir.
+- İncelenmiş profillerde role göre öneriler, destek eşikleri, DPS varsayımları ve geçerli karakterlerde C1 ile imza silahı karşılaştırması bulunur.
+- Traveler ücretsiz ilerleyen özel bir karakter olarak ele alınır; formları ve constellation’ları için normal C1/R1 çekim karşılaştırması gösterilmez.
+- Sayfa statiktir; downloader’ın iş durumu veya backend worker’ıyla paylaşım yapmaz. Veri kaynakları ve güncelleme sınırları [docs/genshin-advisor.md](docs/genshin-advisor.md) dosyasında açıklanır.
 
 ## Mimari
 
@@ -78,4 +89,6 @@ Tekrarlanabilir hataları [GitHub Issues](https://github.com/boranseason/zenithw
 
 ## Lisans
 
-[LICENSE](LICENSE) dosyasına bakın.
+- ZenithW: AGPL-3.0-only
+- Üçüncü taraf bağımlılıklar: kendi lisansları
+- Detaylar: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
