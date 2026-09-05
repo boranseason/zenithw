@@ -14,6 +14,10 @@
     Object.entries(flowFields).forEach(([id,key])=>{const element=document.getElementById(id);if(element&&text[key])element.textContent=text[key];});
     const body=document.getElementById('pgBody'); if(body)body.innerHTML=text.body;
     const footer=document.getElementById('pgFooter'); if(footer)footer.innerHTML=text.footer;
+    if(text.nav){
+      document.querySelectorAll('[data-nav-label]').forEach(element=>{const key=element.dataset.navLabel;if(text.nav[key])element.textContent=text.nav[key];});
+      document.querySelectorAll('[data-nav-aria]').forEach(element=>{const key=element.dataset.navAria;if(text.nav[key])element.setAttribute('aria-label',text.nav[key]);});
+    }
     document.querySelectorAll('#langSwitch button').forEach(button=>button.classList.toggle('active',button.dataset.lang===active));
     try{localStorage.setItem('zw_lang',active);}catch(_){}
   }

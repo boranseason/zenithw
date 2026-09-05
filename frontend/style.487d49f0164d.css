@@ -910,7 +910,6 @@ button:active,.services-chip:active,.mode-btn:active,.btn-paste:active,.vc-dl:ac
 @media (hover:none) and (pointer:coarse){
   :root{--glass-blur:0px;}
   .bottom-bar{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
-  body.url-editing .bottom-bar{visibility:hidden;opacity:0;pointer-events:none;transform:none!important;transition:none!important;backdrop-filter:none;-webkit-backdrop-filter:none;}
   .overlay.open{backdrop-filter:none;-webkit-backdrop-filter:none;}
   .modal-sheet,.remux-modal,.conv-modal,.st-modal,.upd-modal,.don-modal,.about-modal,
   .video-card,.playlist-card,.qr-wrap,.more-popup,.yt-popup,.toast{backdrop-filter:none;-webkit-backdrop-filter:none;}
@@ -1155,7 +1154,7 @@ body.light .video-card,body.light .playlist-card,body.light .qr-wrap{background-
   .home-page .url-go-btn span{display:none;}
   .home-page .mode-row{align-self:stretch;display:grid;grid-template-columns:repeat(4,1fr);}
   .home-page .mode-btn,.home-page .bulk-toggle{min-width:0;padding:0 6px;justify-content:center;}
-  .home-page .mode-btn svg{display:none;}
+  .home-page .mode-btn svg{display:block;width:14px;height:14px;flex:0 0 14px;}
   .home-assist{text-align:center;font-size:9.5px;}
   .home-ambient{right:-64vw;bottom:15vh;width:150vw;opacity:.22;}
 }
