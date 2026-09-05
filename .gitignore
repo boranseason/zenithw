@@ -17,6 +17,11 @@ __pycache__/
 *.pfx
 *.crt
 *.cer
+*.ppk
+id_rsa
+id_ed25519
+*.session
+*.token
 
 # Runtime output and local data
 downloads/
@@ -37,6 +42,7 @@ htmlcov/
 .cache/
 .mypy_cache/
 .ruff_cache/
+.wrangler/
 
 # Local editor, agent and operating-system files
 .vscode/
@@ -45,6 +51,11 @@ htmlcov/
 .agents/
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Windows' reserved null-device name can accidentally become a real file
+# when output redirection is used from PowerShell.
+NUL
 
 # Private working notes that are intentionally not published
 frontend/OPTIMIZATIONS.md
