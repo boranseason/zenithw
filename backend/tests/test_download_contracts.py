@@ -415,6 +415,7 @@ class DownloadOptionTests(unittest.TestCase):
 class YouTubeClientLadderTests(unittest.TestCase):
     def _load(self, *, cookie_exists=True):
         namespace = {
+            "youtube_health": SimpleNamespace(order=lambda profiles: profiles),
             "POT_PROVIDER_URL": "http://pot-provider:4416",
             "is_youtube": lambda url: "youtube.com" in url or "youtu.be" in url,
             "get_base_opts": lambda url, use_cookies=True, youtube_player_clients=None: {
@@ -426,7 +427,7 @@ class YouTubeClientLadderTests(unittest.TestCase):
         }
         return load_function("get_opts_list", namespace)
 
-    def test_youtube_uses_distinct_cookieless_clients_before_cookie_fallback(self):
+    def test_youtube_prefers_verified_cookie_profile_with_anonymous_recovery(self):
         opts_list = self._load()(
             "https://youtube.com/watch?v=abcdefghijk",
             extra={"format": "selected-format"},
@@ -434,11 +435,11 @@ class YouTubeClientLadderTests(unittest.TestCase):
         )
         self.assertEqual(
             [opts["extractor_args"]["youtube"]["player_client"] for opts in opts_list],
-            [["default"], ["mweb"], ["default"]],
+            [["default"], ["mweb"], ["default"], ["mweb"]],
         )
         self.assertEqual(
             ["cookiefile" in opts for opts in opts_list],
-            [False, False, True],
+            [True, True, False, False],
         )
         self.assertTrue(all(opts["format"] == "selected-format" for opts in opts_list))
 
@@ -778,6 +779,7 @@ class AttemptExecutionTests(unittest.TestCase):
             "gevent": type("gevent", (), {"Timeout": _GeventTimeout}),
             "yt_dlp": fake_yt_dlp,
             "_pot_provider_network_scope": _NullScope(),
+            "youtube_observation": lambda *args: _GeventTimeout(),
             "enforce_download_limits": lambda info, incomplete=False: None,
             "resolve_downloaded_media_path": lambda info, filename: info.get("_path"),
             "remember_primary_error": lambda primary, candidate: primary or candidate,

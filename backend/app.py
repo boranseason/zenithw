@@ -33,6 +33,40 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import yt_dlp
 import gevent
 import psutil
+from youtube_health import YouTubeHealth
+
+youtube_health = YouTubeHealth()
+
+
+@contextmanager
+def youtube_observation(url, opts, phase):
+    if is_youtube(url):
+        with youtube_health.observe(opts, phase):
+            yield
+    else:
+        yield
+
+
+_youtube_provider_probe = {"checked_at": 0, "status": "not_checked"}
+_youtube_provider_probe_lock = threading.Lock()
+
+
+def youtube_provider_health():
+    """A short, cached local probe; never a global readiness dependency."""
+    if not POT_PROVIDER_URL:
+        return {"status": "disabled"}
+    with _youtube_provider_probe_lock:
+        now = time.monotonic()
+        if now - _youtube_provider_probe["checked_at"] > 60:
+            status = "unreachable"
+            try:
+                with _pot_provider_network_scope("https://www.youtube.com/"):
+                    with urlopen(UrlRequest(POT_PROVIDER_URL + "/ping"), timeout=2) as response:
+                        status = "ok" if response.status == 200 else "unhealthy"
+            except Exception:
+                pass  # Only the status is exposed, never provider response/token data.
+            _youtube_provider_probe.update(checked_at=now, status=status)
+        return {"status": _youtube_provider_probe["status"]}
 
 # ── Logging ─────────────────────────────────────────────
 logging.basicConfig(
@@ -1029,7 +1063,7 @@ if POT_PROVIDER_URL:
     logger.info(
         f"[INIT] YouTube PO Token provider configured "
         f"(host={POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}, plugin={_POT_PLUGIN_VERSION}, "
-        "client_order=default-cookieless,mweb-pot,default-cookies)"
+        "client_order=adaptive-cookie-first)"
     )
 else:
     logger.info("[INIT] YouTube PO Token provider disabled (YOUTUBE_POT_PROVIDER_URL not set)")
@@ -1947,10 +1981,7 @@ def get_opts_list(url, extra=None, youtube_video_fallback=False):
         opts_list.append(o)
 
     if POT_PROVIDER_URL and is_youtube(url):
-        # yt-dlp's current default client group deliberately prefers clients
-        # that do not depend on a GVS PO Token. Keep this cookieless path first:
-        # stale/rotated account cookies and a datacenter IP can otherwise turn
-        # an otherwise public video into a repeatable HTTP 403.
+        # Keep distinct anonymous options available for missing/stale cookies.
         add_opts(use_cookies=False, youtube_player_clients=["default"])
 
         # mweb + PO Token remains the bounded second path. It can expose formats
@@ -1959,10 +1990,8 @@ def get_opts_list(url, extra=None, youtube_video_fallback=False):
         # retry the identical mweb profile with and without cookies.
         add_opts(use_cookies=False, youtube_player_clients=["mweb"])
 
-        # Account cookies are only a last-resort profile for login/age/private
-        # content. run_download_attempts() will not reach this profile for an
-        # ordinary mweb 403; it is kept in the ladder so explicit auth errors
-        # can fall through to it.
+        # The default cookie profile has been verified on AWS. Prefer it on
+        # startup, with mweb + PO as a bounded alternative on that session.
         cookie_opts = get_base_opts(
             url,
             use_cookies=True,
@@ -1971,8 +2000,12 @@ def get_opts_list(url, extra=None, youtube_video_fallback=False):
         if "cookiefile" in cookie_opts:
             if extra:
                 cookie_opts.update(extra)
-            opts_list.append(cookie_opts)
-        return opts_list
+            opts_list.insert(0, cookie_opts)
+            mweb_cookie_opts = get_base_opts(url, use_cookies=True, youtube_player_clients=["mweb"])
+            if extra:
+                mweb_cookie_opts.update(extra)
+            opts_list.insert(1, mweb_cookie_opts)
+        return youtube_health.order(opts_list)
 
     add_opts(use_cookies=True)
     # Cookie gerçekten kullanılıyorsa ikinci denemeyi cookie'siz fallback olarak
@@ -2499,6 +2532,8 @@ def diagnostics():
         "ffmpeg": f"OK ({FFMPEG_DIR})" if FFMPEG_DIR else "MISSING",
         "js_solver": "OK" if (_DENO_PATH and _EJS_AVAILABLE) else "INCOMPLETE",
         "po_token_provider": "CONFIGURED" if POT_PROVIDER_URL else "DISABLED",
+        "youtube": youtube_health.snapshot(COOKIES_FILE),
+        "youtube_provider_health": youtube_provider_health(),
         "cookies": f"Loaded ({os.path.getsize(COOKIES_FILE)} bytes)" if os.path.exists(COOKIES_FILE) else "Missing",
         "disk_files": _disk_files,
         "active_downloads": _active,
@@ -2719,7 +2754,7 @@ def get_info_with_slot(url):
             if remaining <= 0:
                 raise TimeoutError("Metadata extraction timed out")
             with gevent.Timeout(remaining, TimeoutError("Metadata extraction timed out")):
-                with _pot_provider_network_scope(url):
+                with _pot_provider_network_scope(url), youtube_observation(url, opts, "metadata"):
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         info = ydl.extract_info(url, download=False)
                 if info.get("_type") == "playlist" or "entries" in info:
@@ -2791,7 +2826,7 @@ def get_info_with_slot(url):
             if attempt_index + 1 < len(opts_list):
                 next_profile = opts_list[attempt_index + 1]
                 next_has_cookies = bool(next_profile.get("cookiefile"))
-                if next_has_cookies and not auth_required:
+                if next_has_cookies and not auth_required and not opts.get("cookiefile"):
                     # A cookie profile cannot repair an ordinary extraction
                     # failure and only repeats traffic from the same Railway IP.
                     break
@@ -3009,7 +3044,7 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
             if remaining <= 0:
                 raise TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")
             with gevent.Timeout(remaining, TimeoutError(f"{DOWNLOAD_TIMEOUT_SECONDS}s end-to-end deadline exceeded")):
-                with _pot_provider_network_scope(url):
+                with _pot_provider_network_scope(url), youtube_observation(url, opts, "download"):
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         download_info = ydl.extract_info(url, download=True)
                         if not isinstance(download_info, dict):
@@ -3088,6 +3123,7 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
                     "format is not available", "format unavailable",
                 ))
                 if (next_is_video_fallback and not format_missing
+                        and not opts.get("cookiefile")
                         and not (auth_required and next_has_cookies)):
                     break
             continue
@@ -3583,7 +3619,7 @@ def download_thumbnail_with_slot(url):
             if remaining <= 0:
                 raise TimeoutError("Thumbnail request timed out")
             with gevent.Timeout(remaining, TimeoutError("Thumbnail request timed out")):
-                with _pot_provider_network_scope(url):
+                with _pot_provider_network_scope(url), youtube_observation(url, opts, "thumbnail"):
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         info = ydl.extract_info(url, download=True)
                 full_path = resolve_downloaded_thumbnail_path(info, filename)
@@ -3621,7 +3657,7 @@ def download_thumbnail_with_slot(url):
                 break
             if attempt_index + 1 < len(opts_list):
                 next_has_cookies = bool(opts_list[attempt_index + 1].get("cookiefile"))
-                if next_has_cookies and not auth_required:
+                if next_has_cookies and not auth_required and not opts.get("cookiefile"):
                     break
             continue
 
