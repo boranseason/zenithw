@@ -2,7 +2,7 @@
 
 > 利用許可のあるメディアをダウンロード、変換、リマックスするための、広告のないシンプルなワークスペースです。
 
-[Web アプリ](https://zenithw.space) · [Genshin Advisor](https://zenithw.space/genshin) · [稼働状況](https://zenithw.space/status) · [更新履歴](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [Deutsch](README.de.md)
+[Web アプリ](https://zenithw.space) · [稼働状況](https://zenithw.space/status) · [更新履歴](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [Deutsch](README.de.md)
 
 現在のバージョン: **v14.2**
 
@@ -13,17 +13,6 @@
 - FFmpeg による変換と、互換ストリームの不要な再エンコードを避けたリマックス。
 - 字幕、メタデータ、サムネイル、SponsorBlock、キャンセル、リアルタイム進捗。
 - サーバー側アカウントではなく、ブラウザー内に保存される履歴。
-
-## Genshin Advisor
-
-[Genshin Advisor を開く](https://zenithw.space/genshin)
-
-ZenithW には、Genshin Impact のビルドを案内する独立した静的ページも含まれています。利用可能な全キャラクターを対象に、チーム構成、聖遺物とステータスの目標、天賦の優先度、検証済みのキットテキスト、武器画像を確認できます。
-
-- 各コミュニティプロフィールでは、F2P／入手しやすい武器4本とプレミアム武器4本を分け、最適な候補から近い代替候補の順に表示します。
-- レビュー済みのキャラクターには、役割別の方針、DPSの前提、適用できる場合のC1とモチーフ武器の比較を表示します。
-- Traveler は無料進行キャラクターとして扱います。フォームと命ノ星座は通常のC1/R1ガチャ比較の対象ではありません。
-- ページは静的で、ダウンローダーのジョブ状態やバックエンド worker を共有しません。データソースと更新範囲は [docs/genshin-advisor.md](docs/genshin-advisor.md) に記載しています。
 
 ## 構成
 

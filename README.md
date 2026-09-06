@@ -2,7 +2,7 @@
 
 > A focused, ad-free media workspace for downloading, converting, and remuxing content you are allowed to use.
 
-[Live app](https://zenithw.space) · [Genshin Advisor](https://zenithw.space/genshin) · [Status](https://zenithw.space/status) · [Updates](https://zenithw.space/updates) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
+[Live app](https://zenithw.space) · [Status](https://zenithw.space/status) · [Updates](https://zenithw.space/updates) · [Türkçe](README.tr.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
 
 Current release: **v14.2**
 
@@ -16,17 +16,6 @@ Current release: **v14.2**
 - Supports subtitles, metadata, thumbnails, SponsorBlock, cancellation, and live progress.
 - Keeps download history in the browser rather than in a server-side account.
 - Provides a responsive, framework-free interface in Turkish, English, French, and German.
-
-## Genshin Advisor
-
-[Open the Genshin Advisor](https://zenithw.space/genshin)
-
-ZenithW also includes a separate static surface for Genshin Impact build guidance. It covers the full available roster with team shells, artifact and stat targets, talent priorities, verified kit text, constellation context, and ranked weapon images.
-
-- Four F2P/accessible and four premium weapon options are shown separately for each reviewed community profile, from the strongest fit to the closest alternative.
-- Reviewed profiles include role-specific guidance, support breakpoints, DPS assumptions, and the C1-versus-signature-weapon trade-off where that decision applies.
-- Traveler is handled as a free-progression character: its forms and constellations do not use the normal C1/R1 pull comparison.
-- The page is static and does not share the downloader's job state or backend worker. Data sources and update boundaries are documented in [docs/genshin-advisor.md](docs/genshin-advisor.md).
 
 ## Architecture
 

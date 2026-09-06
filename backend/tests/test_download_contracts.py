@@ -781,6 +781,9 @@ class AttemptExecutionTests(unittest.TestCase):
             "enforce_download_limits": lambda info, incomplete=False: None,
             "resolve_downloaded_media_path": lambda info, filename: info.get("_path"),
             "remember_primary_error": lambda primary, candidate: primary or candidate,
+            "is_youtube_auth_required_error": load_function(
+                "is_youtube_auth_required_error", {}
+            ),
             "DOWNLOAD_TIMEOUT_SECONDS": 30,
             "time": time,
         }
@@ -898,7 +901,7 @@ class AttemptExecutionTests(unittest.TestCase):
             raise ValueError("Sign in to confirm you are not a bot")
 
         def mweb_login():
-            raise ValueError("Login required")
+            raise ValueError("Sign in to confirm you are not a bot")
 
         def cookie_success():
             return {"_path": "/tmp/private.mp4", "title": "cookie fallback"}

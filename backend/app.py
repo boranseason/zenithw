@@ -1850,6 +1850,20 @@ def remember_primary_error(primary_error, candidate):
         return candidate
     return primary_error
 
+
+def is_youtube_auth_required_error(error_text):
+    """Return whether YouTube is explicitly asking for an authenticated session."""
+    text = str(error_text or "").lower()
+    return any(token in text for token in (
+        "login",
+        "sign in",
+        "not a bot",
+        "private",
+        "age-restricted",
+        "age restricted",
+        "confirm your age",
+    ))
+
 # ── Base opts ─────────────────────────────────────────
 FFMPEG_LOCAL_PROTOCOLS = "file,pipe,crypto,data"
 
@@ -2767,7 +2781,7 @@ def get_info_with_slot(url):
                 # A second cookie-less attempt hits the same Railway egress IP
                 # immediately and only extends YouTube's upstream cooldown.
                 break
-            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            auth_required = is_youtube_auth_required_error(es)
             future_cookie_profile = any(
                 candidate.get("cookiefile")
                 for candidate in opts_list[attempt_index + 1:]
@@ -3050,7 +3064,7 @@ def run_download_attempts(url, opts_list, *, download_id, filename, video_title,
                 # Do not double-hit the same rate-limited YouTube endpoint
                 # with the immediate cookie-less fallback.
                 break
-            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            auth_required = is_youtube_auth_required_error(es)
             future_cookie_profile = any(
                 candidate.get("cookiefile")
                 for candidate in opts_list[attempt_index + 1:]
@@ -3598,7 +3612,7 @@ def download_thumbnail_with_slot(url):
             es = str(e).lower()
             if "429" in es or "too many requests" in es:
                 break
-            auth_required = "login" in es or "private" in es or "age-restricted" in es
+            auth_required = is_youtube_auth_required_error(es)
             future_cookie_profile = any(
                 candidate.get("cookiefile")
                 for candidate in opts_list[attempt_index + 1:]

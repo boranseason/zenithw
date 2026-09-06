@@ -2,7 +2,7 @@
 
 > Un espace multimédia sobre et sans publicité pour télécharger, convertir et remuxer les contenus que vous êtes autorisé à utiliser.
 
-[Application](https://zenithw.space) · [Genshin Advisor](https://zenithw.space/genshin) · [Statut](https://zenithw.space/status) · [Mises à jour](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
+[Application](https://zenithw.space) · [Statut](https://zenithw.space/status) · [Mises à jour](https://zenithw.space/updates) · [English](README.md) · [Türkçe](README.tr.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
 
 Version actuelle : **v14.2**
 
@@ -13,17 +13,6 @@ Version actuelle : **v14.2**
 - Conversion FFmpeg et remux sans réencodage lorsque les flux sont compatibles.
 - Sous-titres, métadonnées, miniatures, SponsorBlock, annulation et progression en direct.
 - Historique conservé dans le navigateur, sans compte utilisateur côté serveur.
-
-## Genshin Advisor
-
-[Ouvrir Genshin Advisor](https://zenithw.space/genshin)
-
-ZenithW inclut aussi une surface statique séparée pour les builds de Genshin Impact. Elle propose des équipes, des objectifs d’artefacts et de statistiques, les priorités de talents, les textes de kit vérifiés et des images d’armes pour l’ensemble du roster disponible.
-
-- Chaque profil communautaire présente séparément quatre armes F2P/accessibles et quatre armes premium, classées de la meilleure option à l’alternative la plus proche.
-- Les profils révisés incluent des conseils selon le rôle, les hypothèses de DPS et la comparaison C1 contre arme signature lorsque cette décision est pertinente.
-- Le Traveler est traité comme un personnage à progression gratuite : ses formes et constellations ne suivent pas une comparaison de tirage C1/R1 classique.
-- La page est statique et ne partage ni les tâches du téléchargeur ni le worker backend. Les sources et limites de mise à jour sont décrites dans [docs/genshin-advisor.md](docs/genshin-advisor.md).
 
 ## Architecture
 
