@@ -39,7 +39,7 @@
     }
   };
 
-  const state = { lang: 'en', query: '', element: 'All', ownedOnly: false, selected: null, mode: 'f2p', buildMode: '', owned: new Set(), catalog: null, meta: null, research: null };
+  const state = { lang: 'en', query: '', element: 'All', ownedOnly: false, selected: null, mode: 'f2p', buildMode: '', owned: new Set(), sourceReviewed: new Set(), catalog: null, meta: null, research: null };
   const storage = {
     get(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem(key, value); } catch {} }
@@ -86,7 +86,7 @@
     const date = Number.isNaN(generated.valueOf()) ? '' : new Intl.DateTimeFormat(state.lang === 'tr' ? 'tr-TR' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(generated);
     const reviewedCount = Object.keys(state.meta?.characters || {}).length;
     const fiveStarBuildCount = state.catalog.data.characters.filter(character => Number(character.rarity) === 5 && state.research?.characters?.[character.name]).length;
-    stamp.textContent = `${text('dataStamp')} · v${state.catalog.gameDataVersion} · ${reviewedCount} ${text('editorial')} · ${fiveStarBuildCount} ${text('fiveStarBuilds')} · ${date}`;
+    stamp.textContent = `${text('dataStamp')} · v${state.catalog.gameDataVersion} · ${reviewedCount} ${text('editorial')} · ${state.sourceReviewed.size} source-checked · ${fiveStarBuildCount} ${text('fiveStarBuilds')} · ${date}`;
   }
 
   function renderElementFilters() {
@@ -286,7 +286,7 @@
     const roles = profile ? translated(profile.roles) : [state.lang === 'tr' ? 'Oyun verisi hazır' : 'Game data ready'];
     const f2p = meta ? `${meta.f2pFit.score}/100` : '—';
     const title = profile?.title || character.title || character.constellation || '';
-    const reviewLabel = meta ? text('editorialReview') : research ? text('communityReview') : text('data');
+    const reviewLabel = meta ? text('editorialReview') : state.sourceReviewed.has(character.name) ? (state.lang === 'tr' ? 'Kaynak kontrollü build incelemesi' : 'Source-checked build review') : research ? text('communityReview') : text('data');
     return `<section class="profile-head" style="--element:${info.color}"><div class="profile-portrait"><img src="${escapeHtml(characterImage(character))}" alt="${escapeHtml(character.name)}" referrerpolicy="no-referrer"><span class="card-element">${glyph(element)}</span></div><div class="profile-summary"><div class="profile-kicker">${glyph(element)} ${escapeHtml(element || '')} · ${'★'.repeat(Math.max(0, Number(character.rarity) || 0))}</div><h2>${escapeHtml(character.name)}</h2><p class="profile-title">${escapeHtml(translated(title))}</p><div class="role-chips">${roles.map(role => `<span>${escapeHtml(role)}</span>`).join('')}</div></div><div class="profile-side"><div class="profile-stat"><span>${text('profileF2p')}</span><b>${escapeHtml(f2p)}</b></div><div class="profile-stat"><span>${text('review')}</span><b>${escapeHtml(reviewLabel)}</b></div><div class="profile-stat"><span>${text('weapon')}</span><b>${escapeHtml(profile?.weapon || character.weaponText || '—')}</b></div><div class="profile-stat"><span>${text('version')}</span><b>v${escapeHtml(profile?.version || character.version || '—')}</b></div></div></section>`;
   }
 
@@ -354,11 +354,13 @@
     try { state.owned = new Set(JSON.parse(storage.get('zw_genshin_owned', '[]'))); } catch { state.owned = new Set(); }
     attachEvents();
     try {
-      const [catalogResponse, metaResponse, researchResponse, priorityResponse] = await Promise.all([fetch('/data/genshin-catalog.json?v=0.1'), fetch('/data/genshin-meta.json?v=0.2'), fetch('/data/genshin-research.json?v=0.2'), fetch('/data/genshin-priority-reviews.json?v=0.1')]);
-      if (!catalogResponse.ok || !metaResponse.ok || !researchResponse.ok || !priorityResponse.ok) throw new Error('Data snapshot unavailable');
+      const [catalogResponse, metaResponse, researchResponse, priorityResponse, batchResponse] = await Promise.all([fetch('/data/genshin-catalog.json?v=0.1'), fetch('/data/genshin-meta.json?v=0.2'), fetch('/data/genshin-research.json?v=0.2'), fetch('/data/genshin-priority-reviews.json?v=0.1'), fetch('/data/genshin-batch-reviews.json?v=0.1')]);
+      if (!catalogResponse.ok || !metaResponse.ok || !researchResponse.ok || !priorityResponse.ok || !batchResponse.ok) throw new Error('Data snapshot unavailable');
       state.catalog = await catalogResponse.json(); state.meta = await metaResponse.json(); state.research = await researchResponse.json();
       const priority = await priorityResponse.json();
-      state.meta.characters = { ...state.meta.characters, ...(priority.characters || {}) };
+      const batch = await batchResponse.json();
+      state.meta.characters = { ...state.meta.characters, ...(priority.characters || {}), ...(batch.characters || {}) };
+      state.sourceReviewed = new Set(batch.sourceReviewed || []);
       const hashSelection = decodeURIComponent(location.hash.slice(1));
       state.selected = characterByName(hashSelection)?.name || characterByName('Arlecchino')?.name || state.catalog.data.characters[0]?.name;
       setLanguage(state.lang);
