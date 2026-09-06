@@ -8,6 +8,7 @@ The page loads two checked-in JSON files:
 
 - `frontend/data/genshin-catalog.json` — an automatically generated game-data snapshot: characters, talents, constellations, weapons, and artifact sets.
 - `frontend/data/genshin-meta.json` — ZenithW's patch-stamped editorial layer: teams, artifact targets, DPS assumptions, and C1-versus-R1 decisions.
+- `frontend/data/genshin-priority-reviews.json` — additional patch-stamped deep reviews for currently prioritised characters. It is merged into the editorial layer in the browser so these entries keep the same C1/R1 contract as the core reviews.
 - `frontend/data/genshin-research.json` — an automatically generated community build snapshot with four F2P/accessible and four premium weapon rows, artifact set, stat targets, talent order, and best-team reference for the full roster. Each lane is ordered from the strongest fit to the closest alternative; source-ranked entries take priority, while guide gaps are explicitly marked as compatible alternatives.
 
 The browser does not call a third-party game-data API at runtime. `scripts/sync-genshin-catalog.mjs` downloads a fresh snapshot from the `genshin-db` v5 API, while `scripts/sync-genshin-advisor.mjs` captures the current community reference pages. Both scripts validate their source response and write reviewable static files. The scheduled GitHub workflow runs every Monday and commits only changed snapshots.
@@ -21,7 +22,9 @@ Raw game data can tell us what a constellation or weapon does. It cannot safely 
 - the team, rotation, weapon, artifact, talent, level, and target assumptions behind each DPS range;
 - an explicit review date and patch baseline.
 
-If a character lacks a reviewed entry in `genshin-meta.json`, the UI shows its community build snapshot, six ranked weapon images, best-team reference, verified kit and C1 text but withholds a C1/R1 pull recommendation. Do not replace that state with a generic tier-list guess.
+At the current 7.0 baseline, the checked-in snapshot contains source-backed community build reviews for 67 non-Traveler five-stars: four lower-cost choices, four premium choices, artifact/stat targets, talent order and a team reference. The UI derives its coverage count from the live snapshot rather than hard-coding it, so a weekly roster update cannot make the headline stale.
+
+Deep editorial profiles add the account-specific layer: role-aware F2P/premium teams, artifact ownership notes, support floors and a patch-stamped C1-versus-R1 decision. If a character lacks that editorial entry, the UI still shows its community build snapshot, six ranked weapon images, best-team reference, verified kit and C1 text. Its conditional C1/R1 guardrails must not be mistaken for a personal pull verdict; do not replace this state with a generic tier-list guess.
 
 Traveler is a special case: its forms and constellations are progression rewards from quests, Statues of The Seven, and related account progression. The UI therefore omits the C1-versus-R1 pull card for Traveler instead of presenting a Primogem decision that does not apply.
 

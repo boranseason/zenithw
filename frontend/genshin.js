@@ -22,7 +22,7 @@
       f2pWeapons: 'F2P weapons', premiumWeapons: 'Premium weapons', rankedWeapons: 'Source-ranked weapons', compatible: 'Compatible option', communityBuild: 'Community build snapshot', communityBuilds: 'build snapshots', sourceGuide: 'Open source guide', sourceUpdated: 'Source update', investment: 'C1 or signature weapon?', c1: 'C1', r1: 'R1 signature', verdict: 'Advisor verdict', rolePlan: 'Role plan', supportFloor: 'Support breakpoint', travelerProgression: 'Free progression', travelerProgressionTitle: 'No Primogems needed for constellations', travelerProgressionText: 'Traveler constellations come from quests, Statues of The Seven and progression rewards. The C1 vs R1 pull comparison does not apply here.', artifactEffects: 'Set effects', twoPiece: '2-piece', fourPiece: '4-piece', recommendedStop: 'Recommended stopping point', f2pFit: 'F2P fit', premiumCeiling: 'Premium ceiling', outputLens: 'Output lens', sourceSignal: 'Source signal', communityInvestment: 'Investment guardrails',
       c1Text: 'Actual C1 effect', fullKit: 'Open verified kit', normal: 'Normal attack', skill: 'Elemental skill', burst: 'Elemental burst', sourceEnglish: 'Game text remains in English because there is no official Turkish Genshin localization to cite.',
       missingTitle: 'Game data is ready. Investment review is not.', missingText: 'This character has verified game data, talents, constellations, weapons and artifacts in the catalog. Pull advice stays locked until a patch-specific review is written—better no recommendation than a bad Primogem decision.',
-      missingLink: 'Open verified game kit', noResults: 'No character matches these filters.', owned: 'owned', missing: 'missing', available: 'available', data: 'game data', reviewed: 'reviewed', count: 'characters', dataStamp: 'data', notAvailable: 'No team template is published for this mode yet.'
+      missingLink: 'Open verified game kit', noResults: 'No character matches these filters.', owned: 'owned', missing: 'missing', available: 'available', data: 'game data', reviewed: 'reviewed', editorial: 'editorial', fiveStarBuilds: '5★ build reviews', review: 'review', editorialReview: 'Editorial review', communityReview: 'Community build review', count: 'characters', dataStamp: 'data', notAvailable: 'No team template is published for this mode yet.'
     },
     tr: {
       eyebrow: 'PATCH DUYARLI BUILD ZEKÂSI', title: 'Genel tier list’e değil,<br><span>kendi hesabına göre build yap.</span>',
@@ -35,7 +35,7 @@
       f2pWeapons: 'F2P silahlar', premiumWeapons: 'Premium silahlar', rankedWeapons: 'Kaynak sıralı silahlar', compatible: 'Uyumlu alternatif', communityBuild: 'Topluluk build snapshot’ı', communityBuilds: 'build snapshot’ı', sourceGuide: 'Kaynak rehberi', sourceUpdated: 'Kaynak güncellemesi', investment: 'C1 mi imza silahı mı?', c1: 'C1', r1: 'R1 imza', verdict: 'Advisor kararı', rolePlan: 'Rol planı', supportFloor: 'Destek eşiği', travelerProgression: 'Ücretsiz ilerleme', travelerProgressionTitle: 'Constellation için Primogem gerekmez', travelerProgressionText: 'Traveler constellationları görevler, Yedi Heykelleri ve ilerleme ödülleriyle açılır. Bu karakter için C1 mi R1 mi çekim karşılaştırması geçerli değildir.', artifactEffects: 'Set etkileri', twoPiece: '2 parça', fourPiece: '4 parça', recommendedStop: 'Önerilen durak noktası', f2pFit: 'F2P uyumu', premiumCeiling: 'Premium tavan', outputLens: 'Çıktı profili', sourceSignal: 'Kaynak sinyali', communityInvestment: 'Yatırım çerçevesi',
       c1Text: 'Gerçek C1 etkisi', fullKit: 'Doğrulanmış kiti aç', normal: 'Normal saldırı', skill: 'Elemental skill', burst: 'Elemental burst', sourceEnglish: 'Atıf yapılabilecek resmî bir Türkçe Genshin yerelleştirmesi olmadığı için oyun metni İngilizce korunur.',
       missingTitle: 'Oyun verisi hazır. Yatırım incelemesi hazır değil.', missingText: 'Bu karakterin doğrulanmış oyun verisi, talentleri, constellationları, silahları ve artifactleri katalogda var. Patch’e özel inceleme yazılana kadar çekim tavsiyesi kilitli kalır—kötü bir Primogem kararındansa tavsiye vermemek daha iyidir.',
-      missingLink: 'Doğrulanmış oyun kitini aç', noResults: 'Bu filtrelerle eşleşen karakter yok.', owned: 'sahip', missing: 'eksik', available: 'hazır', data: 'oyun verisi', reviewed: 'incelendi', count: 'karakter', dataStamp: 'veri', notAvailable: 'Bu mod için henüz takım şablonu yayımlanmadı.'
+      missingLink: 'Doğrulanmış oyun kitini aç', noResults: 'Bu filtrelerle eşleşen karakter yok.', owned: 'sahip', missing: 'eksik', available: 'hazır', data: 'oyun verisi', reviewed: 'incelendi', editorial: 'editöryel', fiveStarBuilds: '5★ build incelemesi', review: 'inceleme', editorialReview: 'Editöryel inceleme', communityReview: 'Topluluk build incelemesi', count: 'karakter', dataStamp: 'veri', notAvailable: 'Bu mod için henüz takım şablonu yayımlanmadı.'
     }
   };
 
@@ -85,8 +85,8 @@
     const generated = new Date(state.catalog.generatedAt);
     const date = Number.isNaN(generated.valueOf()) ? '' : new Intl.DateTimeFormat(state.lang === 'tr' ? 'tr-TR' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(generated);
     const reviewedCount = Object.keys(state.meta?.characters || {}).length;
-    const researchCount = Object.keys(state.research?.characters || {}).length;
-    stamp.textContent = `${text('dataStamp')} · v${state.catalog.gameDataVersion} · ${reviewedCount} ${text('reviewed')} · ${researchCount} ${text('communityBuilds')} · ${date}`;
+    const fiveStarBuildCount = state.catalog.data.characters.filter(character => Number(character.rarity) === 5 && state.research?.characters?.[character.name]).length;
+    stamp.textContent = `${text('dataStamp')} · v${state.catalog.gameDataVersion} · ${reviewedCount} ${text('editorial')} · ${fiveStarBuildCount} ${text('fiveStarBuilds')} · ${date}`;
   }
 
   function renderElementFilters() {
@@ -156,7 +156,8 @@
   function buildMarkup(meta) {
     const build = meta.build || {};
     const row = (label, value) => `<div class="build-row"><span>${text(label)}</span><b>${escapeHtml(value)}</b></div>`;
-    const artifact = artifactByName(build.artifact);
+    const preferredArtifact = String(build.artifact || '').split(/\s+or\s+/i)[0];
+    const artifact = artifactByName(preferredArtifact);
     const artifactMarkup = artifact ? `<div class="artifact-feature"><img src="${escapeHtml(imageForArtifact(artifact))}" alt="" loading="lazy" referrerpolicy="no-referrer"><div><h3>${escapeHtml(build.artifact)}</h3><span>${text('artifactEffects')}</span><p><b>${text('twoPiece')}</b> ${escapeHtml(rawDescription(artifact.effect2Pc))}</p><p><b>${text('fourPiece')}</b> ${escapeHtml(rawDescription(artifact.effect4Pc))}</p></div></div>` : `<h3>${escapeHtml(build.artifact)}</h3>`;
     const weaponKey = value => String(value || '').replace(/\s+R\d+$/i, '').replace(/^["']|["']$/g, '').trim().toLocaleLowerCase();
     const rankedInput = Array.isArray(build.rankedWeapons) ? build.rankedWeapons : Array.isArray(build.weapons) ? build.weapons : [];
@@ -278,14 +279,15 @@
     return `<div class="workspace-grid community-grid"><article class="community-note"><span>${text('communityBuild')}</span><strong>${escapeHtml(research.buildName || 'Community reference')}</strong><p>${state.lang === 'tr' ? 'Silah, artifact ve stat sıralaması güncel topluluk rehberinden snapshot olarak alındı. C1/R1 kartı doğrulanmış C1 metniyle birlikte koşullu yatırım çerçevesi sunar; kesin hesap tavsiyesi değildir.' : 'Weapon, artifact and stat rankings are captured from a current community guide. The C1/R1 card combines verified C1 text with conditional investment guardrails; it is not a guaranteed account-specific verdict.'}</p><a href="${escapeHtml(research.source)}" target="_blank" rel="noopener noreferrer">${text('sourceGuide')} ↗</a>${research.updated ? `<small>${text('sourceUpdated')}: ${escapeHtml(research.updated)}</small>` : ''}</article>${buildMarkup({ build })}${communityFitMarkup(research)}${team}${isTravelerCharacter(character) ? '' : communityInvestmentMarkup(character, research, constellation)}${kitMarkup(character, constellation)}</div>`;
   }
 
-  function profileMarkup(character, meta) {
+  function profileMarkup(character, meta, research) {
     const profile = meta ? activeProfile(meta) : null;
     const element = profile?.element || character.elementText;
     const info = elementInfo(element);
     const roles = profile ? translated(profile.roles) : [state.lang === 'tr' ? 'Oyun verisi hazır' : 'Game data ready'];
     const f2p = meta ? `${meta.f2pFit.score}/100` : '—';
     const title = profile?.title || character.title || character.constellation || '';
-    return `<section class="profile-head" style="--element:${info.color}"><div class="profile-portrait"><img src="${escapeHtml(characterImage(character))}" alt="${escapeHtml(character.name)}" referrerpolicy="no-referrer"><span class="card-element">${glyph(element)}</span></div><div class="profile-summary"><div class="profile-kicker">${glyph(element)} ${escapeHtml(element || '')} · ${'★'.repeat(Math.max(0, Number(character.rarity) || 0))}</div><h2>${escapeHtml(character.name)}</h2><p class="profile-title">${escapeHtml(translated(title))}</p><div class="role-chips">${roles.map(role => `<span>${escapeHtml(role)}</span>`).join('')}</div></div><div class="profile-side"><div class="profile-stat"><span>${text('profileF2p')}</span><b>${escapeHtml(f2p)}</b></div><div class="profile-stat"><span>${text('weapon')}</span><b>${escapeHtml(profile?.weapon || character.weaponText || '—')}</b></div><div class="profile-stat"><span>${text('version')}</span><b>v${escapeHtml(profile?.version || character.version || '—')}</b></div></div></section>`;
+    const reviewLabel = meta ? text('editorialReview') : research ? text('communityReview') : text('data');
+    return `<section class="profile-head" style="--element:${info.color}"><div class="profile-portrait"><img src="${escapeHtml(characterImage(character))}" alt="${escapeHtml(character.name)}" referrerpolicy="no-referrer"><span class="card-element">${glyph(element)}</span></div><div class="profile-summary"><div class="profile-kicker">${glyph(element)} ${escapeHtml(element || '')} · ${'★'.repeat(Math.max(0, Number(character.rarity) || 0))}</div><h2>${escapeHtml(character.name)}</h2><p class="profile-title">${escapeHtml(translated(title))}</p><div class="role-chips">${roles.map(role => `<span>${escapeHtml(role)}</span>`).join('')}</div></div><div class="profile-side"><div class="profile-stat"><span>${text('profileF2p')}</span><b>${escapeHtml(f2p)}</b></div><div class="profile-stat"><span>${text('review')}</span><b>${escapeHtml(reviewLabel)}</b></div><div class="profile-stat"><span>${text('weapon')}</span><b>${escapeHtml(profile?.weapon || character.weaponText || '—')}</b></div><div class="profile-stat"><span>${text('version')}</span><b>v${escapeHtml(profile?.version || character.version || '—')}</b></div></div></section>`;
   }
 
   function renderWorkspace() {
@@ -297,7 +299,7 @@
     const research = state.research?.characters?.[character.name];
     const profile = meta ? activeProfile(meta) : null;
     const constellation = constellationByName(profile?.kitName || character.name);
-    host.innerHTML = `${profileMarkup(character, meta)}${meta ? metaMarkup(character, meta, constellation) : research ? communityMarkup(character, research, constellation) : noMetaMarkup(character, constellation)}`;
+    host.innerHTML = `${profileMarkup(character, meta, research)}${meta ? metaMarkup(character, meta, constellation) : research ? communityMarkup(character, research, constellation) : noMetaMarkup(character, constellation)}`;
   }
 
   function openKit() {
@@ -352,9 +354,11 @@
     try { state.owned = new Set(JSON.parse(storage.get('zw_genshin_owned', '[]'))); } catch { state.owned = new Set(); }
     attachEvents();
     try {
-      const [catalogResponse, metaResponse, researchResponse] = await Promise.all([fetch('/data/genshin-catalog.json?v=0.1'), fetch('/data/genshin-meta.json?v=0.2'), fetch('/data/genshin-research.json?v=0.2')]);
-      if (!catalogResponse.ok || !metaResponse.ok || !researchResponse.ok) throw new Error('Data snapshot unavailable');
+      const [catalogResponse, metaResponse, researchResponse, priorityResponse] = await Promise.all([fetch('/data/genshin-catalog.json?v=0.1'), fetch('/data/genshin-meta.json?v=0.2'), fetch('/data/genshin-research.json?v=0.2'), fetch('/data/genshin-priority-reviews.json?v=0.1')]);
+      if (!catalogResponse.ok || !metaResponse.ok || !researchResponse.ok || !priorityResponse.ok) throw new Error('Data snapshot unavailable');
       state.catalog = await catalogResponse.json(); state.meta = await metaResponse.json(); state.research = await researchResponse.json();
+      const priority = await priorityResponse.json();
+      state.meta.characters = { ...state.meta.characters, ...(priority.characters || {}) };
       const hashSelection = decodeURIComponent(location.hash.slice(1));
       state.selected = characterByName(hashSelection)?.name || characterByName('Arlecchino')?.name || state.catalog.data.characters[0]?.name;
       setLanguage(state.lang);
